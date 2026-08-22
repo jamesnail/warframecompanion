@@ -108,3 +108,31 @@ export function shareChance(pPerPlayer: number, players: number): number {
 export function composeThroughRelic(pRelicFromSource: number, pItemFromRelic: number): number {
   return pRelicFromSource * pItemFromRelic
 }
+
+/**
+ * Expected mission runs to obtain an item through a relic, accounting for squad sharing.
+ *
+ * This is the number that actually decides anything, and it is not simply
+ * `1 / (relic × reward)` once more than one player is involved. In a share, each of the
+ * `players` opens their OWN relic and the squad takes the best reward, so a round consumes
+ * one relic per player but only one relic's worth of farming per player:
+ *
+ *   rounds needed   = 1 / P(at least one hit across `players`)
+ *   runs per relic  = 1 / pRelicFromSource
+ *   runs            = rounds * runs per relic
+ *
+ * At players = 1 this reduces exactly to 1 / (relic × reward).
+ *
+ * The gap is the point. A rare at Radiant needs ~10 relic openings solo but ~2.9 in a full
+ * radshare — and that is the comparison no other tool surfaces well (DESIGN.md § 5.2).
+ */
+export function runsForRelicPath(
+  pRelicFromSource: number,
+  pItemFromRelic: number,
+  players = 1,
+): number {
+  if (pRelicFromSource <= 0 || pItemFromRelic <= 0) return Number.POSITIVE_INFINITY
+  const perRound = atLeastOnce(pItemFromRelic, players)
+  if (perRound <= 0) return Number.POSITIVE_INFINITY
+  return (1 / perRound) * (1 / pRelicFromSource)
+}

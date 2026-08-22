@@ -7,8 +7,10 @@ import {
   perRunChance,
   refinementRowTotal,
   runsForConfidence,
+  runsForRelicPath,
   shareChance,
 } from './probability'
+import { stageLabel } from './stages'
 
 /**
  * Expected values below are hand-computed and the working is shown, per CLAUDE.md's
@@ -102,5 +104,49 @@ describe('composeThroughRelic', () => {
     const p = composeThroughRelic(0.125, 0.1)
     expect(p).toBeCloseTo(0.0125, 10)
     expect(expectedRuns(p)).toBeCloseTo(80, 6)
+  })
+})
+
+describe('runsForRelicPath', () => {
+  it('reduces to 1/(relic × reward) when solo', () => {
+    // Apollo drops Axi P10 at 14.29%; a common reward at Radiant is 16.67%.
+    // 1 / (0.1429 × 0.1667) = 41.98
+    expect(runsForRelicPath(0.1429, 0.1667, 1)).toBeCloseTo(41.98, 1)
+  })
+
+  it('shows the radshare gap, which is the whole point', () => {
+    // Four players each open their own relic, squad takes the best.
+    //   per round = 1 - (1 - 0.1667)^4 = 0.5178
+    //   rounds    = 1 / 0.5178          = 1.931
+    //   runs/relic= 1 / 0.1429          = 6.998
+    //   total     = 1.931 × 6.998       = 13.52
+    expect(runsForRelicPath(0.1429, 0.1667, 4)).toBeCloseTo(13.52, 1)
+    // Roughly a third of the solo effort.
+    const solo = runsForRelicPath(0.1429, 0.1667, 1)
+    expect(runsForRelicPath(0.1429, 0.1667, 4)).toBeLessThan(solo / 3)
+  })
+
+  it('is Infinity when either hop is impossible', () => {
+    expect(runsForRelicPath(0, 0.1667, 4)).toBe(Number.POSITIVE_INFINITY)
+    expect(runsForRelicPath(0.1429, 0, 4)).toBe(Number.POSITIVE_INFINITY)
+  })
+})
+
+describe('stageLabel', () => {
+  it('calls rotations rotations', () => {
+    expect(stageLabel('Survival', 'C')).toBe('Rotation C')
+    expect(stageLabel('Defense', 'A')).toBe('Rotation A')
+  })
+
+  it('does not call a cache or a vault a rotation', () => {
+    // Upstream keys these A/B/C too, but they are the 1st/2nd/3rd cache and the three
+    // Spy vaults — calling them rotations misdescribes how the mission works.
+    expect(stageLabel('Caches', 'C')).toBe('Cache C')
+    expect(stageLabel('Spy', 'B')).toBe('Vault B')
+  })
+
+  it('is absent when there is no stage at all', () => {
+    expect(stageLabel('Capture', null)).toBeUndefined()
+    expect(stageLabel('Capture', undefined)).toBeUndefined()
   })
 })
