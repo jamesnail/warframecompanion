@@ -5,8 +5,11 @@
  * eslint.config.mjs. Everything DE-facing lives behind this boundary so that no CORS
  * assumption, LZMA decompressor, or multi-megabyte HTML parse can ever reach the browser
  * (CLAUDE.md constraint 2).
- *
- * Populated in Phase 2.
  */
 
-export const SOURCES_PLACEHOLDER = true
+export * from './fetch'
+export * from './slug'
+export * from './upstream'
+export * from './relics'
+export * from './missions'
+export * from './items'

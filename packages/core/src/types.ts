@@ -35,7 +35,7 @@ export const Faction = z.enum([
 ])
 export type Faction = z.infer<typeof Faction>
 
-export const RelicTier = z.enum(['Lith', 'Meso', 'Neo', 'Axi', 'Requiem'])
+export const RelicTier = z.enum(['Lith', 'Meso', 'Neo', 'Axi', 'Requiem', 'Vanguard'])
 export type RelicTier = z.infer<typeof RelicTier>
 
 export const RelicRarity = z.enum(['common', 'uncommon', 'rare'])
@@ -144,5 +144,13 @@ export const Manifest = z.object({
   files: z.record(z.string(), z.string()),
   upstream: z.record(z.string(), z.string()),
   attributions: z.array(z.object({ name: z.string(), url: z.string().url() })),
+  /** Carried forward so the next build can compare against it — the ±15% sanity
+   *  gates need the previous build's totals, and the manifest is the only thing
+   *  guaranteed to still be on disk. */
+  counts: z.object({
+    items: z.number().int().nonnegative(),
+    sources: z.number().int().nonnegative(),
+    edges: z.number().int().nonnegative(),
+  }),
 })
 export type Manifest = z.infer<typeof Manifest>

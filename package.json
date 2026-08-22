@@ -2,6 +2,7 @@
   "name": "provenance",
   "private": true,
   "version": "0.1.0",
+  "type": "module",
   "packageManager": "pnpm@11.0.9",
   "engines": {
     "node": ">=24"
@@ -17,6 +18,8 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@provenance/core": "workspace:*",
+    "@provenance/sources": "workspace:*",
     "@types/node": "24.10.1",
     "eslint": "10.9.0",
     "eslint-import-resolver-typescript": "4.4.5",

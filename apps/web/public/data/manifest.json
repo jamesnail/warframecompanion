@@ -1,0 +1,32 @@
+{
+  "hash": "5d6208635db6",
+  "builtAt": "2026-06-25T20:55:17.196Z",
+  "files": {
+    "items": "items.5d6208635db6.json",
+    "sources": "sources.5d6208635db6.json",
+    "edges": "edges.5d6208635db6.json",
+    "relics": "relics.5d6208635db6.json"
+  },
+  "upstream": {
+    "warframe-drop-data": "a0ece5e9be2e2d55c75040720ef3226a"
+  },
+  "attributions": [
+    {
+      "name": "WFCD / warframe-drop-data",
+      "url": "https://github.com/WFCD/warframe-drop-data"
+    },
+    {
+      "name": "@wfcd/items",
+      "url": "https://github.com/WFCD/warframe-items"
+    },
+    {
+      "name": "Digital Extremes",
+      "url": "https://www.warframe.com"
+    }
+  ],
+  "counts": {
+    "items": 2327,
+    "sources": 1198,
+    "edges": 14887
+  }
+}

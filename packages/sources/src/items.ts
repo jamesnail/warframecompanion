@@ -1,0 +1,92 @@
+import type { Item, ItemCategory, RelicDetail, DropEdge } from '@provenance/core'
+import { slug } from './slug'
+
+/**
+ * Items are derived from the names appearing in the drop data itself.
+ *
+ * This is deliberately provisional. The real source of item metadata is @wfcd/items
+ * (categories, mastery rank, tradability, icons, unique paths) per DESIGN.md § 3 — that
+ * enrichment is a follow-up. Until it lands, category is inferred from the name, which
+ * is good enough to browse by but must not be presented as authoritative.
+ */
+
+const RELIC_NAME = /\b(Lith|Meso|Neo|Axi|Requiem|Vanguard)\s+\S+\s+Relic\b/i
+const BLUEPRINT = /\bBlueprint\b/i
+const COMPONENT =
+  /\b(Barrel|Receiver|Stock|Blade|Handle|Hilt|Head|Grip|Link|Chassis|Systems|Neuroptics|Carapace|Cerebrum|Harness|Wings|String|Limb|Ornament|Disc|Boot|Gauntlet|Buckle|Guard|Band|Bracket)\b/i
+const CURRENCY = /\b(Credits|Endo|Cache|Kuva|Void Traces)\b/i
+
+function inferCategory(name: string): ItemCategory {
+  if (RELIC_NAME.test(name)) return 'Relic'
+  if (CURRENCY.test(name)) return 'Resource'
+  if (COMPONENT.test(name)) return 'Component'
+  if (BLUEPRINT.test(name)) return 'Blueprint'
+  return 'Other'
+}
+
+export interface ItemSeed {
+  name: string
+}
+
+/**
+ * Build the item table from every name referenced by an edge or a relic reward.
+ *
+ * The name -> id mapping must agree exactly with how edges were slugged, otherwise the
+ * pipeline emits orphaned edges and the sanity gate rejects the build. That coupling is
+ * intentional: it turns a naming mistake into a failed build rather than a broken page.
+ */
+export function buildItems(
+  edgeNames: Iterable<string>,
+  relics: RelicDetail[],
+  relicRewardNames: Map<string, string>,
+): Item[] {
+  const byId = new Map<string, Item>()
+
+  const add = (name: string): void => {
+    const id = slug(name)
+    if (id === '' || byId.has(id)) return
+    byId.set(id, {
+      id,
+      name,
+      category: inferCategory(name),
+      // Unknown until @wfcd/items lands. Defaulting to false understates rather than
+      // overstates what a player can trade.
+      tradable: false,
+    })
+  }
+
+  for (const name of edgeNames) add(name)
+  for (const name of relicRewardNames.values()) add(name)
+  for (const relic of relics) {
+    if (!byId.has(relic.id)) {
+      byId.set(relic.id, {
+        id: relic.id,
+        name: relic.id,
+        category: 'Relic',
+        tradable: true,
+      })
+    }
+  }
+
+  return [...byId.values()].sort((a, b) => a.id.localeCompare(b.id))
+}
+
+/** Relics are sources as well as items — every relic gets a Source row so that
+ *  "what does this relic drop" is answerable by the same forward lookup as a mission. */
+export function relicEdges(relics: RelicDetail[], intactChance: Record<string, number>): DropEdge[] {
+  const edges: DropEdge[] = []
+  for (const relic of relics) {
+    for (const reward of relic.rewards) {
+      const chance = intactChance[reward.rarity]
+      if (chance === undefined) continue
+      edges.push({
+        itemId: reward.itemId,
+        sourceId: `relic:${relic.id.replace(/-relic$/, '')}`,
+        chance,
+        quantity: [1, 1],
+        provenance: 'official',
+      })
+    }
+  }
+  return edges
+}
