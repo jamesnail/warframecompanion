@@ -126,6 +126,20 @@ async function main(): Promise<void> {
     name: relic.id.replace(/-relic$/, '').replace(/-/g, ' ').toUpperCase(),
   }))
 
+  // Vaulting is DERIVED, never trusted as an upstream flag (DESIGN.md 10.5): a relic is
+  // vaulted exactly when nothing currently in rotation drops it. Recomputing it every
+  // build is what keeps it correct across Prime Access rotations.
+  const droppedRelicIds = new Set(
+    missionDrops.filter((edge) => edge.itemId.endsWith('-relic')).map((edge) => edge.itemId),
+  )
+  for (const relic of relics) {
+    relic.vaulted = !droppedRelicIds.has(relic.id)
+  }
+  const vaultedCount = relics.filter((relic) => relic.vaulted).length
+  console.log(
+    `  vaulted ${String(vaultedCount)} of ${String(relics.length)} relics have no active source`,
+  )
+
   const edges: DropEdge[] = [...missionDrops, ...relicEdges(relics, INTACT)]
   const sources: Source[] = [...missionSources, ...relicSources]
 

@@ -1,79 +1,71 @@
-import { REFINEMENT_TABLE, expectedRuns, runsForConfidence, shareChance } from '@provenance/core'
+import Link from 'next/link'
+
+import { Panel, PanelHeader, Stat } from '@/components/Primitives'
+import { getDataset } from '@/lib/data'
 import { site } from '@/config/site'
 
 /**
- * Phase 1 holding page. The search palette replaces this in Phase 3 — the palette *is*
- * the home page (DESIGN.md § 7).
- *
- * It renders one real computation rather than lorem ipsum, so that a green deploy proves
- * the workspace link to @provenance/core actually works end to end.
+ * Phase 1 holding page, reskinned onto the real visual system and wired to real data.
+ * The ⌘K palette replaces the hero in Phase 3 — the palette *is* the home page
+ * (DESIGN.md § 7).
  */
-const RARE_RADIANT = REFINEMENT_TABLE.radiant.rare
+export default async function HomePage() {
+  const { items, sources, edges, relics, manifest, relicsByReward } = await getDataset()
 
-const rows = [
-  { label: 'Solo', players: 1 },
-  { label: 'Squad of 2', players: 2 },
-  { label: 'Squad of 3', players: 3 },
-  { label: 'Squad of 4', players: 4 },
-] as const
+  // Items reachable through the most relic chains are the ones where a flat table row is
+  // least useful — which is exactly what this tool exists to answer.
+  const mostChained = [...relicsByReward.entries()]
+    .map(([itemId, list]) => ({ itemId, count: list.length }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 12)
 
-function pct(p: number): string {
-  return `${(p * 100).toFixed(2)}%`
-}
+  const itemsById = new Map(items.map((item) => [item.id, item]))
+  const built = new Date(manifest.builtAt)
 
-export default function HomePage() {
   return (
-    <div className="mx-auto max-w-3xl px-6 py-16">
-      <h1 className="font-display text-2xl font-bold tracking-tight text-orokin">{site.name}</h1>
-      <p className="mt-2 text-lg text-text-dim">{site.tagline}</p>
+    <div className="mx-auto max-w-4xl px-5 py-16 sm:px-6 sm:py-24">
+      <h1 className="font-display text-2xl font-bold tracking-tight text-orokin sm:text-[3rem]">
+        {site.name}
+      </h1>
+      <p className="mt-3 max-w-xl text-lg text-text-dim">{site.tagline}</p>
+      <p className="mt-6 max-w-2xl text-sm text-text-faint">
+        Given an item, every path to it — including the ones gated behind Void Relics, where
+        the honest answer is a chain rather than a single table row.
+      </p>
 
-      <section className="chamfer mt-12 border border-hairline bg-void-800 p-6">
-        <h2 className="font-display text-lg font-semibold">Radiant share — rare reward</h2>
-        <p className="mt-1 text-sm text-text-dim">
-          One rare slot at Radiant is {pct(RARE_RADIANT)} per player. Sharing changes the
-          answer more than refinement does.
-        </p>
+      <div className="mt-12 grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-4">
+        <Stat label="Items" value={items.length.toLocaleString()} />
+        <Stat label="Sources" value={sources.length.toLocaleString()} />
+        <Stat label="Drop edges" value={edges.length.toLocaleString()} />
+        <Stat label="Relics" value={relics.length.toLocaleString()} />
+      </div>
 
-        <table className="mt-5 w-full text-sm">
-          <caption className="sr-only">
-            Probability of at least one rare drop by squad size, and runs required
-          </caption>
-          <thead>
-            <tr className="border-b border-hairline text-left text-xs uppercase text-text-dim">
-              <th scope="col" className="py-2 font-medium">
-                Squad
-              </th>
-              <th scope="col" className="py-2 text-right font-medium">
-                Chance
-              </th>
-              <th scope="col" className="py-2 text-right font-medium">
-                Expected runs
-              </th>
-              <th scope="col" className="py-2 text-right font-medium">
-                95% confident
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => {
-              const p = shareChance(RARE_RADIANT, row.players)
-              return (
-                <tr key={row.players} className="border-b border-hairline/40">
-                  <th scope="row" className="py-2 font-normal">
-                    {row.label}
-                  </th>
-                  <td className="data-num py-2 text-right">{pct(p)}</td>
-                  <td className="data-num py-2 text-right">{expectedRuns(p).toFixed(1)}</td>
-                  <td className="data-num py-2 text-right">{runsForConfidence(p)}</td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </section>
+      <Panel className="mt-12">
+        <PanelHeader title="Most relic paths" aside="by chain count" />
+        <ul className="divide-y divide-hairline/50">
+          {mostChained.map(({ itemId, count }) => {
+            const item = itemsById.get(itemId)
+            if (item === undefined) return null
+            return (
+              <li key={itemId}>
+                <Link
+                  href={`/item/${itemId}`}
+                  className="flex items-baseline justify-between gap-4 px-5 py-3 text-sm transition-colors hover:bg-void-700"
+                >
+                  <span className="text-text">{item.name}</span>
+                  <span className="data-num shrink-0 text-xs text-text-faint">
+                    {count} relics
+                  </span>
+                </Link>
+              </li>
+            )
+          })}
+        </ul>
+      </Panel>
 
-      <p className="mt-8 text-sm text-text-dim">
-        Scaffold only — drop data lands in Phase 2.
+      <p className="label mt-8">
+        Drop data {built.toISOString().slice(0, 10)} · build {manifest.hash} · search palette
+        lands in phase 3
       </p>
     </div>
   )

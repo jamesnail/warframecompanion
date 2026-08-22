@@ -37,14 +37,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${archivo.variable} ${interTight.variable} ${plexMono.variable}`}>
       <body className="min-h-dvh flex flex-col">
         <main className="flex-1">{children}</main>
-        <footer className="border-t border-hairline px-6 py-8 text-xs text-text-dim">
+        <footer className="mt-24 border-t border-hairline px-5 py-10 text-xs text-text-faint sm:px-6">
           <p className="max-w-prose">
-            Unofficial fan tool. Warframe and all game data are property of Digital Extremes.
+            Unofficial fan tool, not affiliated with or endorsed by Digital Extremes. Warframe and
+            all game data are property of Digital Extremes.
           </p>
           <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1">
             {attributions.map((a) => (
               <li key={a.url}>
-                <a className="underline underline-offset-4 hover:text-text" href={a.url}>
+                <a className="underline underline-offset-4 transition-colors hover:text-text" href={a.url}>
                   {a.name}
                 </a>
               </li>

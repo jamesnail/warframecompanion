@@ -1,30 +1,51 @@
 @import 'tailwindcss';
 
 /**
- * The visual system (DESIGN.md § 8). Every colour in the app resolves to one of these
- * tokens — components must never carry a raw hex or an arbitrary Tailwind colour value.
+ * PROVENANCE — VISUAL SYSTEM
  *
- * Defined in OKLCH so the rarity ramp can hold lightness and chroma constant while only
- * hue varies. That is what makes the four rarities read as one measurement scale rather
- * than four unrelated tags.
+ * Every colour in the app resolves to a token defined here. Components must never carry a
+ * raw hex or an arbitrary Tailwind colour value (CLAUDE.md § Visual rules).
+ *
+ * Defined in OKLCH so the rarity ramp holds lightness and chroma constant while only hue
+ * varies — that is what makes the four rarities read as one measurement scale rather than
+ * four unrelated tags.
+ *
+ * Contrast is verified, not assumed. Every foreground below clears WCAG AA (4.5:1) against
+ * every surface it is allowed to sit on; the tightest pairing is text-faint on void-700 at
+ * 4.76:1. Two choices serve long reading sessions specifically: the page is never pure black
+ * (#0b0d15) and body text is never pure white (#dcdee5), which takes the edge off a dense
+ * table without giving up legibility.
  */
 @theme {
-  --color-void-900: oklch(0.14 0.018 275); /* page */
-  --color-void-800: oklch(0.18 0.02 275); /* panel */
-  --color-void-700: oklch(0.24 0.022 275); /* raised */
-  --color-hairline: oklch(0.32 0.02 275); /* 1px structure */
-  --color-text: oklch(0.93 0.008 275);
-  --color-text-dim: oklch(0.68 0.012 275);
+  /* ---- surfaces: a cold void base, blue-violet rather than neutral grey ---------- */
+  --color-void-950: oklch(0.12 0.016 275); /* wells, inset, code */
+  --color-void-900: oklch(0.16 0.018 275); /* page */
+  --color-void-800: oklch(0.2 0.02 275); /* panel */
+  --color-void-700: oklch(0.25 0.022 275); /* raised / table header */
+  --color-void-600: oklch(0.31 0.022 275); /* hover */
 
-  /* The one accent. Used once per view, on the thing you searched for. */
-  --color-orokin: oklch(0.78 0.14 85);
+  /* ---- structure: hairlines do the work that borders and shadows would ----------- */
+  --color-hairline: oklch(0.3 0.018 275);
+  --color-hairline-strong: oklch(0.4 0.02 275);
 
-  /* Rarity ramp — constant L and C, hue only. */
+  /* ---- text --------------------------------------------------------------------- */
+  --color-text: oklch(0.9 0.01 275); /* 14.4:1 on page */
+  --color-text-dim: oklch(0.7 0.014 275); /* 7.3:1  — secondary */
+  --color-text-faint: oklch(0.64 0.014 275); /* 5.8:1  — labels, units */
+
+  /* ---- the one accent ------------------------------------------------------------
+   * Used once per view, on the thing you searched for. It reads as gold precisely
+   * because nothing else competes with it. */
+  --color-orokin: oklch(0.82 0.13 85);
+  --color-orokin-dim: oklch(0.62 0.1 85);
+
+  /* ---- rarity ramp: constant L and C, hue only ----------------------------------- */
   --color-r-common: oklch(0.72 0.1 250);
   --color-r-uncommon: oklch(0.72 0.1 150);
   --color-r-rare: oklch(0.72 0.1 85);
   --color-r-legendary: oklch(0.72 0.1 20);
 
+  /* ---- type ---------------------------------------------------------------------- */
   --font-display: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
   --font-body: var(--font-inter-tight), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-plex-mono), ui-monospace, monospace;
@@ -40,10 +61,36 @@
 
 /**
  * The one piece of Orokin geometry the design borrows: a single asymmetric cut on the
- * top-left and bottom-right of a panel. Applied via clip-path, never border-radius, so it
- * stays consistent everywhere. 10px per DESIGN.md § 8.
+ * top-left and bottom-right. Applied via clip-path, never border-radius, so it stays
+ * consistent everywhere.
+ *
+ * clip-path cuts the border off with the corner, so a chamfered panel gets its outline
+ * from a background layer rather than a border property.
  */
 @utility chamfer {
+  clip-path: polygon(
+    10px 0,
+    100% 0,
+    100% calc(100% - 10px),
+    calc(100% - 10px) 100%,
+    0 100%,
+    0 10px
+  );
+}
+
+@utility chamfer-sm {
+  clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
+}
+
+/**
+ * Panel: the standard content container. The 1px outline is drawn with a background
+ * gradient underneath the clip, because a real border would be sliced off by the chamfer.
+ */
+@utility panel {
+  background:
+    linear-gradient(var(--color-void-800), var(--color-void-800)) padding-box,
+    linear-gradient(var(--color-hairline), var(--color-hairline)) border-box;
+  border: 1px solid transparent;
   clip-path: polygon(
     10px 0,
     100% 0,
@@ -59,6 +106,21 @@
 @utility data-num {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+  font-feature-settings: 'zero' 1;
+}
+
+/** Small uppercase label. Tracking is what keeps it legible at this size. */
+@utility label {
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+}
+
+/** Vaulted content is desaturated and marked, never hidden by default. */
+@utility vaulted {
+  filter: saturate(0.35);
+  opacity: 0.75;
 }
 
 html {
@@ -70,11 +132,30 @@ body {
   color: var(--color-text);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Display type is set tight; wide industrial grotesque needs the tracking pulled in. */
+.font-display {
+  letter-spacing: -0.015em;
+  font-stretch: 115%;
+}
+
+::selection {
+  background: var(--color-orokin);
+  color: var(--color-void-950);
 }
 
 :focus-visible {
   outline: 2px solid var(--color-orokin);
   outline-offset: 2px;
+}
+
+/* The scrollbar is part of a dense reference tool's surface; leaving it default light
+   breaks the void base on Windows. */
+* {
+  scrollbar-color: var(--color-void-600) transparent;
+  scrollbar-width: thin;
 }
 
 /* The motion budget is three moments, and all of them yield to this. */

@@ -134,7 +134,7 @@ interface DropEdge {
 
 interface RelicDetail {
   id: ItemId;                   // relics are items and sources both
-  tier: 'Lith' | 'Meso' | 'Neo' | 'Axi' | 'Requiem';
+  tier: 'Lith' | 'Meso' | 'Neo' | 'Axi' | 'Requiem' | 'Vanguard';
   vaulted: boolean;
   rewards: { itemId: ItemId; rarity: 'common' | 'uncommon' | 'rare' }[];
 }
@@ -151,7 +151,7 @@ Two rules that matter more than they look:
 ### Emitted files
 
 ```
-/data/manifest.json                    hash, builtAt, upstream hashes, file list, attributions
+/data/manifest.json                    hash, builtAt, upstream hashes, file list, attributions, counts
 /data/items.<hash>.json                ~6k items,  ≈900 kB raw / ≈180 kB br
 /data/sources.<hash>.json              ~2k sources
 /data/edges.<hash>.json                ~40k edges, the bulk of the payload
@@ -174,8 +174,17 @@ interesting cases are the ones where there isn't one.
 ### 5.1 Direct drops
 
 ```
-P(item per run) = chance × eventsPerRun
+P(item per run) = 1 - (1 - chance)^eventsPerRun
 ```
+
+Each event in a run is an independent trial, so the per-run chance is the complement of
+missing every one of them.
+
+> **Amended 2026-08-22.** This previously read `chance × eventsPerRun`, which is wrong: it
+> exceeds 1 once chance and event count are both high (a 50% drop over four rotations would
+> report "200%"). The two agree closely for the small chances that dominate real drop tables,
+> which is why the error is easy to miss. `perRunChance()` in `packages/core/src/probability.ts`
+> implements the corrected form, and its test asserts the failure case of the old one.
 
 Report expected runs as `1 / P`, and "nearly guaranteed" as the runs `n` where
 `1 - (1 - P)^n ≥ 0.95`. Both numbers, always — players intuit the second better than the first,
@@ -431,6 +440,21 @@ Write these into code comments as you hit them.
    not as duplicated sources.
 7. **Market rate limits.** Never batch-fetch listings for a full collection. Fetch per weapon,
    on demand, and cache hard.
+
+8. **`relics.json`'s `rarity` field is unusable.** Confirmed 2026-08-22 across all 3086 entries:
+   the string `"Common"` never appears once, every common-tier chance (25.33 / 23.33 / 20 / 16.67)
+   is labelled `"Uncommon"`, and the Radiant *rare* rate of 10% is labelled `"Uncommon"` too.
+   Derive rarity from `(state, chance)` instead — and note that chance alone is not a sufficient
+   key, because 20% means common at Flawless but uncommon at Radiant. See `packages/sources/src/relics.ts`.
+
+9. **Malformed rows exist and must be bounded, not merely tolerated.** One Requiem entry ships
+   with no `relicName` at all. Skipping it is correct; skipping silently is not. The pipeline
+   carries a skip budget so that one known defect passes and a sudden increase fails the build.
+
+10. **Gates must validate the parsed data, not the fixture.** The relic-sum check was first written
+    against `REFINEMENT_TABLE`, which is a constant and therefore can never fail. Pointed at the
+    actual parsed relics, it immediately caught the Requiem structure (hazard 4). When adding a
+    sanity gate, confirm it can fail.
 
 ---
 
