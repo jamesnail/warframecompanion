@@ -1,0 +1,90 @@
+@import 'tailwindcss';
+
+/**
+ * The visual system (DESIGN.md § 8). Every colour in the app resolves to one of these
+ * tokens — components must never carry a raw hex or an arbitrary Tailwind colour value.
+ *
+ * Defined in OKLCH so the rarity ramp can hold lightness and chroma constant while only
+ * hue varies. That is what makes the four rarities read as one measurement scale rather
+ * than four unrelated tags.
+ */
+@theme {
+  --color-void-900: oklch(0.14 0.018 275); /* page */
+  --color-void-800: oklch(0.18 0.02 275); /* panel */
+  --color-void-700: oklch(0.24 0.022 275); /* raised */
+  --color-hairline: oklch(0.32 0.02 275); /* 1px structure */
+  --color-text: oklch(0.93 0.008 275);
+  --color-text-dim: oklch(0.68 0.012 275);
+
+  /* The one accent. Used once per view, on the thing you searched for. */
+  --color-orokin: oklch(0.78 0.14 85);
+
+  /* Rarity ramp — constant L and C, hue only. */
+  --color-r-common: oklch(0.72 0.1 250);
+  --color-r-uncommon: oklch(0.72 0.1 150);
+  --color-r-rare: oklch(0.72 0.1 85);
+  --color-r-legendary: oklch(0.72 0.1 20);
+
+  --font-display: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-inter-tight), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+
+  /* Six sizes, no more. */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.75rem;
+  --text-2xl: 2.5rem;
+}
+
+/**
+ * The one piece of Orokin geometry the design borrows: a single asymmetric cut on the
+ * top-left and bottom-right of a panel. Applied via clip-path, never border-radius, so it
+ * stays consistent everywhere. 10px per DESIGN.md § 8.
+ */
+@utility chamfer {
+  clip-path: polygon(
+    10px 0,
+    100% 0,
+    100% calc(100% - 10px),
+    calc(100% - 10px) 100%,
+    0 100%,
+    0 10px
+  );
+}
+
+/** Every numeral in a data context aligns vertically. A drop-rate column that does not
+ *  is a defect, not a nitpick (CLAUDE.md § Visual rules). */
+@utility data-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--color-void-900);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-orokin);
+  outline-offset: 2px;
+}
+
+/* The motion budget is three moments, and all of them yield to this. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

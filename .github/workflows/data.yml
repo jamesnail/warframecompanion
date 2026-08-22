@@ -1,0 +1,48 @@
+name: Data refresh
+
+on:
+  schedule:
+    # Daily. DE's drop tables move on their own schedule; this just has to be after it.
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: data-refresh
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # The pipeline exits nonzero if any sanity gate fails, which fails the job
+      # and commits nothing. A truncated dataset must never reach main.
+      - name: Build data
+        run: pnpm data:build
+
+      # Output is content-addressed, so an unchanged upstream produces byte-identical
+      # files and no commit. There are no empty daily commits.
+      - name: Commit if the build hash changed
+        run: |
+          if [[ -z "$(git status --porcelain apps/web/public/data)" ]]; then
+            echo "No data change. Nothing to commit."
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/web/public/data
+          git commit -m "data: refresh drop tables ($(date -u +%Y-%m-%d))"
+          git push

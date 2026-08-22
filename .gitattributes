@@ -1,0 +1,8 @@
+# CI builds on Linux; keep the repo LF-normalized regardless of contributor platform.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.webp binary
+*.woff2 binary
+pnpm-lock.yaml -diff

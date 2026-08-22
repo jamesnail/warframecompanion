@@ -1,0 +1,13 @@
+packages:
+  - apps/*
+  - packages/*
+
+# These ship prebuilt native binaries and must be allowed to run their install scripts.
+# Without esbuild, vitest cannot transform TypeScript; without unrs-resolver, the eslint
+# TypeScript import resolver fails. pnpm blocks build scripts by default and exits nonzero
+# until each is explicitly decided, which breaks every `pnpm exec` in the workspace.
+allowBuilds:
+  '@tailwindcss/oxide': true
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
