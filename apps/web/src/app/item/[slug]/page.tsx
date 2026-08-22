@@ -5,7 +5,6 @@ import type { Metadata } from 'next'
 import {
   REFINEMENT_TABLE,
   expectedRuns,
-  missionDurationMinutes,
   perRunChance,
   runsForConfidence,
   runsForRelicPath,
@@ -17,6 +16,7 @@ import { Panel, PanelHeader, RarityTag, Stat } from '@/components/Primitives'
 import { ProbabilityBar } from '@/components/ProbabilityBar'
 import { getDataset } from '@/lib/data'
 import { formatMinutes } from '@/lib/format'
+import { kindLabel, runMinutes } from '@/lib/effort'
 
 /** Squad size assumed for the share comparison. Becomes a control in a later phase. */
 const SHARE_SIZE = 4
@@ -71,14 +71,29 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
   // Direct sources, ranked by expected TIME rather than raw chance — a 10% reward on a
   // 20-minute Survival is not the same offer as 10% on a 90-second Capture.
   const directEdges = incoming
-    .filter((edge) => edge.sourceId.startsWith('mission:'))
+    .filter((edge) => !edge.sourceId.startsWith('relic:'))
     .map((edge) => {
       const source = sourcesById.get(edge.sourceId)
       const p = perRunChance(edge)
-      const minutes = missionDurationMinutes(source?.missionType)
-      return { edge, source, p, minutes, expectedMinutes: expectedRuns(p) * minutes }
+      const minutes = runMinutes(source)
+      return {
+        edge,
+        source,
+        p,
+        minutes,
+        expectedMinutes: minutes === undefined ? undefined : expectedRuns(p) * minutes,
+      }
     })
-    .sort((a, b) => a.expectedMinutes - b.expectedMinutes)
+    // Timeable sources first, ranked by time; then the rest ranked by chance. An enemy
+    // drop and a Capture run are not comparable in minutes, so they are not mixed.
+    .sort((a, b) => {
+      if (a.expectedMinutes !== undefined && b.expectedMinutes !== undefined) {
+        return a.expectedMinutes - b.expectedMinutes
+      }
+      if (a.expectedMinutes !== undefined) return -1
+      if (b.expectedMinutes !== undefined) return 1
+      return b.p - a.p
+    })
 
   // ---- relic chains: item <- relic <- mission ---------------------------------
   const relics = relicsByReward.get(slug) ?? []
@@ -93,8 +108,8 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
     let best: { edge: DropEdge; minutes: number; expectedMinutes: number } | undefined
     for (const edge of relicDrops) {
       const source = sourcesById.get(edge.sourceId)
-      if (source === undefined || source.kind !== 'mission') continue
-      const minutes = missionDurationMinutes(source.missionType)
+      if (source === undefined || source.kind === 'relic') continue
+      const minutes = runMinutes(source) ?? 5
       const expectedMinutes = expectedRuns(perRunChance(edge)) * minutes
       if (best === undefined || expectedMinutes < best.expectedMinutes) {
         best = { edge, minutes, expectedMinutes }
@@ -144,6 +159,15 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
         ? { p: bestDirect.p, minutes: bestDirect.minutes, via: 'direct drop' as const }
         : undefined
 
+  // Enemy and syndicate sources have no per-run duration, so a time estimate would be
+  // invented rather than derived. The stat is omitted instead of guessed.
+  const headlineMinutes =
+    headline?.minutes === undefined ? undefined : expectedRuns(headline.p) * headline.minutes
+
+  // You do not queue "one Corrupted Heavy Gunner" — for enemy sources the unit is kills.
+  const headlineNoun =
+    headline?.via === 'direct drop' && bestDirect?.source?.kind === 'enemy' ? 'kills' : 'runs'
+
   const vaultedCount = chains.filter((chain) => chain.vaulted).length
   const maxChain = Math.max(...chains.map((c) => c.composed), 0.0001)
   const maxDirect = Math.max(...directEdges.map((d) => d.p), 0.0001)
@@ -163,10 +187,24 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
       {headline !== undefined ? (
         <>
           <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-4">
-            <Stat label="Fastest route" value={formatMinutes(expectedRuns(headline.p) * headline.minutes)} accent />
-            <Stat label="Expected runs" value={expectedRuns(headline.p).toFixed(0)} />
-            <Stat label="Chance / run" value={(headline.p * 100).toFixed(2)} unit="%" />
-            <Stat label="95% confident" value={String(runsForConfidence(headline.p))} unit="runs" />
+            {headlineMinutes !== undefined && (
+              <Stat label="Fastest route" value={formatMinutes(headlineMinutes)} accent />
+            )}
+            <Stat
+              label={`Expected ${headlineNoun}`}
+              value={expectedRuns(headline.p).toFixed(0)}
+              accent={headlineMinutes === undefined}
+            />
+            <Stat
+              label={`Chance / ${headlineNoun === 'kills' ? 'kill' : 'run'}`}
+              value={(headline.p * 100).toFixed(2)}
+              unit="%"
+            />
+            <Stat
+              label="95% confident"
+              value={String(runsForConfidence(headline.p))}
+              unit={headlineNoun}
+            />
           </div>
           <p className="label mt-3">via {headline.via}</p>
         </>
@@ -262,6 +300,7 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
           <ul>
             {directEdges.slice(0, 20).map(({ edge, source, p, minutes }, index) => {
               const stage = stageLabel(source?.missionType, edge.rotation)
+              const kind = kindLabel(source)
               return (
                 <li
                   key={`${edge.sourceId}-${String(index)}`}
@@ -275,12 +314,17 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
                     {source?.missionType !== undefined && (
                       <span className="text-text-faint">· {source.missionType}</span>
                     )}
+                    {kind !== undefined && <span className="label">{kind}</span>}
                     {stage !== undefined && <span className="label ml-auto">{stage}</span>}
                   </div>
                   <div className="data-num mt-1 text-xs text-text-faint">
-                    ~{expectedRuns(p).toFixed(0)} runs
-                    <span className="mx-1.5 text-hairline-strong">|</span>
-                    {formatMinutes(expectedRuns(p) * minutes)}
+                    ~{expectedRuns(p).toFixed(0)} {source?.kind === 'enemy' ? 'kills' : 'runs'}
+                    {minutes !== undefined && (
+                      <>
+                        <span className="mx-1.5 text-hairline-strong">|</span>
+                        {formatMinutes(expectedRuns(p) * minutes)}
+                      </>
+                    )}
                   </div>
                   <div className="mt-2">
                     <ProbabilityBar value={p} max={maxDirect} />

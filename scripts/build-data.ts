@@ -14,19 +14,37 @@ import { fileURLToPath } from 'node:url'
 
 import { REFINEMENT_TABLE, refinementRowTotal } from '@provenance/core'
 import type { DropEdge, Item, Manifest, Source } from '@provenance/core'
+import { z } from 'zod'
+
 import {
+  RawBountyTier,
+  RawEnemyTable,
   RawInfo,
+  RawKeyReward,
   RawMissionRewards,
+  RawNamedReward,
   RawRelics,
+  RawSyndicateItem,
+  RawTransient,
   buildItems,
   fetchJson,
+  mergeParsed,
+  parseBounties,
+  parseEnemyTables,
+  parseKeys,
   parseMissions,
   parseRelics,
+  parseSorties,
+  parseSyndicates,
+  parseTransient,
   relicEdges,
   slug,
 } from '@provenance/sources'
 
 const DIFF_ONLY = process.argv.includes('--diff')
+
+/** Explicit human override for the +/-15% count gates. Never set in CI. */
+const ACCEPT_DRIFT = process.argv.includes('--accept-drift')
 
 const REPO = 'https://raw.githubusercontent.com/WFCD/warframe-drop-data/master/data'
 const OUT_DIR = fileURLToPath(new URL('../apps/web/public/data/', import.meta.url))
@@ -44,6 +62,35 @@ const INTACT: Record<string, number> = {
   uncommon: REFINEMENT_TABLE.intact.uncommon,
   rare: REFINEMENT_TABLE.intact.rare,
 }
+
+/**
+ * The secondary drop tables, declared once so fetching, validating and parsing stay in
+ * step. `key` is the single top-level property each file wraps its payload in.
+ *
+ * Deliberately absent: modLocations.json, which is the inverse index of enemyModTables —
+ * including both would emit every enemy mod drop twice.
+ */
+const SECONDARY = [
+  { file: 'cetusBountyRewards', key: 'cetusBountyRewards', kind: 'bounty', label: 'Cetus' },
+  {
+    file: 'solarisBountyRewards',
+    key: 'solarisBountyRewards',
+    kind: 'bounty',
+    label: 'Solaris United',
+  },
+  { file: 'deimosRewards', key: 'deimosRewards', kind: 'bounty', label: 'Deimos' },
+  { file: 'zarimanRewards', key: 'zarimanRewards', kind: 'bounty', label: 'Zariman' },
+  { file: 'entratiLabRewards', key: 'entratiLabRewards', kind: 'bounty', label: 'Entrati Lab' },
+  { file: 'hexRewards', key: 'hexRewards', kind: 'bounty', label: 'Hex' },
+  { file: 'transientRewards', key: 'transientRewards', kind: 'transient', label: '' },
+  { file: 'sortieRewards', key: 'sortieRewards', kind: 'sortie', label: '' },
+  { file: 'keyRewards', key: 'keyRewards', kind: 'key', label: '' },
+  { file: 'syndicates', key: 'syndicates', kind: 'syndicate', label: '' },
+  { file: 'enemyModTables', key: 'enemyModTables', kind: 'enemy', label: '' },
+  { file: 'enemyBlueprintTables', key: 'enemyBlueprintTables', kind: 'enemy', label: '' },
+  { file: 'miscItems', key: 'miscItems', kind: 'enemy', label: '' },
+  { file: 'resourceByAvatar', key: 'resourceByAvatar', kind: 'enemy', label: '' },
+] as const
 
 function fail(message: string): never {
   console.error(`\n  FAILED  ${message}\n`)
@@ -69,10 +116,11 @@ async function main(): Promise<void> {
 
   // ---- fetch ------------------------------------------------------------------
   console.log('fetching upstream...')
-  const [info, missionsRaw, relicsRaw] = await Promise.all([
+  const [info, missionsRaw, relicsRaw, ...secondaryRaw] = await Promise.all([
     fetchJson<unknown>(`${REPO}/info.json`),
     fetchJson<unknown>(`${REPO}/missionRewards.json`),
     fetchJson<unknown>(`${REPO}/relics.json`),
+    ...SECONDARY.map((table) => fetchJson<unknown>(`${REPO}/${table.file}.json`)),
   ])
 
   // ---- validate ---------------------------------------------------------------
@@ -126,11 +174,82 @@ async function main(): Promise<void> {
     name: relic.id.replace(/-relic$/, '').replace(/-/g, ' ').toUpperCase(),
   }))
 
+  // ---- secondary tables -------------------------------------------------------
+  const secondary = mergeParsed(
+    SECONDARY.map((table, index) => {
+      const payload = secondaryRaw[index]
+      const unwrapped = (payload as Record<string, unknown> | undefined)?.[table.key]
+      if (unwrapped === undefined) {
+        fail(`${table.file}.json did not contain the expected "${table.key}" key`)
+      }
+
+      switch (table.kind) {
+        case 'bounty': {
+          const parsed = z.array(RawBountyTier).safeParse(unwrapped)
+          if (!parsed.success) fail(`${table.file}.json failed validation: ${parsed.error.message}`)
+          return parseBounties(parsed.data, table.label)
+        }
+        case 'transient': {
+          const parsed = z.array(RawTransient).safeParse(unwrapped)
+          if (!parsed.success) fail(`${table.file}.json failed validation: ${parsed.error.message}`)
+          return parseTransient(parsed.data)
+        }
+        case 'sortie': {
+          const parsed = z.array(RawNamedReward).safeParse(unwrapped)
+          if (!parsed.success) fail(`${table.file}.json failed validation: ${parsed.error.message}`)
+          return parseSorties(parsed.data)
+        }
+        case 'key': {
+          const parsed = z.array(RawKeyReward).safeParse(unwrapped)
+          if (!parsed.success) fail(`${table.file}.json failed validation: ${parsed.error.message}`)
+          return parseKeys(parsed.data)
+        }
+        case 'syndicate': {
+          const parsed = z.record(z.string(), z.array(RawSyndicateItem)).safeParse(unwrapped)
+          if (!parsed.success) fail(`${table.file}.json failed validation: ${parsed.error.message}`)
+          return parseSyndicates(parsed.data)
+        }
+        case 'enemy': {
+          const parsed = z.array(RawEnemyTable).safeParse(unwrapped)
+          if (!parsed.success) fail(`${table.file}.json failed validation: ${parsed.error.message}`)
+          return parseEnemyTables(parsed.data)
+        }
+      }
+    }),
+  )
+
+  console.log(
+    `  tables  ${String(SECONDARY.length)} secondary tables -> ` +
+      `${String(secondary.sources.length)} sources, ${String(secondary.edges.length)} edges`,
+  )
+
+  // A few enemy-table rewards carry no chance at all. Dropping them is right — emitting 0
+  // would render as "impossible" — but a jump means upstream changed shape, not that the
+  // game gained a hundred unknown drops.
+  const UNKNOWN_CHANCE_BUDGET = 80
+  if (secondary.unknownChance > UNKNOWN_CHANCE_BUDGET) {
+    fail(
+      `${String(secondary.unknownChance)} rewards had no drop chance ` +
+        `(budget ${String(UNKNOWN_CHANCE_BUDGET)}). Upstream shape likely changed.`,
+    )
+  }
+  if (secondary.unknownChance > 0) {
+    console.log(
+      `  note    skipped ${String(secondary.unknownChance)} reward(s) with no upstream chance`,
+    )
+  }
+
   // Vaulting is DERIVED, never trusted as an upstream flag (DESIGN.md 10.5): a relic is
-  // vaulted exactly when nothing currently in rotation drops it. Recomputing it every
-  // build is what keeps it correct across Prime Access rotations.
+  // vaulted exactly when nothing currently in rotation drops it.
+  //
+  // This must consider EVERY source, not just missions — bounties, transient objectives
+  // and keys all drop relics too. Today every bounty-dropped relic happens to have a
+  // mission source as well, so a mission-only check gives the same answer; relying on
+  // that overlap holding would be a silent trap the next time DE moves a relic.
   const droppedRelicIds = new Set(
-    missionDrops.filter((edge) => edge.itemId.endsWith('-relic')).map((edge) => edge.itemId),
+    [...missionDrops, ...secondary.edges]
+      .filter((edge) => edge.itemId.endsWith('-relic'))
+      .map((edge) => edge.itemId),
   )
   for (const relic of relics) {
     relic.vaulted = !droppedRelicIds.has(relic.id)
@@ -140,8 +259,19 @@ async function main(): Promise<void> {
     `  vaulted ${String(vaultedCount)} of ${String(relics.length)} relics have no active source`,
   )
 
-  const edges: DropEdge[] = [...missionDrops, ...relicEdges(relics, INTACT)]
-  const sources: Source[] = [...missionSources, ...relicSources]
+  const edges: DropEdge[] = [
+    ...missionDrops,
+    ...relicEdges(relics, INTACT),
+    ...secondary.edges,
+  ]
+
+  // Several enemies appear in more than one table (a mod table and an item table), so the
+  // same source id can be produced twice. Dedupe by id, keeping the first.
+  const sourceById = new Map<string, Source>()
+  for (const source of [...missionSources, ...relicSources, ...secondary.sources]) {
+    if (!sourceById.has(source.id)) sourceById.set(source.id, source)
+  }
+  const sources: Source[] = [...sourceById.values()]
 
   const namesSeen: string[] = []
   for (const nodes of Object.values(missionsParsed.data.missionRewards)) {
@@ -153,7 +283,7 @@ async function main(): Promise<void> {
     }
   }
 
-  const items: Item[] = buildItems(namesSeen, relics, relicRewardNames)
+  const items: Item[] = buildItems([...namesSeen, ...secondary.names], relics, relicRewardNames)
 
   console.log(
     `  parsed  ${String(items.length)} items, ${String(sources.length)} sources, ` +
@@ -166,15 +296,30 @@ async function main(): Promise<void> {
   const previous = await readPreviousManifest()
 
   if (previous?.counts !== undefined) {
+    const drift: string[] = []
     if (!within(items.length, previous.counts.items, 0.15)) {
-      fail(
-        `item count moved more than 15%: ${String(previous.counts.items)} -> ${String(items.length)}`,
+      drift.push(
+        `item count ${String(previous.counts.items)} -> ${String(items.length)}`,
       )
     }
     if (!within(edges.length, previous.counts.edges, 0.15)) {
-      fail(
-        `edge count moved more than 15%: ${String(previous.counts.edges)} -> ${String(edges.length)}`,
+      drift.push(
+        `edge count ${String(previous.counts.edges)} -> ${String(edges.length)}`,
       )
+    }
+
+    if (drift.length > 0) {
+      // The gate cannot distinguish an intentional coverage expansion from upstream
+      // corruption, so a human has to say which it is. --accept-drift is deliberately
+      // absent from the daily workflow: the cron must never be able to wave through a
+      // dataset that halved overnight.
+      if (!ACCEPT_DRIFT) {
+        fail(
+          `${drift.join('; ')} — more than 15%. If this is expected, rerun with ` +
+            `--accept-drift. If it is not, upstream changed and nothing should ship.`,
+        )
+      }
+      console.log(`  DRIFT   accepted by hand: ${drift.join('; ')}`)
     }
   }
 
