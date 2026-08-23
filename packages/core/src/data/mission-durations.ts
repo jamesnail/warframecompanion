@@ -35,3 +35,15 @@ export function missionDurationMinutes(missionType: string | undefined): number 
   const key = missionType.replace(/\s+/g, '_')
   return MISSION_DURATIONS_MIN[key] ?? DEFAULT_MISSION_DURATION_MIN
 }
+
+/**
+ * Median minutes to crack one relic in a Void Fissure.
+ *
+ * HAND-CURATED ESTIMATE, and a separate cost from farming the relic. Players overwhelmingly
+ * crack relics on the fastest available fissure (a Capture, occasionally an Exterminate),
+ * so this tracks that rather than the average across all fissure types.
+ *
+ * It exists because "runs to farm the relics" is only half the effort — the other half is
+ * the fissure runs themselves, and omitting them understates a relic path.
+ */
+export const FISSURE_RUN_MINUTES = 3

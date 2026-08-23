@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   REFINEMENT_TABLE,
   atLeastOnce,
+  bestRefinementFor,
   composeThroughRelic,
+  relicsNeeded,
   expectedRuns,
   perRunChance,
   refinementRowTotal,
@@ -148,5 +150,44 @@ describe('stageLabel', () => {
   it('is absent when there is no stage at all', () => {
     expect(stageLabel('Capture', null)).toBeUndefined()
     expect(stageLabel('Capture', undefined)).toBeUndefined()
+  })
+})
+
+describe('bestRefinementFor', () => {
+  it('picks Intact for commons, not Radiant', () => {
+    // The counter-intuitive one, and the reason this function exists: refining trades
+    // common odds away. 25.33% intact against 16.67% radiant.
+    const best = bestRefinementFor('common')
+    expect(best.refinement).toBe('intact')
+    expect(best.chance).toBeCloseTo(0.2533, 6)
+    expect(best.chance).toBeGreaterThan(REFINEMENT_TABLE.radiant.common)
+  })
+
+  it('picks Radiant for uncommon and rare', () => {
+    expect(bestRefinementFor('uncommon')).toMatchObject({ refinement: 'radiant' })
+    expect(bestRefinementFor('rare')).toMatchObject({ refinement: 'radiant' })
+    // Radiant is a 5x improvement on a rare — 2% to 10%.
+    expect(bestRefinementFor('rare').chance).toBeCloseTo(0.1, 6)
+  })
+})
+
+describe('relicsNeeded', () => {
+  it('is the reciprocal of the per-relic chance when solo', () => {
+    // A common at Intact: 1 / 0.2533 = 3.95 relics.
+    expect(relicsNeeded(0.2533, 1)).toBeCloseTo(3.95, 2)
+    // A rare at Radiant: 1 / 0.10 = 10 relics.
+    expect(relicsNeeded(0.1, 1)).toBeCloseTo(10, 6)
+  })
+
+  it('falls sharply in a share', () => {
+    // Rare at Radiant across four players: 1 / (1 - 0.9^4) = 1 / 0.3439 = 2.91
+    expect(relicsNeeded(0.1, 4)).toBeCloseTo(2.91, 2)
+  })
+
+  it('shows radiant-ing a common is a downgrade', () => {
+    // 4 relics at Intact versus 6 at Radiant — the mistake the old UI recommended.
+    expect(relicsNeeded(REFINEMENT_TABLE.intact.common, 1)).toBeLessThan(
+      relicsNeeded(REFINEMENT_TABLE.radiant.common, 1),
+    )
   })
 })

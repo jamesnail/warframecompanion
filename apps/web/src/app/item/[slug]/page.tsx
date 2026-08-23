@@ -3,11 +3,12 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 
 import {
-  REFINEMENT_TABLE,
+  FISSURE_RUN_MINUTES,
+  bestRefinementFor,
   expectedRuns,
   perRunChance,
+  relicsNeeded,
   runsForConfidence,
-  runsForRelicPath,
   stageLabel,
 } from '@provenance/core'
 import type { DropEdge, RelicRarity } from '@provenance/core'
@@ -42,21 +43,27 @@ export async function generateMetadata({
   }
 }
 
+/** One way of getting there: how many relics, how much farming, how long in total. */
+interface Plan {
+  relics: number
+  farmRuns: number
+  minutes: number
+}
+
 interface Chain {
   relicId: string
   relicName: string
   rarity: RelicRarity
   vaulted: boolean
-  fromRelic: number
+  refinement: string
+  perRelic: number
   missionName: string | undefined
   missionType: string | undefined
   planet: string | undefined
   stage: string | undefined
   relicChance: number
-  composed: number
-  minutes: number
-  soloRuns: number
-  shareRuns: number
+  solo: Plan
+  share: Plan
 }
 
 export default async function ItemPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -68,8 +75,6 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
 
   const incoming = edgesByItem.get(slug) ?? []
 
-  // Direct sources, ranked by expected TIME rather than raw chance — a 10% reward on a
-  // 20-minute Survival is not the same offer as 10% on a 90-second Capture.
   const directEdges = incoming
     .filter((edge) => !edge.sourceId.startsWith('relic:'))
     .map((edge) => {
@@ -95,7 +100,10 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
       return b.p - a.p
     })
 
-  // ---- relic chains: item <- relic <- mission ---------------------------------
+  // ---- relic chains -----------------------------------------------------------
+  // Modelled in RELICS, not in per-run percentages. Farming a relic and cracking it are
+  // separate activities — nobody opens a relic on the run that dropped it — so the effort
+  // is: relics needed, the runs to farm them, and the fissure runs to open them.
   const relics = relicsByReward.get(slug) ?? []
   const chains: Chain[] = []
 
@@ -116,61 +124,61 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
       }
     }
 
-    const fromRelic = REFINEMENT_TABLE.radiant[reward.rarity]
+    // NOT always Radiant. For a common reward Intact is better (25.33% vs 16.67%), so
+    // assuming Radiant would both overstate the effort and advise wasting traces.
+    const { refinement, chance: perRelic } = bestRefinementFor(reward.rarity)
+
     const source = best === undefined ? undefined : sourcesById.get(best.edge.sourceId)
     const relicChance = best === undefined ? 0 : perRunChance(best.edge)
+    const runsPerRelic = relicChance > 0 ? 1 / relicChance : Infinity
+    const missionMinutes = best?.minutes ?? 0
+
+    const plan = (players: number): Plan => {
+      const needed = relicsNeeded(perRelic, players)
+      const farmRuns = needed * runsPerRelic
+      return {
+        relics: needed,
+        farmRuns,
+        minutes: farmRuns * missionMinutes + needed * FISSURE_RUN_MINUTES,
+      }
+    }
 
     chains.push({
       relicId: relic.id,
       relicName: relic.id.replace(/-relic$/, '').replace(/-/g, ' ').toUpperCase(),
       rarity: reward.rarity,
       vaulted: relic.vaulted,
-      fromRelic,
+      refinement,
+      perRelic,
       missionName: source?.name,
       missionType: source?.missionType,
       planet: source?.planet,
       stage: stageLabel(source?.missionType, best?.edge.rotation),
       relicChance,
-      composed: relicChance * fromRelic,
-      minutes: best?.minutes ?? 0,
-      soloRuns: runsForRelicPath(relicChance, fromRelic, 1),
-      shareRuns: runsForRelicPath(relicChance, fromRelic, SHARE_SIZE),
+      solo: plan(1),
+      share: plan(SHARE_SIZE),
     })
   }
 
   chains.sort((a, b) => {
     if (a.vaulted !== b.vaulted) return a.vaulted ? 1 : -1
-    return a.soloRuns * a.minutes - b.soloRuns * b.minutes
+    return a.solo.minutes - b.solo.minutes
   })
 
   // ---- the headline -----------------------------------------------------------
-  // Must consider BOTH routes. Preferring the relic chain whenever one exists reported
-  // 1.11% for Forma when a direct source offers 22.56%.
   const bestChain = chains.find((chain) => !chain.vaulted)
   const bestDirect = directEdges[0]
 
-  const chainMinutes = bestChain === undefined ? Infinity : bestChain.soloRuns * bestChain.minutes
+  const chainMinutes = bestChain?.solo.minutes ?? Infinity
   const directMinutes = bestDirect?.expectedMinutes ?? Infinity
+  const preferChain = bestChain !== undefined && chainMinutes <= directMinutes
 
-  const headline =
-    chainMinutes <= directMinutes && bestChain !== undefined
-      ? { p: bestChain.composed, minutes: bestChain.minutes, via: 'relic chain' as const }
-      : bestDirect !== undefined
-        ? { p: bestDirect.p, minutes: bestDirect.minutes, via: 'direct drop' as const }
-        : undefined
+  const vaultedCount = chains.filter((chain) => chain.vaulted).length
+  const maxDirect = Math.max(...directEdges.map((d) => d.p), 0.0001)
 
   // Enemy and syndicate sources have no per-run duration, so a time estimate would be
   // invented rather than derived. The stat is omitted instead of guessed.
-  const headlineMinutes =
-    headline?.minutes === undefined ? undefined : expectedRuns(headline.p) * headline.minutes
-
-  // You do not queue "one Corrupted Heavy Gunner" — for enemy sources the unit is kills.
-  const headlineNoun =
-    headline?.via === 'direct drop' && bestDirect?.source?.kind === 'enemy' ? 'kills' : 'runs'
-
-  const vaultedCount = chains.filter((chain) => chain.vaulted).length
-  const maxChain = Math.max(...chains.map((c) => c.composed), 0.0001)
-  const maxDirect = Math.max(...directEdges.map((d) => d.p), 0.0001)
+  const directNoun = bestDirect?.source?.kind === 'enemy' ? 'kills' : 'runs'
 
   return (
     <div className="mx-auto max-w-4xl px-5 py-12 sm:px-6 sm:py-16">
@@ -184,29 +192,48 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
 
       <h1 className="font-display text-xl font-bold text-orokin sm:text-2xl">{item.name}</h1>
 
-      {headline !== undefined ? (
+      {preferChain && bestChain !== undefined ? (
         <>
           <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-4">
-            {headlineMinutes !== undefined && (
-              <Stat label="Fastest route" value={formatMinutes(headlineMinutes)} accent />
+            <Stat label="Fastest route" value={formatMinutes(bestChain.solo.minutes)} accent />
+            <Stat label="Relics needed" value={Math.ceil(bestChain.solo.relics).toString()} />
+            <Stat label="Farm runs" value={bestChain.solo.farmRuns.toFixed(0)} />
+            <Stat
+              label={`In a ×${String(SHARE_SIZE)} share`}
+              value={formatMinutes(bestChain.share.minutes)}
+            />
+          </div>
+          <p className="label mt-3">
+            via {bestChain.relicName} at {bestChain.refinement}
+          </p>
+        </>
+      ) : bestDirect !== undefined ? (
+        <>
+          <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-4">
+            {bestDirect.expectedMinutes !== undefined && (
+              <Stat
+                label="Fastest route"
+                value={formatMinutes(bestDirect.expectedMinutes)}
+                accent
+              />
             )}
             <Stat
-              label={`Expected ${headlineNoun}`}
-              value={expectedRuns(headline.p).toFixed(0)}
-              accent={headlineMinutes === undefined}
+              label={`Expected ${directNoun}`}
+              value={expectedRuns(bestDirect.p).toFixed(0)}
+              accent={bestDirect.expectedMinutes === undefined}
             />
             <Stat
-              label={`Chance / ${headlineNoun === 'kills' ? 'kill' : 'run'}`}
-              value={(headline.p * 100).toFixed(2)}
+              label={`Chance / ${directNoun === 'kills' ? 'kill' : 'run'}`}
+              value={(bestDirect.p * 100).toFixed(2)}
               unit="%"
             />
             <Stat
               label="95% confident"
-              value={String(runsForConfidence(headline.p))}
-              unit={headlineNoun}
+              value={String(runsForConfidence(bestDirect.p))}
+              unit={directNoun}
             />
           </div>
-          <p className="label mt-3">via {headline.via}</p>
+          <p className="label mt-3">via direct drop</p>
         </>
       ) : (
         <p className="mt-6 text-sm text-text-dim">
@@ -220,12 +247,12 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
             title="Relic chains"
             aside={
               vaultedCount > 0
-                ? `${String(chains.length)} paths · ${String(vaultedCount)} vaulted · radiant`
-                : `${String(chains.length)} paths · radiant`
+                ? `${String(chains.length)} paths · ${String(vaultedCount)} vaulted`
+                : `${String(chains.length)} paths`
             }
           />
           <ul>
-            {chains.slice(0, 16).map((chain) => (
+            {chains.slice(0, 12).map((chain) => (
               <li
                 key={chain.relicId}
                 className={`border-b border-hairline/50 px-5 py-4 last:border-0 ${
@@ -237,7 +264,12 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
                     {chain.relicName}
                     {chain.vaulted && <span className="label ml-2">Vaulted</span>}
                   </span>
-                  <RarityTag rarity={chain.rarity} />
+                  <span className="flex items-baseline gap-3">
+                    <RarityTag rarity={chain.rarity} />
+                    <span className="label">
+                      best {chain.refinement} · {(chain.perRelic * 100).toFixed(2)}%
+                    </span>
+                  </span>
                 </div>
 
                 {chain.missionName === undefined ? (
@@ -254,35 +286,60 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
                       {chain.missionType !== undefined && (
                         <span className="text-text-faint">· {chain.missionType}</span>
                       )}
-                      {chain.stage !== undefined && <span className="label ml-1">{chain.stage}</span>}
+                      {chain.stage !== undefined && (
+                        <span className="label ml-1">{chain.stage}</span>
+                      )}
                     </div>
 
-                    {/* Effort, not arithmetic. The solo/share gap is the decision — a
-                        full radshare is roughly a third of the runs. */}
-                    <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-1 text-xs">
-                      <div className="flex items-baseline gap-2">
-                        <dt className="text-text-faint">Solo</dt>
-                        <dd className="data-num text-text">
-                          {chain.soloRuns.toFixed(0)} runs
-                          <span className="ml-2 text-text-faint">
-                            {formatMinutes(chain.soloRuns * chain.minutes)}
-                          </span>
-                        </dd>
-                      </div>
-                      <div className="flex items-baseline gap-2">
-                        <dt className="text-text-faint">Radshare ×{SHARE_SIZE}</dt>
-                        <dd className="data-num text-r-uncommon">
-                          {chain.shareRuns.toFixed(0)} runs
-                          <span className="ml-2 text-text-faint">
-                            {formatMinutes(chain.shareRuns * chain.minutes)}
-                          </span>
-                        </dd>
-                      </div>
-                    </dl>
-
-                    <div className="mt-3">
-                      <ProbabilityBar value={chain.composed} rarity={chain.rarity} max={maxChain} />
-                    </div>
+                    {/* Relics, runs and time — the units a player plans in. A per-run
+                        percentage is not one of them: you never crack a relic on the run
+                        that dropped it. */}
+                    <table className="mt-3 w-full max-w-md text-xs">
+                      <thead>
+                        <tr className="text-left text-text-faint">
+                          <th scope="col" className="pb-1 font-normal" />
+                          <th scope="col" className="pb-1 text-right font-normal">
+                            Relics
+                          </th>
+                          <th scope="col" className="pb-1 text-right font-normal">
+                            Farm runs
+                          </th>
+                          <th scope="col" className="pb-1 text-right font-normal">
+                            Total
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <th scope="row" className="py-0.5 text-left font-normal text-text-dim">
+                            Solo
+                          </th>
+                          <td className="data-num py-0.5 text-right text-text">
+                            {Math.ceil(chain.solo.relics)}
+                          </td>
+                          <td className="data-num py-0.5 text-right text-text">
+                            {chain.solo.farmRuns.toFixed(0)}
+                          </td>
+                          <td className="data-num py-0.5 text-right text-text">
+                            {formatMinutes(chain.solo.minutes)}
+                          </td>
+                        </tr>
+                        <tr>
+                          <th scope="row" className="py-0.5 text-left font-normal text-text-dim">
+                            Share ×{SHARE_SIZE}
+                          </th>
+                          <td className="data-num py-0.5 text-right text-r-uncommon">
+                            {Math.ceil(chain.share.relics)}
+                          </td>
+                          <td className="data-num py-0.5 text-right text-r-uncommon">
+                            {chain.share.farmRuns.toFixed(0)}
+                          </td>
+                          <td className="data-num py-0.5 text-right text-r-uncommon">
+                            {formatMinutes(chain.share.minutes)}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </li>
@@ -336,9 +393,11 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
         </Panel>
       )}
 
-      <p className="mt-8 text-xs text-text-faint">
-        Times are estimates from a hand-curated table of median mission durations, not measured
-        data. Relic odds shown at Radiant.
+      <p className="mt-8 max-w-prose text-xs text-text-faint">
+        Relic paths assume the refinement with the best odds for that reward&rsquo;s rarity —
+        which is Intact for commons, since refining trades common odds for rare ones. Totals
+        include {FISSURE_RUN_MINUTES} minutes per fissure run to crack each relic. Mission
+        durations are hand-curated estimates, not measured data.
       </p>
     </div>
   )

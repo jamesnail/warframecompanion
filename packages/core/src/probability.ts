@@ -110,6 +110,49 @@ export function composeThroughRelic(pRelicFromSource: number, pItemFromRelic: nu
 }
 
 /**
+ * The refinement that maximises the odds for a given rarity — which is NOT always Radiant.
+ *
+ * Refining trades common odds for rare ones. For a COMMON reward, Intact (25.33%) beats
+ * Radiant (16.67%) by half again, so radiant-ing a relic for a common part actively hurts.
+ * Radiant only wins for uncommon (20% vs 11%) and rare (10% vs 2%).
+ *
+ * Assuming Radiant everywhere understates commons badly — 6 relics needed instead of 4 —
+ * and tells the player to spend traces making their odds worse.
+ */
+export function bestRefinementFor(rarity: RelicRarity): {
+  refinement: Refinement
+  chance: number
+} {
+  let best: { refinement: Refinement; chance: number } | undefined
+  for (const [refinement, row] of Object.entries(REFINEMENT_TABLE) as Array<
+    [Refinement, Record<RelicRarity, number>]
+  >) {
+    const chance = row[rarity]
+    if (best === undefined || chance > best.chance) best = { refinement, chance }
+  }
+  // REFINEMENT_TABLE is a non-empty literal, so this is unreachable in practice.
+  return best ?? { refinement: 'intact', chance: 0 }
+}
+
+/**
+ * Expected number of RELICS that must be opened to see the item.
+ *
+ * This is the unit players actually think and plan in. Farming relics and cracking them
+ * are separate activities — you never open a relic on the run that dropped it — so a
+ * "chance per mission run" describes something nobody does.
+ *
+ * With `players` in a share, each opens their own relic and the squad takes the best
+ * reward, so a round consumes one relic per player but resolves faster.
+ */
+export function relicsNeeded(pItemFromRelic: number, players = 1): number {
+  if (pItemFromRelic <= 0) return Number.POSITIVE_INFINITY
+  const perRound = atLeastOnce(pItemFromRelic, players)
+  if (perRound <= 0) return Number.POSITIVE_INFINITY
+  // Rounds needed, times the relics you personally supply per round (one).
+  return 1 / perRound
+}
+
+/**
  * Expected mission runs to obtain an item through a relic, accounting for squad sharing.
  *
  * This is the number that actually decides anything, and it is not simply
