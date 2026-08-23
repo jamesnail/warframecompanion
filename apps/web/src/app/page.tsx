@@ -1,5 +1,6 @@
 import Link from 'next/link'
 
+import { CommandPalette } from '@/components/CommandPalette'
 import { Panel, PanelHeader, Stat } from '@/components/Primitives'
 import { getDataset } from '@/lib/data'
 import { site } from '@/config/site'
@@ -32,6 +33,10 @@ export default async function HomePage() {
         Given an item, every path to it — including the ones gated behind Void Relics, where
         the honest answer is a chain rather than a single table row.
       </p>
+
+      <div className="mt-10 max-w-xl">
+        <CommandPalette />
+      </div>
 
       <div className="mt-12 grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-4">
         <Stat label="Items" value={items.length.toLocaleString()} />

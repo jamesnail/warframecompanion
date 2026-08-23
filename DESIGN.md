@@ -157,7 +157,7 @@ Two rules that matter more than they look:
 /data/edges.<hash>.json                ~40k edges, the bulk of the payload
 /data/relics.<hash>.json               relic → reward mapping with rarities
 /data/rivens.<hash>.json               dispositions + weekly trade stats
-/data/search-index.<hash>.json         prebuilt name index for the palette
+/data/search-index.<hash>.json         NOT EMITTED — see below
 ```
 
 Ship raw JSON and let Vercel's Brotli handle it. Don't reach for MessagePack or a custom binary
@@ -275,7 +275,33 @@ Because filenames are content-addressed, `/data/*` is served `immutable`. The da
 new hash in `manifest.json`, nothing more. When the hash changes mid-session, show an unobtrusive
 "Drop data updated — reload" affordance rather than swapping data underneath the user.
 
+> **Amended 2026-08-23 — no separate search index.** The palette reads `items` directly.
+> A slim `[id, name, category]` index measured 40.0 kB brotli against 42.2 kB for the full
+> item table: a 5.4% saving, because `Item` carries only four fields and brotli collapses
+> the repeated keys. Not worth a second chunk to keep in sync, and `/browse` needs the full
+> table anyway. Revisit if `Item` grows substantially — `@wfcd/items` enrichment will add
+> icons, mastery rank and unique paths, which changes the arithmetic.
+
 ### Indices (built in the Worker)
+
+> **Amended 2026-08-23 — index building runs on the main thread, not in a Worker.**
+> Measured against the real dataset of 4834 items:
+>
+> | | |
+> |---|---|
+> | index build | 5.94 ms (once) |
+> | search, average | 0.157 ms per query |
+> | search, worst | 0.188 ms |
+>
+> At a sixth of a millisecond per keystroke there is nothing to move off the main thread;
+> allowing an order of magnitude for a mid-range phone still leaves it inside a tenth of one
+> frame. Turbopack also refuses to compile a `.ts` worker referenced via
+> `new Worker(new URL(...))` — it emits the raw TypeScript as a static asset, so the build
+> passes and search breaks only in production, which is a bad failure mode to accept for no
+> measured gain.
+>
+> `createSearchIndex` in `apps/web/src/lib/search-index.ts` is pure and worker-ready.
+> Revisit when `/browse` indexes the 30k edge list, or if search approaches a frame.
 
 ```ts
 itemsById:        Map<ItemId, Item>

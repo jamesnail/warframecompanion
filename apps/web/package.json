@@ -12,7 +12,9 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@leeoniya/ufuzzy": "1.0.19",
     "@provenance/core": "workspace:*",
+    "idb": "8.0.3",
     "next": "16.3.2",
     "react": "19.2.8",
     "react-dom": "19.2.8",
