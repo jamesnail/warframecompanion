@@ -1,3 +1,5 @@
+import { resolve } from 'node:path'
+
 import js from '@eslint/js'
 import tseslint from 'typescript-eslint'
 import importX from 'eslint-plugin-import-x'
@@ -12,15 +14,25 @@ import importX from 'eslint-plugin-import-x'
  * Uses eslint-plugin-import-x, not eslint-plugin-import: the latter's peer range stops
  * at ESLint 9 and this workspace is on ESLint 10. Same rule, maintained fork.
  */
+/**
+ * Zones MUST be absolute, anchored to this config file.
+ *
+ * Relative zone paths are resolved against process.cwd(), and `pnpm lint` runs
+ * `eslint src` with the cwd set to each package — so from inside apps/web the zone
+ * './apps/web' matched nothing and the rule silently passed every violating import.
+ * It only appeared to work when eslint was invoked from the repo root by hand.
+ */
+const pkg = (...segments) => resolve(import.meta.dirname, ...segments)
+
 const boundaryZones = [
   {
-    target: './packages/core',
-    from: './packages/sources',
+    target: pkg('packages', 'core'),
+    from: pkg('packages', 'sources'),
     message: 'packages/core is pure and isomorphic. Move the shared helper into core itself.',
   },
   {
-    target: './apps/web',
-    from: './packages/sources',
+    target: pkg('apps', 'web'),
+    from: pkg('packages', 'sources'),
     message: 'packages/sources is Node-only build tooling and must never ship to the browser.',
   },
 ]

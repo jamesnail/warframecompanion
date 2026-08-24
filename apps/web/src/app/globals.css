@@ -117,10 +117,17 @@
   color: var(--color-text-faint);
 }
 
-/** Vaulted content is desaturated and marked, never hidden by default. */
+/**
+ * Vaulted content is desaturated and marked, never hidden by default.
+ *
+ * The opacity is contrast-constrained, not taste. It composites the text toward the panel
+ * behind it, and the floor is text-faint on void-800: at 0.75 that pairing measured
+ * 3.43:1, below the 4.5:1 body-text minimum, on the MAJORITY of relic rows (366 of 380 on
+ * some pages). 0.92 measures 4.68:1. Do not lower it without recomputing.
+ */
 @utility vaulted {
   filter: saturate(0.35);
-  opacity: 0.75;
+  opacity: 0.92;
 }
 
 html {

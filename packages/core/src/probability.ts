@@ -85,6 +85,10 @@ export function atLeastOnce(p: number, n: number): number {
   if (n <= 0) return 0
   if (p <= 0) return 0
   if (p >= 1) return 1
+  // Exact for the single-trial case. 1 - (1 - 0.1)^1 is 0.09999999999999998, not 0.1, and
+  // that 2-ulp error propagated into relicsNeeded(0.1) = 10.000000000000002 — which a
+  // Math.ceil in the UI then rounded up to "11 relics" beside a printed "10.00%".
+  if (n === 1) return p
   return 1 - Math.pow(1 - p, n)
 }
 

@@ -1,5 +1,5 @@
 import type { Item, ItemCategory, RelicDetail, DropEdge } from '@provenance/core'
-import { slug } from './slug'
+import { relicDisplayName, slug } from './slug'
 
 /**
  * Items are derived from the names appearing in the drop data itself.
@@ -58,13 +58,25 @@ export function buildItems(
   for (const name of edgeNames) add(name)
   for (const name of relicRewardNames.values()) add(name)
   for (const relic of relics) {
-    if (!byId.has(relic.id)) {
+    const existing = byId.get(relic.id)
+    if (existing === undefined) {
       byId.set(relic.id, {
         id: relic.id,
-        name: relic.id,
+        // Derived, not the slug. A vaulted relic has no source naming it, so this fallback
+        // is the ONLY name it ever gets — using relic.id here headed 729 pages
+        // "axi-a1-relic" and put raw slugs in the search palette.
+        name: relicDisplayName(relic.id, relic.tier),
         category: 'Relic',
         tradable: true,
+        vaulted: relic.vaulted,
       })
+    } else {
+      // A relic that something currently drops was already added from that drop's name.
+      // Stamp the derived fields on it too, so "vaulted" means the same thing for every
+      // relic rather than being absent on the 64 that happen to be in rotation.
+      existing.category = 'Relic'
+      existing.tradable = true
+      existing.vaulted = relic.vaulted
     }
   }
 

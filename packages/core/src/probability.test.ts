@@ -191,3 +191,20 @@ describe('relicsNeeded', () => {
     )
   })
 })
+
+describe('float exactness at one trial', () => {
+  it('atLeastOnce(p, 1) is exactly p', () => {
+    // 1 - (1 - 0.1)^1 is 0.09999999999999998 in binary floating point. The 2-ulp error
+    // propagated into relicsNeeded and a UI Math.ceil turned "10 relics" into "11".
+    expect(atLeastOnce(0.1, 1)).toBe(0.1)
+    expect(atLeastOnce(0.2, 1)).toBe(0.2)
+  })
+
+  it('relicsNeeded is exact for the rates the UI actually shows', () => {
+    // Radiant rare 10% -> 10 relics; Radiant uncommon 20% -> 5. Both must survive Math.ceil.
+    expect(Math.ceil(relicsNeeded(0.1, 1))).toBe(10)
+    expect(Math.ceil(relicsNeeded(0.2, 1))).toBe(5)
+    expect(Math.ceil(relicsNeeded(REFINEMENT_TABLE.radiant.rare, 1))).toBe(10)
+    expect(Math.ceil(relicsNeeded(REFINEMENT_TABLE.radiant.uncommon, 1))).toBe(5)
+  })
+})

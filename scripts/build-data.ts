@@ -12,8 +12,8 @@ import { mkdir, readFile, readdir, unlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { REFINEMENT_TABLE, refinementRowTotal } from '@provenance/core'
-import type { DropEdge, Item, Manifest, Source } from '@provenance/core'
+import { Manifest, REFINEMENT_TABLE, refinementRowTotal } from '@provenance/core'
+import type { DropEdge, Item, Source } from '@provenance/core'
 import { z } from 'zod'
 
 import {
@@ -26,6 +26,7 @@ import {
   RawRelics,
   RawSyndicateItem,
   RawTransient,
+  aggregateEdges,
   buildItems,
   fetchJson,
   mergeParsed,
@@ -37,6 +38,7 @@ import {
   parseSorties,
   parseSyndicates,
   parseTransient,
+  relicDisplayName,
   relicEdges,
   slug,
 } from '@provenance/sources'
@@ -102,13 +104,34 @@ function within(actual: number, previous: number, tolerance: number): boolean {
   return Math.abs(actual - previous) / previous <= tolerance
 }
 
+/**
+ * The previous manifest is what both +/-15% drift gates compare against, so a corrupt one
+ * must not silently disable them. A MISSING manifest is the legitimate first-run case and
+ * returns undefined; a present-but-unparseable one fails the build.
+ */
 async function readPreviousManifest(): Promise<Manifest | undefined> {
+  let raw: string
   try {
-    const raw = await readFile(join(OUT_DIR, 'manifest.json'), 'utf8')
-    return JSON.parse(raw) as Manifest
+    raw = await readFile(join(OUT_DIR, 'manifest.json'), 'utf8')
   } catch {
-    return undefined
+    return undefined // first run: nothing to compare against yet
   }
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    fail('existing manifest.json is not valid JSON. Refusing to run without working drift gates.')
+  }
+
+  const result = Manifest.safeParse(parsed)
+  if (!result.success) {
+    fail(
+      'existing manifest.json does not match the Manifest schema, so the drift gates ' +
+        'cannot compare against it: ' + result.error.message,
+    )
+  }
+  return result.data
 }
 
 async function main(): Promise<void> {
@@ -171,7 +194,9 @@ async function main(): Promise<void> {
   const relicSources: Source[] = relics.map((relic) => ({
     id: `relic:${relic.id.replace(/-relic$/, '')}`,
     kind: 'relic' as const,
-    name: relic.id.replace(/-relic$/, '').replace(/-/g, ' ').toUpperCase(),
+    // Same display name as the relic item, so 'AXI A1' and 'Axi A1 Relic' stop
+    // disagreeing across surfaces.
+    name: relicDisplayName(relic.id, relic.tier),
   }))
 
   // ---- secondary tables -------------------------------------------------------
@@ -259,11 +284,17 @@ async function main(): Promise<void> {
     `  vaulted ${String(vaultedCount)} of ${String(relics.length)} relics have no active source`,
   )
 
-  const edges: DropEdge[] = [
+  // Upstream lists an item once per reward SLOT, so the same item can appear six times in
+  // one table. Collapse them: the real chance is that of hitting ANY slot.
+  const rawEdges: DropEdge[] = [
     ...missionDrops,
     ...relicEdges(relics, INTACT),
     ...secondary.edges,
   ]
+  const edges: DropEdge[] = aggregateEdges(rawEdges)
+  console.log(
+    `  merged  ${String(rawEdges.length - edges.length)} repeated reward slots into existing edges`,
+  )
 
   // Several enemies appear in more than one table (a mod table and an item table), so the
   // same source id can be produced twice. Dedupe by id, keeping the first.

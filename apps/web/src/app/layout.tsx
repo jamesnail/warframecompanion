@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Archivo, IBM_Plex_Mono, Inter_Tight } from 'next/font/google'
+import { CommandPalette } from '@/components/CommandPalette'
 import { attributions, site } from '@/config/site'
 import './globals.css'
 
@@ -37,6 +38,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${archivo.variable} ${interTight.variable} ${plexMono.variable}`}>
       <body className="min-h-dvh flex flex-col">
         <main className="flex-1">{children}</main>
+        {/* Mounted once, globally, so the shortcut works on every page. */}
+        <CommandPalette />
         <footer className="mt-24 border-t border-hairline px-5 py-10 text-xs text-text-faint sm:px-6">
           <p className="max-w-prose">
             Unofficial fan tool, not affiliated with or endorsed by Digital Extremes. Warframe and

@@ -25,6 +25,8 @@ export interface Dataset {
   /** The reverse index — the whole point of the tool. */
   edgesByItem: Map<string, DropEdge[]>
   relicsByReward: Map<string, RelicDetail[]>
+  /** A relic is an item too, so its own page can show what it contains. */
+  relicsById: Map<string, RelicDetail>
 }
 
 let cached: Promise<Dataset> | undefined
@@ -62,7 +64,20 @@ async function load(): Promise<Dataset> {
     }
   }
 
-  return { manifest, items, sources, edges, relics, itemsById, sourcesById, edgesByItem, relicsByReward }
+  const relicsById = new Map(relics.map((relic) => [relic.id, relic]))
+
+  return {
+    manifest,
+    items,
+    sources,
+    edges,
+    relics,
+    itemsById,
+    sourcesById,
+    edgesByItem,
+    relicsByReward,
+    relicsById,
+  }
 }
 
 /** Memoised so 2000+ statically generated pages parse the dataset once, not once each. */

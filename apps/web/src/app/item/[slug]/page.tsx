@@ -13,14 +13,19 @@ import {
 } from '@provenance/core'
 import type { DropEdge, RelicRarity } from '@provenance/core'
 
+import { SearchTrigger } from '@/components/CommandPalette'
 import { Panel, PanelHeader, RarityTag, Stat } from '@/components/Primitives'
 import { ProbabilityBar } from '@/components/ProbabilityBar'
 import { getDataset } from '@/lib/data'
-import { formatMinutes } from '@/lib/format'
+import { ceilCount, formatMinutes } from '@/lib/format'
 import { kindLabel, runMinutes } from '@/lib/effort'
 
 /** Squad size assumed for the share comparison. Becomes a control in a later phase. */
 const SHARE_SIZE = 4
+
+/** How many rows each list shows. Both headers disclose when they are truncating. */
+const CHAIN_LIMIT = 12
+const SOURCE_LIMIT = 20
 
 export async function generateStaticParams() {
   const { items } = await getDataset()
@@ -68,15 +73,26 @@ interface Chain {
 
 export default async function ItemPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  const { itemsById, sourcesById, edgesByItem, relicsByReward } = await getDataset()
+  const { itemsById, sourcesById, edgesByItem, relicsByReward, relicsById } = await getDataset()
 
   const item = itemsById.get(slug)
   if (item === undefined) notFound()
 
   const incoming = edgesByItem.get(slug) ?? []
 
+  // Syndicate offerings are guaranteed purchases priced in rank and standing, not RNG.
+  // Ranking them alongside farms put a 100% edge with no run cost at the top of a list
+  // sorted by expected time — or, because they carry no duration, buried them below a
+  // 3.57% mission. Neither is the truth, so they get their own section.
+  const vendorOfferings = incoming
+    .filter((edge) => sourcesById.get(edge.sourceId)?.kind === 'syndicate')
+    .map((edge) => ({ edge, source: sourcesById.get(edge.sourceId) }))
+
   const directEdges = incoming
-    .filter((edge) => !edge.sourceId.startsWith('relic:'))
+    .filter((edge) => {
+      if (edge.sourceId.startsWith('relic:')) return false
+      return sourcesById.get(edge.sourceId)?.kind !== 'syndicate'
+    })
     .map((edge) => {
       const source = sourcesById.get(edge.sourceId)
       const p = perRunChance(edge)
@@ -136,16 +152,23 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
     const plan = (players: number): Plan => {
       const needed = relicsNeeded(perRelic, players)
       const farmRuns = needed * runsPerRelic
+      // A vaulted relic has no source, so runsPerRelic is Infinity and missionMinutes is
+      // 0 — and Infinity * 0 is NaN, which would poison the sort comparator below and
+      // make the ordering of vaulted rows non-deterministic. Keep it Infinity.
+      const farmMinutes = Number.isFinite(farmRuns) ? farmRuns * missionMinutes : Infinity
       return {
         relics: needed,
         farmRuns,
-        minutes: farmRuns * missionMinutes + needed * FISSURE_RUN_MINUTES,
+        minutes: farmMinutes + needed * FISSURE_RUN_MINUTES,
       }
     }
 
     chains.push({
       relicId: relic.id,
-      relicName: relic.id.replace(/-relic$/, '').replace(/-/g, ' ').toUpperCase(),
+      // The item table carries the proper display name ("Axi A1 Relic"); shouting the
+      // slug back as "AXI A1" was neither the game's name for it nor consistent with the
+      // relic's own page.
+      relicName: itemsById.get(relic.id)?.name ?? relic.id,
       rarity: reward.rarity,
       vaulted: relic.vaulted,
       refinement,
@@ -174,7 +197,22 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
   const preferChain = bestChain !== undefined && chainMinutes <= directMinutes
 
   const vaultedCount = chains.filter((chain) => chain.vaulted).length
-  const maxDirect = Math.max(...directEdges.map((d) => d.p), 0.0001)
+  // reduce, not Math.max(...spread): one item reaches 810 direct sources today and a
+  // spread that large is a stack-size gamble for no benefit.
+  const maxDirect = directEdges.reduce((max, d) => (d.p > max ? d.p : max), 0.0001)
+
+  // This item IS a relic — show what it contains, rather than "no source found".
+  const asRelic = relicsById.get(slug)
+  const relicContents =
+    asRelic === undefined
+      ? []
+      : asRelic.rewards
+          .map((reward) => ({
+            ...reward,
+            name: itemsById.get(reward.itemId)?.name ?? reward.itemId,
+            chance: bestRefinementFor(reward.rarity),
+          }))
+          .sort((a, b) => a.chance.chance - b.chance.chance)
 
   // Enemy and syndicate sources have no per-run duration, so a time estimate would be
   // invented rather than derived. The stat is omitted instead of guessed.
@@ -182,12 +220,16 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
 
   return (
     <div className="mx-auto max-w-4xl px-5 py-12 sm:px-6 sm:py-16">
-      <nav className="label mb-6">
-        <Link href="/" className="hover:text-text">
-          Provenance
-        </Link>
-        <span className="mx-2 text-hairline-strong">/</span>
-        <span>{item.category}</span>
+      <nav className="label mb-6 flex items-center justify-between gap-4">
+        <span>
+          <Link href="/" className="transition-colors hover:text-text">
+            Provenance
+          </Link>
+          <span className="mx-2 text-hairline-strong">/</span>
+          <span>{item.category}</span>
+        </span>
+        {/* A visible affordance: a keyboard shortcut nobody can see is not a feature. */}
+        <SearchTrigger compact />
       </nav>
 
       <h1 className="font-display text-xl font-bold text-orokin sm:text-2xl">{item.name}</h1>
@@ -196,7 +238,7 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
         <>
           <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-4">
             <Stat label="Fastest route" value={formatMinutes(bestChain.solo.minutes)} accent />
-            <Stat label="Relics needed" value={Math.ceil(bestChain.solo.relics).toString()} />
+            <Stat label="Relics needed" value={String(ceilCount(bestChain.solo.relics))} />
             <Stat label="Farm runs" value={bestChain.solo.farmRuns.toFixed(0)} />
             <Stat
               label={`In a ×${String(SHARE_SIZE)} share`}
@@ -235,10 +277,83 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
           </div>
           <p className="label mt-3">via direct drop</p>
         </>
+      ) : asRelic !== undefined ? (
+        <p className="mt-6 max-w-prose text-sm text-text-dim">
+          {asRelic.vaulted
+            ? 'Vaulted. No mission or bounty currently drops this relic — trade for it, or wait for an unvaulting.'
+            : 'No direct source recorded for this relic.'}
+        </p>
       ) : (
-        <p className="mt-6 text-sm text-text-dim">
+        <p className="mt-6 max-w-prose text-sm text-text-dim">
           No source found. This item may be quest-locked, vaulted, or bought rather than farmed.
         </p>
+      )}
+
+      {vendorOfferings.length > 0 && (
+        <Panel className="mt-10">
+          <PanelHeader
+            title="Bought, not farmed"
+            aside={`${String(vendorOfferings.length)} ${vendorOfferings.length === 1 ? 'offering' : 'offerings'}`}
+          />
+          <ul>
+            {vendorOfferings.map(({ edge, source }, index) => (
+              <li
+                key={`${edge.sourceId}-${String(index)}`}
+                className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-hairline/50 px-5 py-3 text-sm last:border-0"
+              >
+                <span className="text-text">{source?.name ?? edge.sourceId}</span>
+                {edge.stage !== undefined && (
+                  <span className="text-xs text-text-faint">{edge.stage}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      )}
+
+      {relicContents.length > 0 && (
+        <Panel className="mt-10">
+          <PanelHeader
+            title="Relic contents"
+            aside={`${String(relicContents.length)} rewards · best refinement`}
+          />
+          <table className="w-full text-sm">
+            <caption className="sr-only">Rewards contained in this relic</caption>
+            <thead>
+              <tr className="border-b border-hairline text-left">
+                <th scope="col" className="label px-5 py-2 font-normal">
+                  Reward
+                </th>
+                <th scope="col" className="label px-5 py-2 text-right font-normal">
+                  Rarity
+                </th>
+                <th scope="col" className="label px-5 py-2 text-right font-normal">
+                  Best odds
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {relicContents.map((reward) => (
+                <tr key={reward.itemId} className="border-b border-hairline/50 last:border-0">
+                  <th scope="row" className="px-5 py-2.5 text-left font-normal">
+                    <Link href={`/item/${reward.itemId}`} className="text-text hover:text-orokin">
+                      {reward.name}
+                    </Link>
+                  </th>
+                  <td className="px-5 py-2.5 text-right">
+                    <RarityTag rarity={reward.rarity} />
+                  </td>
+                  <td className="data-num px-5 py-2.5 text-right text-text">
+                    {(reward.chance.chance * 100).toFixed(2)}%
+                    <span className="ml-2 text-xs text-text-faint">
+                      {reward.chance.refinement}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Panel>
       )}
 
       {chains.length > 0 && (
@@ -246,13 +361,17 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
           <PanelHeader
             title="Relic chains"
             aside={
-              vaultedCount > 0
-                ? `${String(chains.length)} paths · ${String(vaultedCount)} vaulted`
-                : `${String(chains.length)} paths`
+              // Say what is actually on screen. "380 paths" above a list of 12 reads as a
+              // complete list, which it is not.
+              chains.length > CHAIN_LIMIT
+                ? `${String(CHAIN_LIMIT)} of ${String(chains.length)} · ${String(vaultedCount)} vaulted`
+                : vaultedCount > 0
+                  ? `${String(chains.length)} paths · ${String(vaultedCount)} vaulted`
+                  : `${String(chains.length)} paths`
             }
           />
           <ul>
-            {chains.slice(0, 12).map((chain) => (
+            {chains.slice(0, CHAIN_LIMIT).map((chain) => (
               <li
                 key={chain.relicId}
                 className={`border-b border-hairline/50 px-5 py-4 last:border-0 ${
@@ -267,7 +386,8 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
                   <span className="flex items-baseline gap-3">
                     <RarityTag rarity={chain.rarity} />
                     <span className="label">
-                      best {chain.refinement} · {(chain.perRelic * 100).toFixed(2)}%
+                      best {chain.refinement}{' '}
+                      <span className="data-num">{(chain.perRelic * 100).toFixed(2)}%</span>
                     </span>
                   </span>
                 </div>
@@ -315,7 +435,7 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
                             Solo
                           </th>
                           <td className="data-num py-0.5 text-right text-text">
-                            {Math.ceil(chain.solo.relics)}
+                            {ceilCount(chain.solo.relics)}
                           </td>
                           <td className="data-num py-0.5 text-right text-text">
                             {chain.solo.farmRuns.toFixed(0)}
@@ -329,7 +449,7 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
                             Share ×{SHARE_SIZE}
                           </th>
                           <td className="data-num py-0.5 text-right text-r-uncommon">
-                            {Math.ceil(chain.share.relics)}
+                            {ceilCount(chain.share.relics)}
                           </td>
                           <td className="data-num py-0.5 text-right text-r-uncommon">
                             {chain.share.farmRuns.toFixed(0)}
@@ -352,10 +472,14 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
         <Panel className="mt-8">
           <PanelHeader
             title="Direct sources"
-            aside={`${String(directEdges.length)} sources · by time`}
+            aside={
+              directEdges.length > SOURCE_LIMIT
+                ? `${String(SOURCE_LIMIT)} of ${String(directEdges.length)} · by time`
+                : `${String(directEdges.length)} sources · by time`
+            }
           />
           <ul>
-            {directEdges.slice(0, 20).map(({ edge, source, p, minutes }, index) => {
+            {directEdges.slice(0, SOURCE_LIMIT).map(({ edge, source, p, minutes }, index) => {
               const stage = stageLabel(source?.missionType, edge.rotation)
               const kind = kindLabel(source)
               return (
@@ -393,12 +517,20 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
         </Panel>
       )}
 
-      <p className="mt-8 max-w-prose text-xs text-text-faint">
-        Relic paths assume the refinement with the best odds for that reward&rsquo;s rarity —
-        which is Intact for commons, since refining trades common odds for rare ones. Totals
-        include {FISSURE_RUN_MINUTES} minutes per fissure run to crack each relic. Mission
-        durations are hand-curated estimates, not measured data.
-      </p>
+      {/* Only explain the relic assumptions on pages that actually make them. */}
+      {(chains.length > 0 || relicContents.length > 0) && (
+        <p className="mt-8 max-w-prose text-xs text-text-faint">
+          Odds assume the refinement that is best for that reward&rsquo;s rarity — Intact for
+          commons, since refining trades common odds for rare ones.
+          {chains.length > 0 && (
+            <>
+              {' '}
+              Totals include {FISSURE_RUN_MINUTES} minutes per fissure run to crack each relic.
+              Mission durations are hand-curated estimates, not measured data.
+            </>
+          )}
+        </p>
+      )}
     </div>
   )
 }

@@ -120,12 +120,43 @@ export function parseTransient(raw: RawTransient[]): Parsed {
   return parsed
 }
 
+/**
+ * QUIRK: keyName is NOT unique. 36 entries produce only 24 distinct names — "Operation
+ * Orphix Venom" appears five times, "Help Clem Retrieve The Relic" five times — and each
+ * repeat carries a genuinely different reward table (the event's difficulty tiers, which
+ * upstream gives no label for).
+ *
+ * Keying the source on the name alone collapsed them onto one id, so every tier's rewards
+ * piled onto a single source. Once edges are aggregated that is actively wrong: the
+ * combined chance of unrelated tiers gets reported as one inflated number.
+ *
+ * Repeats are therefore suffixed. The display name keeps a tier number so two rows are
+ * distinguishable, even though upstream cannot tell us what the tiers actually are.
+ */
 export function parseKeys(raw: RawKeyReward[]): Parsed {
   const parsed = empty()
+
+  const totals = new Map<string, number>()
   for (const key of raw) {
+    const id = slug(key.keyName)
+    totals.set(id, (totals.get(id) ?? 0) + 1)
+  }
+
+  const seen = new Map<string, number>()
+  for (const key of raw) {
+    const base = slug(key.keyName)
+    const total = totals.get(base) ?? 1
+    const nth = (seen.get(base) ?? 0) + 1
+    seen.set(base, nth)
+
+    const unique = total === 1
     emit(
       parsed,
-      { id: `other:${slug(key.keyName)}`, kind: 'other', name: key.keyName },
+      {
+        id: unique ? `other:${base}` : `other:${base}-${String(nth)}`,
+        kind: 'other',
+        name: unique ? key.keyName : `${key.keyName} (tier ${String(nth)})`,
+      },
       rotatedEntries(key.rewards),
     )
   }
@@ -143,6 +174,13 @@ export function parseSorties(raw: RawNamedReward[]): Parsed {
   return parsed
 }
 
+/**
+ * Syndicate offerings are PURCHASES, not drops: guaranteed at 100% once you hold the rank
+ * and the standing. They are modelled as edges so "where can I get this" stays one
+ * question, but the rank and standing cost are the actual price and were previously
+ * discarded — leaving a 100% edge that outranked every real farm with no indication of
+ * what it costs. The UI presents these separately from RNG sources.
+ */
 export function parseSyndicates(raw: Record<string, RawSyndicateItem[]>): Parsed {
   const parsed = empty()
   for (const [name, offerings] of Object.entries(raw)) {
@@ -151,7 +189,16 @@ export function parseSyndicates(raw: Record<string, RawSyndicateItem[]>): Parsed
       { id: `syndicate:${slug(name)}`, kind: 'syndicate', name },
       offerings.map((offering) => [
         null,
-        { item: offering.item, chance: offering.chance } satisfies RawNamedReward,
+        {
+          item: offering.item,
+          chance: offering.chance,
+          // Carries "Red Veil, Respected" plus the standing price, so the offering can be
+          // shown with its real cost rather than as a free certainty.
+          stage:
+            offering.standing === undefined
+              ? offering.place
+              : `${offering.place ?? name} · ${offering.standing.toLocaleString()} standing`,
+        } satisfies RawNamedReward,
       ]),
     )
   }

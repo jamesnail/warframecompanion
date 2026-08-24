@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { deriveRarity, parseRefinement, parseTier } from './relics'
 import { normalizeChance } from './upstream'
+import { relicDisplayName, relicItemId } from './slug'
 
 /**
  * These lock in the workaround for the upstream defect described in relics.ts: the
@@ -75,5 +76,24 @@ describe('normalizeChance', () => {
     // A zeroed chance renders as "impossible", which is worse than a failed build.
     expect(() => normalizeChance('not a number')).toThrow(/Unparseable drop chance/)
     expect(() => normalizeChance(140)).toThrow(/outside 0\.\.100/)
+  })
+})
+
+describe('relicDisplayName', () => {
+  it('reverses relicItemId back into the game\u2019s own name', () => {
+    expect(relicDisplayName(relicItemId('Axi', 'A1'), 'Axi')).toBe('Axi A1 Relic')
+    expect(relicDisplayName(relicItemId('Lith', 'B4'), 'Lith')).toBe('Lith B4 Relic')
+    expect(relicDisplayName(relicItemId('Meso', 'V13'), 'Meso')).toBe('Meso V13 Relic')
+  })
+
+  it('matters because a vaulted relic has no other source of a name', () => {
+    // 729 of 793 relic pages were headed "axi-a1-relic" before this existed: only relics
+    // currently in rotation are named by whatever drops them.
+    expect(relicDisplayName('axi-a1-relic', 'Axi')).not.toMatch(/-/)
+  })
+
+  it('does not strip a tier name that recurs inside the code', () => {
+    // "Lith L1" — the leading tier prefix must be removed once, not everywhere.
+    expect(relicDisplayName(relicItemId('Lith', 'L1'), 'Lith')).toBe('Lith L1 Relic')
   })
 })

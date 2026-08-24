@@ -18,7 +18,9 @@ const config: NextConfig = {
       {
         // Data chunks are content-addressed (<name>.<hash>.json), so they can be
         // cached forever. CLAUDE.md § Deployment.
-        source: '/data/:file(.*\.[0-9a-f]+\.json)',
+        // Double-escaped: in a JS string literal "\." collapses to "." before the regex
+        // ever sees it, which turned both separators into "any character".
+        source: '/data/:file(.*\\.[0-9a-f]+\\.json)',
         headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
       },
       {

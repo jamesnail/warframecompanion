@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-import { CommandPalette } from '@/components/CommandPalette'
+import { SearchTrigger } from '@/components/CommandPalette'
 import { Panel, PanelHeader, Stat } from '@/components/Primitives'
 import { getDataset } from '@/lib/data'
 import { site } from '@/config/site'
@@ -35,7 +35,7 @@ export default async function HomePage() {
       </p>
 
       <div className="mt-10 max-w-xl">
-        <CommandPalette />
+        <SearchTrigger />
       </div>
 
       <div className="mt-12 grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-4">
@@ -69,8 +69,7 @@ export default async function HomePage() {
       </Panel>
 
       <p className="label mt-8">
-        Drop data {built.toISOString().slice(0, 10)} · build {manifest.hash} · search palette
-        lands in phase 3
+        Drop data {built.toISOString().slice(0, 10)} · build {manifest.hash}
       </p>
     </div>
   )
