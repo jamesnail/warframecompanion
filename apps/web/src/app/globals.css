@@ -37,7 +37,6 @@
    * Used once per view, on the thing you searched for. It reads as gold precisely
    * because nothing else competes with it. */
   --color-orokin: oklch(0.82 0.13 85);
-  --color-orokin-dim: oklch(0.62 0.1 85);
 
   /* ---- rarity ramp: constant L and C, hue only ----------------------------------- */
   --color-r-common: oklch(0.72 0.1 250);
@@ -156,6 +155,19 @@ body {
 :focus-visible {
   outline: 2px solid var(--color-orokin);
   outline-offset: 2px;
+}
+
+/**
+ * clip-path clips the focus ring along with the corner, so an offset outline on a
+ * chamfered control is simply invisible — which silently left the home page's primary
+ * control with no focus indicator at all. Chamfered surfaces get an inset ring instead,
+ * drawn inside the clip polygon where it survives.
+ */
+.chamfer:focus-visible,
+.chamfer-sm:focus-visible,
+.panel:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--color-orokin);
 }
 
 /* The scrollbar is part of a dense reference tool's surface; leaving it default light

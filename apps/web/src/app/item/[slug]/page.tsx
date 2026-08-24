@@ -8,6 +8,7 @@ import {
   expectedRuns,
   perRunChance,
   relicsNeeded,
+  rotationCycleCost,
   runsForConfidence,
   stageLabel,
 } from '@provenance/core'
@@ -96,7 +97,11 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
     .map((edge) => {
       const source = sourcesById.get(edge.sourceId)
       const p = perRunChance(edge)
-      const minutes = runMinutes(source)
+      // Endless missions cycle A A B C, so one interval is not one opportunity at a
+      // given rotation: B and C each come round once every four.
+      const cycle = rotationCycleCost(source?.missionType, edge.rotation)
+      const interval = runMinutes(source)
+      const minutes = interval === undefined ? undefined : interval * cycle
       return {
         edge,
         source,
@@ -133,7 +138,8 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
     for (const edge of relicDrops) {
       const source = sourcesById.get(edge.sourceId)
       if (source === undefined || source.kind === 'relic') continue
-      const minutes = runMinutes(source) ?? 5
+      const minutes =
+        (runMinutes(source) ?? 5) * rotationCycleCost(source.missionType, edge.rotation)
       const expectedMinutes = expectedRuns(perRunChance(edge)) * minutes
       if (best === undefined || expectedMinutes < best.expectedMinutes) {
         best = { edge, minutes, expectedMinutes }
@@ -225,7 +231,7 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
           <Link href="/" className="transition-colors hover:text-text">
             Provenance
           </Link>
-          <span className="mx-2 text-hairline-strong">/</span>
+          <span className="mx-2 text-hairline-strong" aria-hidden="true">/</span>
           <span>{item.category}</span>
         </span>
         {/* A visible affordance: a keyboard shortcut nobody can see is not a feature. */}
@@ -277,6 +283,15 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
           </div>
           <p className="label mt-3">via direct drop</p>
         </>
+      ) : vendorOfferings.length > 0 ? (
+        // Splitting vendors out of the ranked list left 1409 pages claiming "No source
+        // found" directly above a populated "Bought, not farmed" panel. A guaranteed
+        // purchase is a source; it just isn't a farm.
+        <p className="mt-6 max-w-prose text-sm text-text-dim">
+          Not farmed — bought with standing from{' '}
+          {vendorOfferings.length === 1 ? 'a syndicate' : `${String(vendorOfferings.length)} syndicates`}
+          , listed below.
+        </p>
       ) : asRelic !== undefined ? (
         <p className="mt-6 max-w-prose text-sm text-text-dim">
           {asRelic.vaulted
@@ -302,9 +317,17 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
                 className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-hairline/50 px-5 py-3 text-sm last:border-0"
               >
                 <span className="text-text">{source?.name ?? edge.sourceId}</span>
-                {edge.stage !== undefined && (
-                  <span className="text-xs text-text-faint">{edge.stage}</span>
-                )}
+                {(() => {
+                  // Upstream's `place` repeats the syndicate name ("Red Veil, Respected"),
+                  // which the left cell already shows. Keep the rank and the price.
+                  const detail =
+                    source?.name !== undefined && edge.stage?.startsWith(`${source.name}, `) === true
+                      ? edge.stage.slice(source.name.length + 2)
+                      : edge.stage
+                  return detail === undefined ? null : (
+                    <span className="data-num text-xs text-text-faint">{detail}</span>
+                  )
+                })()}
               </li>
             ))}
           </ul>
@@ -380,7 +403,9 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
               >
                 <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                   <span className="font-display text-sm font-semibold">
-                    {chain.relicName}
+                    <Link href={`/item/${chain.relicId}`} className="transition-colors hover:text-orokin">
+                      {chain.relicName}
+                    </Link>
                     {chain.vaulted && <span className="label ml-2">Vaulted</span>}
                   </span>
                   <span className="flex items-baseline gap-3">
@@ -448,13 +473,13 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
                           <th scope="row" className="py-0.5 text-left font-normal text-text-dim">
                             Share ×{SHARE_SIZE}
                           </th>
-                          <td className="data-num py-0.5 text-right text-r-uncommon">
+                          <td className="data-num py-0.5 text-right text-text">
                             {ceilCount(chain.share.relics)}
                           </td>
-                          <td className="data-num py-0.5 text-right text-r-uncommon">
+                          <td className="data-num py-0.5 text-right text-text">
                             {chain.share.farmRuns.toFixed(0)}
                           </td>
-                          <td className="data-num py-0.5 text-right text-r-uncommon">
+                          <td className="data-num py-0.5 text-right text-text">
                             {formatMinutes(chain.share.minutes)}
                           </td>
                         </tr>
@@ -502,7 +527,7 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
                     ~{expectedRuns(p).toFixed(0)} {source?.kind === 'enemy' ? 'kills' : 'runs'}
                     {minutes !== undefined && (
                       <>
-                        <span className="mx-1.5 text-hairline-strong">|</span>
+                        <span className="mx-1.5 text-hairline-strong" aria-hidden="true">|</span>
                         {formatMinutes(expectedRuns(p) * minutes)}
                       </>
                     )}

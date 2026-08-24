@@ -25,7 +25,7 @@ export default async function HomePage() {
 
   return (
     <div className="mx-auto max-w-4xl px-5 py-16 sm:px-6 sm:py-24">
-      <h1 className="font-display text-2xl font-bold tracking-tight text-orokin sm:text-[3rem]">
+      <h1 className="font-display text-2xl font-bold tracking-tight text-orokin sm:text-2xl">
         {site.name}
       </h1>
       <p className="mt-3 max-w-xl text-lg text-text-dim">{site.tagline}</p>

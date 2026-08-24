@@ -31,7 +31,7 @@ export function SearchTrigger({ compact = false }: { compact?: boolean }) {
         className="flex items-center gap-2 text-text-faint transition-colors hover:text-text"
       >
         <span>Search</span>
-        <kbd className="data-num border border-hairline px-1.5 py-0.5 text-[0.65rem]">⌘K</kbd>
+        <kbd className="data-num border border-hairline px-1.5 py-0.5 text-xs">⌘K</kbd>
       </button>
     )
   }
@@ -114,6 +114,9 @@ export function CommandPalette() {
 
   useEffect(() => {
     setActive(0)
+    // Otherwise a new query inherits the old scroll offset and the highlighted first
+    // row sits off-screen, with Enter navigating to something invisible.
+    if (listRef.current !== null) listRef.current.scrollTop = 0
   }, [results])
 
   const onChange = useCallback(
@@ -132,7 +135,10 @@ export function CommandPalette() {
     [router],
   )
 
-  function onKeyDown(event: React.KeyboardEvent<HTMLInputElement>): void {
+  function onKeyDown(event: React.KeyboardEvent<HTMLDivElement>): void {
+    // Arrow/Enter must not fire mid-IME-composition: a Japanese or Chinese user
+    // selecting a candidate would otherwise navigate away on the confirming Enter.
+    if (event.nativeEvent.isComposing) return
     if (event.key === 'Escape') {
       event.preventDefault()
       setOpen(false)
@@ -178,6 +184,7 @@ export function CommandPalette() {
         onMouseDown={(event) => {
           event.stopPropagation()
         }}
+        onKeyDown={onKeyDown}
       >
         <input
           ref={inputRef}
@@ -185,7 +192,6 @@ export function CommandPalette() {
           onChange={(event) => {
             onChange(event.target.value)
           }}
-          onKeyDown={onKeyDown}
           placeholder={status === 'ready' ? `Search ${String(count)} items…` : 'Search items…'}
           aria-label="Search items"
           role="combobox"
@@ -213,9 +219,12 @@ export function CommandPalette() {
               onMouseEnter={() => {
                 setActive(index)
               }}
+              // mousedown only prevents the focus steal; click is what actually
+              // activates, so assistive tech (which dispatches click) works too.
               onMouseDown={(event) => {
-                // Keep focus in the input so the dialog never loses its anchor.
                 event.preventDefault()
+              }}
+              onClick={() => {
                 commit(hit.id)
               }}
               className={`flex cursor-pointer items-baseline justify-between gap-4 px-5 py-2.5 text-sm ${
@@ -228,7 +237,13 @@ export function CommandPalette() {
           ))}
         </ul>
 
-        {query !== '' && results.length === 0 && (
+        {/* A live region must exist BEFORE its text changes to be announced. */}
+        <p role="status" aria-live="polite" className="sr-only">
+          {status === 'ready' && query.trim() !== ''
+            ? `${String(results.length)} results`
+            : ''}
+        </p>
+        {query.trim() !== '' && results.length === 0 && (
           <p className="px-5 py-4 text-sm text-text-faint">
             {status === 'loading'
               ? 'Loading items…'

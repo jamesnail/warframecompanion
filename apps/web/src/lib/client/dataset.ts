@@ -1,4 +1,6 @@
-import type { Item, Manifest } from '@provenance/core'
+import { z } from 'zod'
+
+import { Item, Manifest } from '@provenance/core'
 
 import { pruneStale, readChunk, writeChunk } from './store'
 
@@ -14,27 +16,33 @@ import { pruneStale, readChunk, writeChunk } from './store'
  */
 
 export interface ClientDataset {
-  manifest: Manifest
-  items: Item[]
+  manifest: z.infer<typeof Manifest>
+  items: z.infer<typeof Item>[]
 }
 
-async function fetchJson<T>(url: string): Promise<T> {
+/**
+ * Parsed, not cast. CLAUDE.md requires external data to go through Zod at the boundary,
+ * and this is a boundary even though we generated the file: a half-written deploy or a
+ * stale CDN object would otherwise be cast to Manifest and pin the cache on a hash that
+ * does not exist. Failing here degrades to "search unavailable", which is honest.
+ */
+async function fetchParsed<T>(url: string, schema: { parse: (input: unknown) => T }): Promise<T> {
   const response = await fetch(url)
   if (!response.ok) throw new Error(`${url} -> HTTP ${String(response.status)}`)
-  return (await response.json()) as T
+  return schema.parse(await response.json())
 }
 
 export async function loadDataset(): Promise<ClientDataset> {
   // Same-origin only. The client never talks to Digital Extremes (CLAUDE.md constraint 2).
-  const manifest = await fetchJson<Manifest>('/data/manifest.json')
+  const manifest = await fetchParsed('/data/manifest.json', Manifest)
 
   const filename = manifest.files.items
   if (filename === undefined) throw new Error('manifest has no items chunk')
 
-  const cached = await readChunk<Item[]>('items', manifest.hash)
+  const cached = await readChunk<z.infer<typeof Item>[]>('items', manifest.hash)
   if (cached !== undefined) return { manifest, items: cached }
 
-  const items = await fetchJson<Item[]>(`/data/${filename}`)
+  const items = await fetchParsed(`/data/${filename}`, z.array(Item))
 
   // Written after the data is in hand, so a failed fetch cannot leave a half-populated
   // cache that looks current. Pruning is fire-and-forget; it must never delay first paint.
