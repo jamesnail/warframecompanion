@@ -228,7 +228,12 @@ export function BrowseTable() {
                       <span className="label block truncate">{row.category}</span>
                     </div>
                     <div className="min-w-0">
-                      <span className="block truncate text-text-dim">{row.sourceName}</span>
+                      <Link
+                        href={row.sourceHref}
+                        className="block truncate text-text-dim transition-colors hover:text-orokin"
+                      >
+                        {row.sourceName}
+                      </Link>
                       {row.detail !== '' && (
                         <span className="block truncate text-xs text-text-faint">{row.detail}</span>
                       )}

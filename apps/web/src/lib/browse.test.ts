@@ -80,6 +80,13 @@ describe('buildRows', () => {
     expect(rows.find((r) => r.itemId === 'orokin-cell')?.detail).toBe('')
   })
 
+  it('resolves a link target for the source, so the name is not a dead end', () => {
+    expect(rows.find((r) => r.itemId === 'braton-prime-barrel')?.sourceHref).toBe(
+      '/source/mission/earth/cambria',
+    )
+    expect(rows.find((r) => r.itemId === 'orokin-cell')?.sourceHref).toBe('/source/enemy/lancer')
+  })
+
   it('precomputes a lowercased haystack covering item and source', () => {
     const row = rows.find((r) => r.itemId === 'braton-prime-barrel')
     expect(row?.haystack).toBe('braton prime barrel cambria')

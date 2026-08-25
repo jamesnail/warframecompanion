@@ -333,7 +333,8 @@ Never store a filter in React state alone. If it changes what's displayed, it be
 |---|---|
 | `/` | Search-first. The palette *is* the home page. Below it: a directory of the browsable surfaces — not corpus statistics, which describe the dataset rather than offering a way in. Unbuilt surfaces are listed and marked, never linked. |
 | `/item/[slug]` | The main event. Direct sources and relic sources side by side, each ranked by drop rate. Statically generated for every item — this is what gets indexed by search engines. **2026-08-24:** the effort model (expected time, relics needed, solo-vs-share) came off this page on owner feedback; the page answers *where*, and time-ranking belongs on a surface that compares unlike missions. `rotationCycleCost()` and `mission-durations.ts` stay in core, tested, for that surface. |
-| `/source/[kind]/[slug]` | Forward view: what a mission, relic, or enemy drops, by rotation. Also statically generated. |
+| `/source/[kind]/[...slug]` | Forward view: what a mission, enemy, bounty or syndicate drops, by rotation. Statically generated; catch-all because a source id carries slashes (`mission:earth/cambria`). **Shipped 2026-08-25.** Relics are excluded deliberately — a relic is an item too, and `/item/<relic>` already shows its contents at every refinement level, so a second page would split one object across two URLs that each know half of it. Tables here are uncapped: on `/item` the source list is context, here it IS the page. |
+| `/source/[kind]` | Index of one kind, grouped by planet where the kind has one. Exists for reachability, not decoration — see hazard 15. |
 | `/browse` | The filterable table. Virtualized, dense, sortable, URL-driven. |
 | `/relics` | Relic browser with vaulted filtering and refinement comparison. |
 | `/rivens` | The riven tracker. Client-only, no prerender. |
@@ -540,6 +541,26 @@ Write these into code comments as you hit them.
     item that no longer existed. That is the gate doing exactly its job; without it the dataset
     would have shipped with two relic rewards silently unreachable.
 
+15. **A statically generated page nobody links to does not exist.** `/item` caps its direct-sources
+    table at 20 rows, so when the source pages first landed, 136 of the 1,646 were unreachable by
+    crawl — Armored Roller ranks 487th on the best item it drops, and `/browse` can filter to it
+    but renders its rows on the client, where no crawler follows. SEO is a stated goal, so the
+    per-kind index pages exist to close that gap. The audit is mechanical and worth repeating
+    after any routing change: walk every emitted `.html`, collect every internal `href`, and
+    assert both that each one resolves to a generated file AND that every generated file is
+    linked from at least one other. The second half is the half that finds this class of bug.
+    Two index pages were then dropped for the inverse reason — `relic` and `cache` would have
+    rendered nothing but an empty state, and an empty page is still a page a crawler finds.
+
+16. **Verify a responsive layout by measuring it, not by screenshotting it.** Windows clamps the
+    minimum window width, so `chrome --window-size=360` yields a 360px *crop* of a wider layout,
+    which looks like overflow whether or not any exists — this has already produced one wrong
+    diagnosis. Drive CDP `Emulation.setDeviceMetricsOverride` instead and compare
+    `documentElement.scrollWidth` against `clientWidth`, then walk the DOM for elements whose
+    right edge is past the viewport. That is how the enemy index's 7px overflow was found and
+    confirmed fixed: a grid item defaults to `min-width: auto` and will not shrink below its
+    content, so the longest name in a 1,055-row list sized the column wider than its own panel.
+
 ---
 
 ## 11. Phases
@@ -554,6 +575,7 @@ Each phase ends deployable. Don't start the next until the current one ships.
 | 4 | Item pages with direct drops, statically generated, design system implemented | 6k+ pages build; visual system fully tokenized |
 | 5 | **Relic chain expansion** — derived edges, refinement comparison, radshare math, the chain trace | Hand-verified against three known prime parts |
 | 6 | `/browse` — virtualized table, full filter set, URL state | 40k rows scroll at 60fps; every filter is shareable |
+| 6.5 | `/source/[kind]` and `/source/[kind]/[...slug]` — the forward view, and the graph finally navigating both ways | Every source name on the site is a link; zero broken links and zero orphaned pages across all 6,223 |
 | 7 | Expected-time ranking, mission duration table, multi-component set tracking | Paths ranked by minutes; owned-parts state persists |
 | 8 | Riven tracker — dispositions, weekly trade data, local storage, export/import, grading | A roll can be logged, graded, and shared by URL |
 | 9 | Market proxy + live listings | Degrades cleanly when the proxy is unavailable |

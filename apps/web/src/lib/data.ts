@@ -24,6 +24,8 @@ export interface Dataset {
   sourcesById: Map<string, Source>
   /** The reverse index — the whole point of the tool. */
   edgesByItem: Map<string, DropEdge[]>
+  /** The forward index — what one source drops (DESIGN.md § 7). */
+  edgesBySource: Map<string, DropEdge[]>
   relicsByReward: Map<string, RelicDetail[]>
   /** A relic is an item too, so its own page can show what it contains. */
   relicsById: Map<string, RelicDetail>
@@ -55,6 +57,13 @@ async function load(): Promise<Dataset> {
     else list.push(edge)
   }
 
+  const edgesBySource = new Map<string, DropEdge[]>()
+  for (const edge of edges) {
+    const list = edgesBySource.get(edge.sourceId)
+    if (list === undefined) edgesBySource.set(edge.sourceId, [edge])
+    else list.push(edge)
+  }
+
   const relicsByReward = new Map<string, RelicDetail[]>()
   for (const relic of relics) {
     for (const reward of relic.rewards) {
@@ -75,6 +84,7 @@ async function load(): Promise<Dataset> {
     itemsById,
     sourcesById,
     edgesByItem,
+    edgesBySource,
     relicsByReward,
     relicsById,
   }

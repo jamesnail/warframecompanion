@@ -17,6 +17,7 @@ import { SearchTrigger } from '@/components/CommandPalette'
 import { Panel, PanelHeader, RarityTag, Stat } from '@/components/Primitives'
 import { getDataset } from '@/lib/data'
 import { kindLabel } from '@/lib/effort'
+import { sourceHref } from '@/lib/source-route'
 
 /** How many rows each list shows. Both headers disclose when they are truncating. */
 const RELIC_LIMIT = 12
@@ -71,6 +72,7 @@ interface RelicPath {
 export default async function ItemPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
   const { itemsById, sourcesById, edgesByItem, relicsByReward, relicsById } = await getDataset()
+  const hasItem = (id: string): boolean => itemsById.has(id)
 
   const item = itemsById.get(slug)
   if (item === undefined) notFound()
@@ -257,7 +259,12 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
                           className="border-b border-hairline/50 last:border-0"
                         >
                           <th scope="row" className="px-3 py-3 sm:px-5 sm:py-2.5 text-left font-normal">
-                            <span className="text-text">{source?.name ?? edge.sourceId}</span>
+                            <Link
+                              href={sourceHref(edge.sourceId, hasItem)}
+                              className="text-text transition-colors hover:text-orokin"
+                            >
+                              {source?.name ?? edge.sourceId}
+                            </Link>
                             {/* Units per drop. On a resource page this decides more than
                                 the drop rate does — 350 Plastids at 4% beats 10 at 20% —
                                 so it sits beside the name, not buried in the detail line. */}
@@ -380,7 +387,12 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
                 key={`${edge.sourceId}-${String(index)}`}
                 className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-hairline/50 px-3 py-3 sm:px-5 text-sm last:border-0"
               >
-                <span className="text-text">{source?.name ?? edge.sourceId}</span>
+                <Link
+                  href={sourceHref(edge.sourceId, hasItem)}
+                  className="text-text transition-colors hover:text-orokin"
+                >
+                  {source?.name ?? edge.sourceId}
+                </Link>
                 {(() => {
                   // Upstream's `place` repeats the syndicate name ("Red Veil, Respected"),
                   // which the left cell already shows. Keep the rank and the price.

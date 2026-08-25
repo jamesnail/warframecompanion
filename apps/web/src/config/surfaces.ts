@@ -72,25 +72,25 @@ export const surfaceGroups: SurfaceGroup[] = [
   {
     title: 'By source',
     surfaces: [
-      { name: 'Missions', blurb: 'Nodes by planet', href: '/browse?kind=mission', count: 'missions' },
+      { name: 'Missions', blurb: 'Nodes by planet', href: '/source/mission', count: 'missions' },
       { name: 'Factions', blurb: 'Grineer, Corpus, Infested', count: 'factions' },
-      { name: 'Enemies', blurb: 'Individual drop tables', href: '/browse?kind=enemy', count: 'enemies' },
+      { name: 'Enemies', blurb: 'Individual drop tables', href: '/source/enemy', count: 'enemies' },
       {
         name: 'Bounties',
         blurb: 'Open-world reward tables',
-        href: '/browse?kind=bounty',
+        href: '/source/bounty',
         count: 'bounties',
       },
       {
         name: 'Syndicates',
         blurb: 'Bought with standing',
-        href: '/browse?kind=syndicate',
+        href: '/source/syndicate',
         count: 'syndicates',
       },
       {
         name: 'Sorties',
         blurb: 'Daily and weekly rotations',
-        href: '/browse?kind=sortie',
+        href: '/source/sortie',
         count: 'sorties',
       },
       { name: 'Vendors', blurb: 'Baro, Darvo, and the rest' },

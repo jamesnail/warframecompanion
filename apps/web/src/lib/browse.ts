@@ -1,5 +1,7 @@
 import type { DropEdge, Item, ItemCategory, Source, SourceKind } from '@provenance/core'
 
+import { sourceHref } from './source-route'
+
 /**
  * The /browse row model and its filtering, kept pure so it can be unit-tested and so the
  * component stays presentational.
@@ -17,6 +19,9 @@ export interface BrowseRow {
   sourceId: string
   sourceName: string
   sourceKind: SourceKind
+  /** Where the source name links. Resolved here rather than in the component so the
+   *  relic-source-to-item-page rule lives in one tested place. */
+  sourceHref: string
   detail: string
   chance: number
   quantity: [number, number]
@@ -81,6 +86,7 @@ export function buildRows(
       sourceId: source.id,
       sourceName: source.name,
       sourceKind: source.kind,
+      sourceHref: sourceHref(source.id, (id) => itemsById.has(id)),
       detail,
       chance: edge.chance,
       quantity: edge.quantity,
