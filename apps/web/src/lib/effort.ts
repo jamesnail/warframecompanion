@@ -5,10 +5,11 @@ import type { Source } from '@provenance/core'
  * How long one "run" of a source takes, in minutes — or undefined where the question has
  * no honest answer.
  *
- * An enemy is not a run: you do not queue "one Corrupted Heavy Gunner", you kill however
- * many spawn while doing something else. Inventing a duration for those would let them be
- * ranked against missions as though the comparison meant something. Returning undefined
- * keeps them rankable by chance while excluding them from time estimates.
+ * Every source is reached by running something — that is why the UI counts runs and never
+ * kills. What an enemy lacks is a DURATION: you do not queue "one Corrupted Heavy Gunner",
+ * you kill however many spawn while doing something else, so any minute figure here would be
+ * invented. Returning undefined keeps such sources rankable by chance while excluding them
+ * from time estimates.
  */
 export function runMinutes(source: Source | undefined): number | undefined {
   if (source === undefined) return undefined

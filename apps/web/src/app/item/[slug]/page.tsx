@@ -137,8 +137,6 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
           .sort((a, b) => b.best.chance - a.best.chance || a.name.localeCompare(b.name))
 
   const bestDirect = directEdges[0]
-  // An enemy is not a run: you do not queue "one Corrupted Heavy Gunner".
-  const directNoun = bestDirect?.source?.kind === 'enemy' ? 'kills' : 'runs'
 
   return (
     <div className="mx-auto max-w-6xl px-5 py-12 sm:px-6 sm:py-16">
@@ -160,18 +158,18 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
 
       {bestDirect !== undefined ? (
         <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-3">
+          {/* Always "runs", never "kills". An enemy drop is still collected by running the
+              mission the enemy spawns in — nobody queues "one Corrupted Heavy Gunner" — so
+              the run is the unit every source has in common, and switching nouns per source
+              kind made the same statistic incomparable between two pages. */}
           <Stat
-            label={`Best chance / ${directNoun === 'kills' ? 'kill' : 'run'}`}
+            label="Best chance / run"
             value={(bestDirect.p * 100).toFixed(2)}
             unit="%"
             accent
           />
-          <Stat label={`Expected ${directNoun}`} value={expectedRuns(bestDirect.p).toFixed(0)} />
-          <Stat
-            label="95% confident"
-            value={String(runsForConfidence(bestDirect.p))}
-            unit={directNoun}
-          />
+          <Stat label="Expected runs" value={expectedRuns(bestDirect.p).toFixed(0)} />
+          <Stat label="95% confident" value={String(runsForConfidence(bestDirect.p))} unit="runs" />
         </div>
       ) : relicPaths.length > 0 ? (
         <p className="mt-6 max-w-prose text-sm text-text-dim">
