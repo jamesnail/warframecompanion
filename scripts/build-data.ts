@@ -33,6 +33,10 @@ import {
   parseEnemyTables,
   parseKeys,
   parseMissions,
+  RawWfcdItem,
+  WFCD_FILES,
+  buildEnrichmentIndex,
+  enrichItems,
   parseRelics,
   parseRewardName,
   parseSorties,
@@ -45,10 +49,15 @@ import {
 
 const DIFF_ONLY = process.argv.includes('--diff')
 
+/** Floor for the WFCD metadata join. Written once: a threshold repeated in its own error
+ *  message is a threshold that will eventually contradict itself. */
+const COVERAGE_FLOOR = 0.85
+
 /** Explicit human override for the +/-15% count gates. Never set in CI. */
 const ACCEPT_DRIFT = process.argv.includes('--accept-drift')
 
 const REPO = 'https://raw.githubusercontent.com/WFCD/warframe-drop-data/master/data'
+const ITEMS_REPO = 'https://raw.githubusercontent.com/WFCD/warframe-items/master/data/json'
 const OUT_DIR = fileURLToPath(new URL('../apps/web/public/data/', import.meta.url))
 
 const ATTRIBUTIONS = [
@@ -333,7 +342,45 @@ async function main(): Promise<void> {
     }
   }
 
-  const items: Item[] = buildItems([...namesSeen, ...secondary.names], relics, relicRewardNames)
+  const bare: Item[] = buildItems([...namesSeen, ...secondary.names], relics, relicRewardNames)
+
+  // ---- enrich -----------------------------------------------------------------
+  // Item metadata from WFCD's warframe-items. The drop tables carry names and odds and
+  // nothing else, so without this every category is a regex guess over the name.
+  const wfcdRaw = await Promise.all(
+    WFCD_FILES.map((entry) => fetchJson<unknown>(`${ITEMS_REPO}/${entry.file}.json`)),
+  )
+  const wfcdFiles = WFCD_FILES.map((entry, i) => {
+    const parsed = z.array(RawWfcdItem).safeParse(wfcdRaw[i])
+    if (!parsed.success) {
+      fail(`${entry.file}.json failed validation: ${parsed.error.message}`)
+    }
+    return { ...entry, rows: parsed.data }
+  })
+
+  const enriched = enrichItems(bare, buildEnrichmentIndex(wfcdFiles))
+  const items: Item[] = enriched.items
+
+  /**
+   * Coverage is a gate, not a statistic. A rename upstream, or a change to how components
+   * are nested, would silently return the catalogue to "everything is Other" — which looks
+   * like a working build. 96.8% of non-relic items match today; the floor is set well below
+   * that so ordinary churn passes and a structural break does not.
+   */
+  const enrichable = bare.filter((item) => item.category !== 'Relic').length
+  const coverage = enrichable === 0 ? 1 : enriched.matched / enrichable
+  console.log(
+    `  wfcd    ${String(enriched.matched)}/${String(enrichable)} non-relic items enriched ` +
+      `(${(coverage * 100).toFixed(1)}%)`,
+  )
+  if (coverage < COVERAGE_FLOOR) {
+    fail(
+      `item metadata coverage fell to ${(coverage * 100).toFixed(1)}% ` +
+        `(floor ${(COVERAGE_FLOOR * 100).toFixed(0)}%). ` +
+        `WFCD likely renamed or restructured something. ` +
+        `First few unmatched: ${enriched.unmatched.slice(0, 8).join(', ')}`,
+    )
+  }
 
   console.log(
     `  parsed  ${String(items.length)} items, ${String(sources.length)} sources, ` +

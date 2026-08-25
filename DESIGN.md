@@ -512,7 +512,29 @@ Write these into code comments as you hit them.
     all. The bare-number form is therefore opt-in per noun; an unrecognised name keeps its number
     and stays whole.
 
-12. **Every id must be minted the same way, and the orphan gate is what proves it.** The quantity
+13. **The WFCD item join is by NAME, and names disagree in three specific ways.** The drop
+    tables carry names and odds; everything else — category, mastery, tradability, icons,
+    components — comes from `warframe-items`. An exact slug match gets 75.5% of non-relic
+    items. Three rules take it to 96.8%, and each exists because of a real habit:
+    a part reward is "Aeolak Barrel Blueprint" where WFCD nests a component called just
+    "Barrel" under "Aeolak"; an augment mod is "Abating Link (Trinity)" where the mod is
+    "Abating Link"; and some WFCD names carry a UI sprite token, "<Shard_blue_simple> Azure
+    Archon Shard". The remaining 3.2% genuinely are not in WFCD — credit caches, boosters,
+    conclave slots — so coverage is a budgeted gate (floor 85%), not an assertion.
+
+    Two traps worth keeping in mind. A parent's `components` array mixes true parts with
+    shared build ingredients: Orokin Cell sits beside Barrel, and prefixing it would invent
+    "Braton Prime Orokin Cell". Filter on `uniqueName` containing `/Recipes/`. And a part
+    carries its OWN `tradable`, which usually disagrees with its parent — Braton Prime is
+    untradable while every one of its parts is tradable, so inheriting the parent's flag
+    would mark every prime part in the game untradable.
+
+    Fetched as JSON per category rather than depending on `@wfcd/items`: the package unpacks
+    to 101 MB that every CI run and every install would pay for, against ~36 MB of category
+    files we read a handful of fields from. `All.json` is avoided too — 62 MB, and it merely
+    concatenates the rest.
+
+14. **Every id must be minted the same way, and the orphan gate is what proves it.** The quantity
     work updated four id sites and missed a fifth — relic rewards, which slugged their names
     independently. The build failed on 164 orphaned edges pointing at `2x-forma-blueprint`, an
     item that no longer existed. That is the gate doing exactly its job; without it the dataset
