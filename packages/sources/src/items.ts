@@ -1,5 +1,5 @@
 import type { Item, ItemCategory, RelicDetail, DropEdge } from '@provenance/core'
-import { relicDisplayName, slug } from './slug'
+import { parseRewardName, relicDisplayName, slug } from './slug'
 
 /**
  * Items are derived from the names appearing in the drop data itself.
@@ -42,7 +42,9 @@ export function buildItems(
 ): Item[] {
   const byId = new Map<string, Item>()
 
-  const add = (name: string): void => {
+  const add = (rawName: string): void => {
+    // Canonical, so "Lith A12 Relic (Radiant)" does not mint a second relic item.
+    const name = parseRewardName(rawName).name
     const id = slug(name)
     if (id === '' || byId.has(id)) return
     byId.set(id, {

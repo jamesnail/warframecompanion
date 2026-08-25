@@ -234,7 +234,18 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
                     {directEdges.slice(0, SOURCE_LIMIT).map(({ edge, source, p }, index) => {
                       const stage = stageLabel(source?.missionType, edge.rotation)
                       const kind = kindLabel(source)
-                      const detail = [source?.planet, source?.missionType, kind, stage]
+                      // A pre-refined relic is a materially better drop — a Radiant from
+                      // Elite Sanctuary Onslaught saves 100 void traces — so it is named
+                      // on the row rather than being folded into the plain relic.
+                      const detail = [
+                        source?.planet,
+                        source?.missionType,
+                        kind,
+                        stage,
+                        edge.refinement === undefined
+                          ? undefined
+                          : `${edge.refinement[0]?.toUpperCase() ?? ''}${edge.refinement.slice(1)}`,
+                      ]
                         .filter((part) => part !== undefined)
                         .join(' · ')
                       return (

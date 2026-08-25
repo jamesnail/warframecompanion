@@ -74,8 +74,16 @@ export default tseslint.config(
     },
   },
   {
-    // Config and script files are Node-side and run outside the type-aware project.
-    files: ['**/*.config.{mjs,ts}', 'scripts/**/*.ts'],
+    /**
+     * Config files are plain JS and belong to no compiler project, so type-aware rules
+     * have nothing to work with.
+     *
+     * scripts/** used to be listed here too, and that was the wrong trade: the pipeline
+     * entrypoint decides what ships to 4800 pages, and it was getting the weakest checking
+     * in the repo. It now has a tsconfig (see tsconfig.json), so it gets the full rule set
+     * like everything else.
+     */
+    files: ['**/*.config.{mjs,ts}'],
     ...tseslint.configs.disableTypeChecked,
   },
 )

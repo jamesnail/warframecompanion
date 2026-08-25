@@ -14,8 +14,18 @@ export interface SearchHit {
   category: string
 }
 
+/**
+ * `total` is the number of items that MATCHED, before the limit was applied. The palette
+ * shows at most 20 rows; without this it could not tell the difference between "these are
+ * the 20 matches" and "these are 20 of 137", and quietly presented the second as the first.
+ */
+export interface SearchResult {
+  hits: SearchHit[]
+  total: number
+}
+
 export interface SearchIndex {
-  search(needle: string, limit?: number): SearchHit[]
+  search(needle: string, limit?: number): SearchResult
   size: number
 }
 
@@ -34,8 +44,8 @@ export function createSearchIndex(items: Item[]): SearchIndex {
 
   return {
     size: entries.length,
-    search(needle: string, limit = 20): SearchHit[] {
-      if (entries.length === 0 || needle.trim() === '') return []
+    search(needle: string, limit = 20): SearchResult {
+      if (entries.length === 0 || needle.trim() === '') return { hits: [], total: 0 }
 
       const [indices, info, order] = fuzzy.search(haystack, needle)
       const out: SearchHit[] = []
@@ -51,16 +61,16 @@ export function createSearchIndex(items: Item[]): SearchIndex {
           const entry = entries[entryIndex]
           if (entry !== undefined) out.push(entry)
         }
-        return out
+        return { hits: out, total: order.length }
       }
 
-      if (indices === null) return []
+      if (indices === null) return { hits: [], total: 0 }
       for (const entryIndex of indices) {
+        if (out.length >= limit) break
         const entry = entries[entryIndex]
         if (entry !== undefined) out.push(entry)
-        if (out.length >= limit) break
       }
-      return out
+      return { hits: out, total: indices.length }
     },
   }
 }

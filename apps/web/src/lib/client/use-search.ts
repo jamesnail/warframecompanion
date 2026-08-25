@@ -29,6 +29,8 @@ export type SearchStatus = 'loading' | 'ready' | 'failed'
 export function useSearch() {
   const [status, setStatus] = useState<SearchStatus>('loading')
   const [results, setResults] = useState<SearchHit[]>([])
+  // Matches BEFORE the row cap, so the palette can admit when it is showing a subset.
+  const [total, setTotal] = useState(0)
   const [count, setCount] = useState(0)
 
   const indexRef = useRef<SearchIndex | undefined>(undefined)
@@ -50,7 +52,11 @@ export function useSearch() {
         // The palette accepts typing before the index exists; flush whatever was typed
         // while it was loading (DESIGN.md § 6). A search box that swallows your first
         // keystrokes feels broken even when it is merely early.
-        if (latestQuery.current !== '') setResults(index.search(latestQuery.current))
+        if (latestQuery.current !== '') {
+          const flushed = index.search(latestQuery.current)
+          setResults(flushed.hits)
+          setTotal(flushed.total)
+        }
       } catch {
         // A missing dataset hides the palette's results; it must not blank the page
         // (CLAUDE.md § Errors).
@@ -69,14 +75,17 @@ export function useSearch() {
 
     if (query.trim() === '') {
       setResults([])
+      setTotal(0)
       return
     }
 
     const index = indexRef.current
     if (index === undefined) return // still loading; the flush above will catch up
 
-    setResults(index.search(query))
+    const found = index.search(query)
+    setResults(found.hits)
+    setTotal(found.total)
   }, [])
 
-  return { status, results, search, count }
+  return { status, results, total, search, count }
 }

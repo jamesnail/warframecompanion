@@ -71,7 +71,7 @@ export function CommandPalette() {
   const restoreFocusTo = useRef<HTMLElement | null>(null)
 
   const router = useRouter()
-  const { status, results, search, count } = useSearch()
+  const { status, results, total, search, count } = useSearch()
 
   useEffect(() => {
     function onOpenRequest(): void {
@@ -260,10 +260,20 @@ export function CommandPalette() {
           ))}
         </ul>
 
+        {/* Every other list in the app discloses when it is truncating; this one silently
+            showed 20 of however many and looked like a complete answer. */}
+        {total > results.length && (
+          <p className="shrink-0 border-t border-hairline px-4 py-2.5 text-xs text-text-faint sm:px-5">
+            Showing {results.length} of {total} matches. Keep typing to narrow it.
+          </p>
+        )}
+
         {/* A live region must exist BEFORE its text changes to be announced. */}
         <p role="status" aria-live="polite" className="sr-only">
           {status === 'ready' && query.trim() !== ''
-            ? `${String(results.length)} results`
+            ? total > results.length
+              ? `Showing ${String(results.length)} of ${String(total)} results`
+              : `${String(results.length)} results`
             : ''}
         </p>
         {query.trim() !== '' && results.length === 0 && (

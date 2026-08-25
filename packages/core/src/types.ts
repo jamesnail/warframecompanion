@@ -123,6 +123,17 @@ export const DropEdge = z.object({
   /** Rounds per rotation-C cycle, cache count, etc. This is what makes two paths
    *  comparable by effort rather than by raw percentage (DESIGN.md § 4). */
   eventsPerRun: z.number().positive().optional(),
+  /**
+   * Set only where a source hands out a PRE-REFINED relic — Elite Sanctuary Onslaught and
+   * a few bounties pay in Radiant ones, which is worth 100 void traces the player does not
+   * have to spend.
+   *
+   * This is a property of the drop, not of the relic. Upstream disagrees: it names the
+   * reward "Lith A12 Relic (Radiant)", which slugged to a SEPARATE item with no relic
+   * detail attached — 29 dead pages that listed sources but no contents, never appeared in
+   * any prime part's relic list, and split each affected relic's sources in two.
+   */
+  refinement: Refinement.optional(),
   provenance: Provenance,
   /** Set on `derived` edges only: the relic this path is composed through. */
   via: ItemId.optional(),
@@ -140,6 +151,15 @@ export type RelicDetail = z.infer<typeof RelicDetail>
 
 export const Manifest = z.object({
   hash: z.string().min(1),
+  /**
+   * DE's own publication timestamp for the drop tables, NOT the time this build ran.
+   *
+   * The name is misleading and the distinction matters: this deliberately does not advance
+   * when a daily run finds nothing changed. A pipeline run that rewrote it every day would
+   * produce an empty commit every day, which the whole content-addressed design exists to
+   * avoid. If this reads as months old, that is because DE has not republished — it is the
+   * honest answer, not a stale one. Do not "fix" it by stamping Date.now().
+   */
   builtAt: z.string(),
   files: z.record(z.string(), z.string()),
   upstream: z.record(z.string(), z.string()),

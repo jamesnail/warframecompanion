@@ -65,7 +65,7 @@ export default async function HomePage() {
       ))}
 
       <p className="label mt-12">
-        Drop data {built.toISOString().slice(0, 10)} · build {manifest.hash}
+        Drop data published {built.toISOString().slice(0, 10)} · build {manifest.hash}
       </p>
     </div>
   )

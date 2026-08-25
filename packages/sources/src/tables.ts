@@ -1,5 +1,5 @@
 import type { DropEdge, Rotation, Source, SourceKind } from '@provenance/core'
-import { slug } from './slug'
+import { parseRewardName, slug } from './slug'
 import {
   normalizeReward,
   rewardName,
@@ -64,14 +64,16 @@ function emit(
       parsed.unknownChance++
       continue
     }
-    parsed.names.push(name)
+    const { name: itemName, refinement } = parseRewardName(name)
+    parsed.names.push(itemName)
     const { chance, quantity } = normalizeReward(reward.chance)
     parsed.edges.push({
-      itemId: slug(name),
+      itemId: slug(itemName),
       sourceId: source.id,
       chance,
       rotation,
       ...(reward.stage === undefined ? {} : { stage: reward.stage }),
+      ...(refinement === undefined ? {} : { refinement }),
       quantity,
       provenance: 'official',
     })
@@ -253,13 +255,15 @@ export function parseEnemyTables(raw: RawEnemyTable[], kind: SourceKind = 'enemy
     for (const reward of deduped) {
       const rewardLabel = rewardName(reward)
       if (rewardLabel === undefined || reward.chance === null) continue
-      parsed.names.push(rewardLabel)
+      const { name: itemName, refinement } = parseRewardName(rewardLabel)
+      parsed.names.push(itemName)
       const { chance, quantity } = normalizeReward(reward.chance)
       parsed.edges.push({
-        itemId: slug(rewardLabel),
+        itemId: slug(itemName),
         sourceId,
         // The composition. This is the whole reason enemy tables get their own parser.
         chance: gate * chance,
+        ...(refinement === undefined ? {} : { refinement }),
         quantity,
         provenance: 'official',
       })

@@ -12,8 +12,7 @@ import { mkdir, readFile, readdir, unlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { Manifest, REFINEMENT_TABLE, refinementRowTotal } from '@provenance/core'
-import type { DropEdge, Item, Source } from '@provenance/core'
+import { DropEdge, Item, Manifest, REFINEMENT_TABLE, RelicDetail, Source, refinementRowTotal } from '@provenance/core'
 import { z } from 'zod'
 
 import {
@@ -388,6 +387,32 @@ async function main(): Promise<void> {
       .map((o) => `${o.itemId} <- ${o.sourceId}`)
       .join(', ')
     fail(`${String(orphans.length)} orphaned edges. First few: ${sample}`)
+  }
+
+  // Re-parse what we are about to WRITE, not just what we read.
+  //
+  // Every upstream payload is Zod-parsed on the way in, but nothing checked the shape on
+  // the way out — so a mapping bug in this file could ship a dataset that the client then
+  // refuses to parse, and the failure would surface as a blank search box in production
+  // rather than a red build. The one thing the pipeline must never do is commit a bad
+  // dataset, and this is the last place to catch it.
+  const shapes: [string, z.ZodType, unknown[]][] = [
+    ['items', Item, items],
+    ['sources', Source, sources],
+    ['edges', DropEdge, edges],
+    ['relics', RelicDetail, relics],
+  ]
+  for (const [name, schema, rows] of shapes) {
+    const result = z.array(schema).safeParse(rows)
+    if (!result.success) {
+      const sample = result.error.issues
+        .slice(0, 5)
+        .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+        .join('; ')
+      fail(
+        `emitted ${name} failed its own schema (${String(result.error.issues.length)} issues). First few: ${sample}`,
+      )
+    }
   }
 
   console.log('  gates   all passed')

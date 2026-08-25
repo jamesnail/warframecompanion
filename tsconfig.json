@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./tsconfig.base.json",
+  /**
+   * Covers the files that belong to no workspace package: the pipeline entrypoint and the
+   * root config files.
+   *
+   * Without this they were the least-checked code in the repo, which is backwards —
+   * scripts/build-data.ts is the thing that decides what ships to 4800 pages. `turbo
+   * typecheck` only visits packages, and `turbo lint` runs `eslint src` inside each one,
+   * so nothing ever pointed a compiler or a linter at scripts/. The eslint config has had
+   * a `scripts/**` block the whole time that never executed once.
+   */
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"],
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false
+  },
+  "include": ["scripts/**/*.ts", "eslint.config.mjs"],
+  "exclude": ["node_modules", "dist", ".next", "apps", "packages"]
+}

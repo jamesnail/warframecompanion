@@ -10,8 +10,8 @@
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",
-    "typecheck": "turbo typecheck",
-    "lint": "turbo lint",
+    "typecheck": "turbo typecheck && tsc -p tsconfig.json",
+    "lint": "turbo lint && eslint scripts eslint.config.mjs",
     "test": "turbo test",
     "data:build": "tsx scripts/build-data.ts",
     "data:diff": "tsx scripts/build-data.ts --diff"
