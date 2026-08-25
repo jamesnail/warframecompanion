@@ -7,7 +7,7 @@ export const site = {
   name: 'Provenance',
   tagline: 'Every way to get it, ranked by effort.',
   description:
-    'Warframe drop-source lookup. Given an item, see every path to it — including relic chains — ranked by expected time.',
+    'Warframe drop-source lookup. Given an item, see every source that drops it and every relic that contains it, ranked by drop rate.',
   repository: 'https://github.com/jamesnail/warframecompanion',
 } as const
 
