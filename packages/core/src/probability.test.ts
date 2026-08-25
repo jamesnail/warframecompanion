@@ -3,6 +3,7 @@ import {
   REFINEMENT_TABLE,
   atLeastOnce,
   bestRefinementFor,
+  chancesByRefinement,
   composeThroughRelic,
   relicsNeeded,
   expectedRuns,
@@ -206,5 +207,38 @@ describe('float exactness at one trial', () => {
     expect(Math.ceil(relicsNeeded(0.2, 1))).toBe(5)
     expect(Math.ceil(relicsNeeded(REFINEMENT_TABLE.radiant.rare, 1))).toBe(10)
     expect(Math.ceil(relicsNeeded(REFINEMENT_TABLE.radiant.uncommon, 1))).toBe(5)
+  })
+})
+
+describe('chancesByRefinement', () => {
+  it('returns all four levels in upgrade order', () => {
+    expect(chancesByRefinement('rare').map((r) => r.refinement)).toEqual([
+      'intact',
+      'exceptional',
+      'flawless',
+      'radiant',
+    ])
+  })
+
+  // Hand-checked against REFINEMENT_TABLE: refining a RARE is a straight upgrade...
+  it('rises monotonically for rare rewards', () => {
+    expect(chancesByRefinement('rare').map((r) => r.chance)).toEqual([0.02, 0.04, 0.06, 0.1])
+  })
+
+  // ...while refining for a COMMON actively makes it worse. This is the direction that
+  // surprises people, and the reason the UI shows the whole row rather than the best cell.
+  it('falls monotonically for common rewards', () => {
+    expect(chancesByRefinement('common').map((r) => r.chance)).toEqual([
+      0.2533, 0.2333, 0.2, 0.1667,
+    ])
+  })
+
+  it('agrees with bestRefinementFor on which level wins', () => {
+    for (const rarity of ['common', 'uncommon', 'rare'] as const) {
+      const row = chancesByRefinement(rarity)
+      const top = row.reduce((a, b) => (b.chance > a.chance ? b : a))
+      expect(top.refinement).toBe(bestRefinementFor(rarity).refinement)
+      expect(top.chance).toBe(bestRefinementFor(rarity).chance)
+    }
   })
 })

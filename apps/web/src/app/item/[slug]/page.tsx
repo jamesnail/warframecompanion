@@ -3,30 +3,37 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 
 import {
-  FISSURE_RUN_MINUTES,
+  REFINEMENT_ORDER,
   bestRefinementFor,
+  chancesByRefinement,
   expectedRuns,
   perRunChance,
-  relicsNeeded,
-  rotationCycleCost,
   runsForConfidence,
   stageLabel,
 } from '@provenance/core'
-import type { DropEdge, RelicRarity } from '@provenance/core'
+import type { Refinement, RelicRarity } from '@provenance/core'
 
 import { SearchTrigger } from '@/components/CommandPalette'
 import { Panel, PanelHeader, RarityTag, Stat } from '@/components/Primitives'
-import { ProbabilityBar } from '@/components/ProbabilityBar'
 import { getDataset } from '@/lib/data'
-import { ceilCount, formatMinutes } from '@/lib/format'
-import { kindLabel, runMinutes } from '@/lib/effort'
-
-/** Squad size assumed for the share comparison. Becomes a control in a later phase. */
-const SHARE_SIZE = 4
+import { kindLabel } from '@/lib/effort'
 
 /** How many rows each list shows. Both headers disclose when they are truncating. */
-const CHAIN_LIMIT = 12
+const RELIC_LIMIT = 12
 const SOURCE_LIMIT = 20
+
+/**
+ * Three-letter column heads for the narrow side-by-side relic table. Slicing the words
+ * instead produced "INTA EXCE FLAW RADI", which is not any shorter to read and is not what
+ * the level is called. The full word is kept for screen readers, which would otherwise be
+ * handed an abbreviation with no expansion.
+ */
+const REFINEMENT_ABBR: Record<Refinement, string> = {
+  intact: 'Int',
+  exceptional: 'Exc',
+  flawless: 'Flw',
+  radiant: 'Rad',
+}
 
 export async function generateStaticParams() {
   const { items } = await getDataset()
@@ -45,31 +52,18 @@ export async function generateMetadata({
 
   return {
     title: `${item.name} drop locations`,
-    description: `Every way to get ${item.name} in Warframe, ranked by expected effort.`,
+    description: `Every way to get ${item.name} in Warframe.`,
   }
 }
 
-/** One way of getting there: how many relics, how much farming, how long in total. */
-interface Plan {
-  relics: number
-  farmRuns: number
-  minutes: number
-}
-
-interface Chain {
+/** A relic that contains this item, and what it pays at each refinement level. */
+interface RelicPath {
   relicId: string
   relicName: string
   rarity: RelicRarity
   vaulted: boolean
-  refinement: string
-  perRelic: number
-  missionName: string | undefined
-  missionType: string | undefined
-  planet: string | undefined
-  stage: string | undefined
-  relicChance: number
-  solo: Plan
-  share: Plan
+  chances: { refinement: Refinement; chance: number }[]
+  best: number
 }
 
 export default async function ItemPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -82,130 +76,51 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
   const incoming = edgesByItem.get(slug) ?? []
 
   // Syndicate offerings are guaranteed purchases priced in rank and standing, not RNG.
-  // Ranking them alongside farms put a 100% edge with no run cost at the top of a list
-  // sorted by expected time — or, because they carry no duration, buried them below a
-  // 3.57% mission. Neither is the truth, so they get their own section.
+  // A 100% edge in a list sorted by drop rate would sit at the top of every page that has
+  // one and say nothing useful, so they keep their own section.
   const vendorOfferings = incoming
     .filter((edge) => sourcesById.get(edge.sourceId)?.kind === 'syndicate')
     .map((edge) => ({ edge, source: sourcesById.get(edge.sourceId) }))
 
+  // Ranked by drop rate, highest first. This deliberately ignores how long a run takes: a
+  // 20% reward on a 20-minute Survival now outranks a 15% one on a 90-second Capture. The
+  // table answers "where is it likeliest", not "what is fastest" — mission-durations.ts and
+  // rotationCycleCost() still exist for the ranked surfaces in a later phase.
   const directEdges = incoming
     .filter((edge) => {
       if (edge.sourceId.startsWith('relic:')) return false
       return sourcesById.get(edge.sourceId)?.kind !== 'syndicate'
     })
-    .map((edge) => {
-      const source = sourcesById.get(edge.sourceId)
-      const p = perRunChance(edge)
-      // Endless missions cycle A A B C, so one interval is not one opportunity at a
-      // given rotation: B and C each come round once every four.
-      const cycle = rotationCycleCost(source?.missionType, edge.rotation)
-      const interval = runMinutes(source)
-      const minutes = interval === undefined ? undefined : interval * cycle
-      return {
-        edge,
-        source,
-        p,
-        minutes,
-        expectedMinutes: minutes === undefined ? undefined : expectedRuns(p) * minutes,
-      }
-    })
-    // Timeable sources first, ranked by time; then the rest ranked by chance. An enemy
-    // drop and a Capture run are not comparable in minutes, so they are not mixed.
-    .sort((a, b) => {
-      if (a.expectedMinutes !== undefined && b.expectedMinutes !== undefined) {
-        return a.expectedMinutes - b.expectedMinutes
-      }
-      if (a.expectedMinutes !== undefined) return -1
-      if (b.expectedMinutes !== undefined) return 1
-      return b.p - a.p
-    })
+    .map((edge) => ({ edge, source: sourcesById.get(edge.sourceId), p: perRunChance(edge) }))
+    .sort((a, b) => b.p - a.p)
 
-  // ---- relic chains -----------------------------------------------------------
-  // Modelled in RELICS, not in per-run percentages. Farming a relic and cracking it are
-  // separate activities — nobody opens a relic on the run that dropped it — so the effort
-  // is: relics needed, the runs to farm them, and the fissure runs to open them.
-  const relics = relicsByReward.get(slug) ?? []
-  const chains: Chain[] = []
-
-  for (const relic of relics) {
+  // ---- relics that contain this item -------------------------------------------
+  // Shown as the reward table itself: what each refinement level pays. Refining is a
+  // decision the player makes with traces, and for a common reward it makes the odds
+  // WORSE — so the whole row is the answer, not one "best" cell.
+  const relicPaths: RelicPath[] = []
+  for (const relic of relicsByReward.get(slug) ?? []) {
     const reward = relic.rewards.find((r) => r.itemId === slug)
     if (reward === undefined) continue
-
-    const relicDrops = edgesByItem.get(relic.id) ?? []
-
-    let best: { edge: DropEdge; minutes: number; expectedMinutes: number } | undefined
-    for (const edge of relicDrops) {
-      const source = sourcesById.get(edge.sourceId)
-      if (source === undefined || source.kind === 'relic') continue
-      const minutes =
-        (runMinutes(source) ?? 5) * rotationCycleCost(source.missionType, edge.rotation)
-      const expectedMinutes = expectedRuns(perRunChance(edge)) * minutes
-      if (best === undefined || expectedMinutes < best.expectedMinutes) {
-        best = { edge, minutes, expectedMinutes }
-      }
-    }
-
-    // NOT always Radiant. For a common reward Intact is better (25.33% vs 16.67%), so
-    // assuming Radiant would both overstate the effort and advise wasting traces.
-    const { refinement, chance: perRelic } = bestRefinementFor(reward.rarity)
-
-    const source = best === undefined ? undefined : sourcesById.get(best.edge.sourceId)
-    const relicChance = best === undefined ? 0 : perRunChance(best.edge)
-    const runsPerRelic = relicChance > 0 ? 1 / relicChance : Infinity
-    const missionMinutes = best?.minutes ?? 0
-
-    const plan = (players: number): Plan => {
-      const needed = relicsNeeded(perRelic, players)
-      const farmRuns = needed * runsPerRelic
-      // A vaulted relic has no source, so runsPerRelic is Infinity and missionMinutes is
-      // 0 — and Infinity * 0 is NaN, which would poison the sort comparator below and
-      // make the ordering of vaulted rows non-deterministic. Keep it Infinity.
-      const farmMinutes = Number.isFinite(farmRuns) ? farmRuns * missionMinutes : Infinity
-      return {
-        relics: needed,
-        farmRuns,
-        minutes: farmMinutes + needed * FISSURE_RUN_MINUTES,
-      }
-    }
-
-    chains.push({
+    relicPaths.push({
       relicId: relic.id,
-      // The item table carries the proper display name ("Axi A1 Relic"); shouting the
-      // slug back as "AXI A1" was neither the game's name for it nor consistent with the
-      // relic's own page.
+      // The item table carries the proper display name ("Axi A1 Relic"); the raw slug is
+      // neither the game's name for it nor consistent with the relic's own page.
       relicName: itemsById.get(relic.id)?.name ?? relic.id,
       rarity: reward.rarity,
       vaulted: relic.vaulted,
-      refinement,
-      perRelic,
-      missionName: source?.name,
-      missionType: source?.missionType,
-      planet: source?.planet,
-      stage: stageLabel(source?.missionType, best?.edge.rotation),
-      relicChance,
-      solo: plan(1),
-      share: plan(SHARE_SIZE),
+      chances: chancesByRefinement(reward.rarity),
+      best: bestRefinementFor(reward.rarity).chance,
     })
   }
 
-  chains.sort((a, b) => {
+  relicPaths.sort((a, b) => {
     if (a.vaulted !== b.vaulted) return a.vaulted ? 1 : -1
-    return a.solo.minutes - b.solo.minutes
+    if (b.best !== a.best) return b.best - a.best
+    return a.relicName.localeCompare(b.relicName)
   })
 
-  // ---- the headline -----------------------------------------------------------
-  const bestChain = chains.find((chain) => !chain.vaulted)
-  const bestDirect = directEdges[0]
-
-  const chainMinutes = bestChain?.solo.minutes ?? Infinity
-  const directMinutes = bestDirect?.expectedMinutes ?? Infinity
-  const preferChain = bestChain !== undefined && chainMinutes <= directMinutes
-
-  const vaultedCount = chains.filter((chain) => chain.vaulted).length
-  // reduce, not Math.max(...spread): one item reaches 810 direct sources today and a
-  // spread that large is a stack-size gamble for no benefit.
-  const maxDirect = directEdges.reduce((max, d) => (d.p > max ? d.p : max), 0.0001)
+  const vaultedCount = relicPaths.filter((path) => path.vaulted).length
 
   // This item IS a relic — show what it contains, rather than "no source found".
   const asRelic = relicsById.get(slug)
@@ -216,22 +131,25 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
           .map((reward) => ({
             ...reward,
             name: itemsById.get(reward.itemId)?.name ?? reward.itemId,
-            chance: bestRefinementFor(reward.rarity),
+            chances: chancesByRefinement(reward.rarity),
+            best: bestRefinementFor(reward.rarity),
           }))
-          .sort((a, b) => a.chance.chance - b.chance.chance)
+          .sort((a, b) => b.best.chance - a.best.chance || a.name.localeCompare(b.name))
 
-  // Enemy and syndicate sources have no per-run duration, so a time estimate would be
-  // invented rather than derived. The stat is omitted instead of guessed.
+  const bestDirect = directEdges[0]
+  // An enemy is not a run: you do not queue "one Corrupted Heavy Gunner".
   const directNoun = bestDirect?.source?.kind === 'enemy' ? 'kills' : 'runs'
 
   return (
-    <div className="mx-auto max-w-4xl px-5 py-12 sm:px-6 sm:py-16">
+    <div className="mx-auto max-w-6xl px-5 py-12 sm:px-6 sm:py-16">
       <nav className="label mb-6 flex items-center justify-between gap-4">
         <span>
           <Link href="/" className="transition-colors hover:text-text">
             Provenance
           </Link>
-          <span className="mx-2 text-hairline-strong" aria-hidden="true">/</span>
+          <span className="mx-2 text-hairline-strong" aria-hidden="true">
+            /
+          </span>
           <span>{item.category}</span>
         </span>
         {/* A visible affordance: a keyboard shortcut nobody can see is not a feature. */}
@@ -240,56 +158,34 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
 
       <h1 className="font-display text-xl font-bold text-orokin sm:text-2xl">{item.name}</h1>
 
-      {preferChain && bestChain !== undefined ? (
-        <>
-          <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-4">
-            <Stat label="Fastest route" value={formatMinutes(bestChain.solo.minutes)} accent />
-            <Stat label="Relics needed" value={String(ceilCount(bestChain.solo.relics))} />
-            <Stat label="Farm runs" value={bestChain.solo.farmRuns.toFixed(0)} />
-            <Stat
-              label={`In a ×${String(SHARE_SIZE)} share`}
-              value={formatMinutes(bestChain.share.minutes)}
-            />
-          </div>
-          <p className="label mt-3">
-            via {bestChain.relicName} at {bestChain.refinement}
-          </p>
-        </>
-      ) : bestDirect !== undefined ? (
-        <>
-          <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-4">
-            {bestDirect.expectedMinutes !== undefined && (
-              <Stat
-                label="Fastest route"
-                value={formatMinutes(bestDirect.expectedMinutes)}
-                accent
-              />
-            )}
-            <Stat
-              label={`Expected ${directNoun}`}
-              value={expectedRuns(bestDirect.p).toFixed(0)}
-              accent={bestDirect.expectedMinutes === undefined}
-            />
-            <Stat
-              label={`Chance / ${directNoun === 'kills' ? 'kill' : 'run'}`}
-              value={(bestDirect.p * 100).toFixed(2)}
-              unit="%"
-            />
-            <Stat
-              label="95% confident"
-              value={String(runsForConfidence(bestDirect.p))}
-              unit={directNoun}
-            />
-          </div>
-          <p className="label mt-3">via direct drop</p>
-        </>
+      {bestDirect !== undefined ? (
+        <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-3">
+          <Stat
+            label={`Best chance / ${directNoun === 'kills' ? 'kill' : 'run'}`}
+            value={(bestDirect.p * 100).toFixed(2)}
+            unit="%"
+            accent
+          />
+          <Stat label={`Expected ${directNoun}`} value={expectedRuns(bestDirect.p).toFixed(0)} />
+          <Stat
+            label="95% confident"
+            value={String(runsForConfidence(bestDirect.p))}
+            unit={directNoun}
+          />
+        </div>
+      ) : relicPaths.length > 0 ? (
+        <p className="mt-6 max-w-prose text-sm text-text-dim">
+          No direct drop. Found only in Void Relics —{' '}
+          {relicPaths.length === 1 ? 'one relic' : `${String(relicPaths.length)} relics`} listed
+          below.
+        </p>
       ) : vendorOfferings.length > 0 ? (
-        // Splitting vendors out of the ranked list left 1409 pages claiming "No source
-        // found" directly above a populated "Bought, not farmed" panel. A guaranteed
-        // purchase is a source; it just isn't a farm.
+        // A guaranteed purchase is a source; it just isn't a farm.
         <p className="mt-6 max-w-prose text-sm text-text-dim">
           Not farmed — bought with standing from{' '}
-          {vendorOfferings.length === 1 ? 'a syndicate' : `${String(vendorOfferings.length)} syndicates`}
+          {vendorOfferings.length === 1
+            ? 'a syndicate'
+            : `${String(vendorOfferings.length)} syndicates`}
           , listed below.
         </p>
       ) : asRelic !== undefined ? (
@@ -304,8 +200,147 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
         </p>
       )}
 
+      {/* Direct sources and relics answer the same question two ways, so they are read
+          together rather than one scrolled past to reach the other. */}
+      {(directEdges.length > 0 || relicPaths.length > 0) && (
+        <div className="mt-10 grid items-start gap-6 lg:grid-cols-2">
+          {directEdges.length > 0 && (
+            <Panel>
+              <PanelHeader
+                title="Direct sources"
+                aside={
+                  directEdges.length > SOURCE_LIMIT
+                    ? `${String(SOURCE_LIMIT)} of ${String(directEdges.length)} · by drop rate`
+                    : `${String(directEdges.length)} · by drop rate`
+                }
+              />
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <caption className="sr-only">
+                    Sources that drop {item.name} directly, highest drop rate first
+                  </caption>
+                  <thead>
+                    <tr className="border-b border-hairline text-left">
+                      <th scope="col" className="label px-5 py-2 font-normal">
+                        Source
+                      </th>
+                      <th scope="col" className="label px-5 py-2 text-right font-normal">
+                        Chance
+                      </th>
+                      <th scope="col" className="label px-5 py-2 text-right font-normal">
+                        Runs
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {directEdges.slice(0, SOURCE_LIMIT).map(({ edge, source, p }, index) => {
+                      const stage = stageLabel(source?.missionType, edge.rotation)
+                      const kind = kindLabel(source)
+                      const detail = [source?.planet, source?.missionType, kind, stage]
+                        .filter((part) => part !== undefined)
+                        .join(' · ')
+                      return (
+                        <tr
+                          key={`${edge.sourceId}-${String(index)}`}
+                          className="border-b border-hairline/50 last:border-0"
+                        >
+                          <th scope="row" className="px-5 py-2.5 text-left font-normal">
+                            <span className="text-text">{source?.name ?? edge.sourceId}</span>
+                            {detail !== '' && (
+                              <span className="mt-0.5 block text-xs text-text-faint">{detail}</span>
+                            )}
+                          </th>
+                          <td className="data-num px-5 py-2.5 text-right text-text">
+                            {(p * 100).toFixed(2)}%
+                          </td>
+                          <td className="data-num px-5 py-2.5 text-right text-text-faint">
+                            ~{expectedRuns(p).toFixed(0)}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </Panel>
+          )}
+
+          {relicPaths.length > 0 && (
+            <Panel>
+              <PanelHeader
+                title="From relics"
+                aside={
+                  relicPaths.length > RELIC_LIMIT
+                    ? `${String(RELIC_LIMIT)} of ${String(relicPaths.length)} · ${String(vaultedCount)} vaulted`
+                    : vaultedCount > 0
+                      ? `${String(relicPaths.length)} · ${String(vaultedCount)} vaulted`
+                      : String(relicPaths.length)
+                }
+              />
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <caption className="sr-only">
+                    Relics containing {item.name}, and the odds at each refinement level
+                  </caption>
+                  <thead>
+                    <tr className="border-b border-hairline text-left">
+                      <th scope="col" className="label px-5 py-2 font-normal">
+                        Relic
+                      </th>
+                      {REFINEMENT_ORDER.map((refinement) => (
+                        <th
+                          key={refinement}
+                          scope="col"
+                          className="label px-2 py-2 text-right font-normal last:pr-5"
+                        >
+                          <span className="sr-only">{refinement}</span>
+                          <span aria-hidden="true">{REFINEMENT_ABBR[refinement]}</span>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {relicPaths.slice(0, RELIC_LIMIT).map((path) => (
+                      <tr
+                        key={path.relicId}
+                        className={`border-b border-hairline/50 last:border-0 ${
+                          path.vaulted ? 'vaulted' : ''
+                        }`}
+                      >
+                        <th scope="row" className="px-5 py-2.5 text-left font-normal">
+                          <Link
+                            href={`/item/${path.relicId}`}
+                            className="text-text transition-colors hover:text-orokin"
+                          >
+                            {path.relicName}
+                          </Link>
+                          <span className="mt-0.5 flex items-baseline gap-2">
+                            <RarityTag rarity={path.rarity} />
+                            {path.vaulted && <span className="label">Vaulted</span>}
+                          </span>
+                        </th>
+                        {path.chances.map(({ refinement, chance }) => (
+                          <td
+                            key={refinement}
+                            className={`data-num px-2 py-2.5 text-right last:pr-5 ${
+                              chance === path.best ? 'text-text' : 'text-text-faint'
+                            }`}
+                          >
+                            {(chance * 100).toFixed(2)}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Panel>
+          )}
+        </div>
+      )}
+
       {vendorOfferings.length > 0 && (
-        <Panel className="mt-10">
+        <Panel className="mt-6">
           <PanelHeader
             title="Bought, not farmed"
             aside={`${String(vendorOfferings.length)} ${vendorOfferings.length === 1 ? 'offering' : 'offerings'}`}
@@ -321,7 +356,8 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
                   // Upstream's `place` repeats the syndicate name ("Red Veil, Respected"),
                   // which the left cell already shows. Keep the rank and the price.
                   const detail =
-                    source?.name !== undefined && edge.stage?.startsWith(`${source.name}, `) === true
+                    source?.name !== undefined &&
+                    edge.stage?.startsWith(`${source.name}, `) === true
                       ? edge.stage.slice(source.name.length + 2)
                       : edge.stage
                   return detail === undefined ? null : (
@@ -335,225 +371,73 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
       )}
 
       {relicContents.length > 0 && (
-        <Panel className="mt-10">
+        <Panel className="mt-6">
           <PanelHeader
             title="Relic contents"
-            aside={`${String(relicContents.length)} rewards · best refinement`}
+            aside={`${String(relicContents.length)} rewards · all refinements`}
           />
-          <table className="w-full text-sm">
-            <caption className="sr-only">Rewards contained in this relic</caption>
-            <thead>
-              <tr className="border-b border-hairline text-left">
-                <th scope="col" className="label px-5 py-2 font-normal">
-                  Reward
-                </th>
-                <th scope="col" className="label px-5 py-2 text-right font-normal">
-                  Rarity
-                </th>
-                <th scope="col" className="label px-5 py-2 text-right font-normal">
-                  Best odds
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {relicContents.map((reward) => (
-                <tr key={reward.itemId} className="border-b border-hairline/50 last:border-0">
-                  <th scope="row" className="px-5 py-2.5 text-left font-normal">
-                    <Link href={`/item/${reward.itemId}`} className="text-text hover:text-orokin">
-                      {reward.name}
-                    </Link>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <caption className="sr-only">
+                Rewards contained in this relic, with the odds at each refinement level
+              </caption>
+              <thead>
+                <tr className="border-b border-hairline text-left">
+                  <th scope="col" className="label px-5 py-2 font-normal">
+                    Reward
                   </th>
-                  <td className="px-5 py-2.5 text-right">
-                    <RarityTag rarity={reward.rarity} />
-                  </td>
-                  <td className="data-num px-5 py-2.5 text-right text-text">
-                    {(reward.chance.chance * 100).toFixed(2)}%
-                    <span className="ml-2 text-xs text-text-faint">
-                      {reward.chance.refinement}
-                    </span>
-                  </td>
+                  <th scope="col" className="label px-5 py-2 text-left font-normal">
+                    Rarity
+                  </th>
+                  {REFINEMENT_ORDER.map((refinement) => (
+                    <th
+                      key={refinement}
+                      scope="col"
+                      className="label px-3 py-2 text-right font-normal capitalize last:pr-5"
+                    >
+                      {refinement}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {relicContents.map((reward) => (
+                  <tr key={reward.itemId} className="border-b border-hairline/50 last:border-0">
+                    <th scope="row" className="px-5 py-2.5 text-left font-normal">
+                      <Link
+                        href={`/item/${reward.itemId}`}
+                        className="text-text transition-colors hover:text-orokin"
+                      >
+                        {reward.name}
+                      </Link>
+                    </th>
+                    <td className="px-5 py-2.5">
+                      <RarityTag rarity={reward.rarity} />
+                    </td>
+                    {reward.chances.map(({ refinement, chance }) => (
+                      <td
+                        key={refinement}
+                        className={`data-num px-3 py-2.5 text-right last:pr-5 ${
+                          refinement === reward.best.refinement ? 'text-text' : 'text-text-faint'
+                        }`}
+                      >
+                        {(chance * 100).toFixed(2)}%
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </Panel>
       )}
 
-      {chains.length > 0 && (
-        <Panel className="mt-10">
-          <PanelHeader
-            title="Relic chains"
-            aside={
-              // Say what is actually on screen. "380 paths" above a list of 12 reads as a
-              // complete list, which it is not.
-              chains.length > CHAIN_LIMIT
-                ? `${String(CHAIN_LIMIT)} of ${String(chains.length)} · ${String(vaultedCount)} vaulted`
-                : vaultedCount > 0
-                  ? `${String(chains.length)} paths · ${String(vaultedCount)} vaulted`
-                  : `${String(chains.length)} paths`
-            }
-          />
-          <ul>
-            {chains.slice(0, CHAIN_LIMIT).map((chain) => (
-              <li
-                key={chain.relicId}
-                className={`border-b border-hairline/50 px-5 py-4 last:border-0 ${
-                  chain.vaulted ? 'vaulted' : ''
-                }`}
-              >
-                <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                  <span className="font-display text-sm font-semibold">
-                    <Link href={`/item/${chain.relicId}`} className="transition-colors hover:text-orokin">
-                      {chain.relicName}
-                    </Link>
-                    {chain.vaulted && <span className="label ml-2">Vaulted</span>}
-                  </span>
-                  <span className="flex items-baseline gap-3">
-                    <RarityTag rarity={chain.rarity} />
-                    <span className="label">
-                      best {chain.refinement}{' '}
-                      <span className="data-num">{(chain.perRelic * 100).toFixed(2)}%</span>
-                    </span>
-                  </span>
-                </div>
-
-                {chain.missionName === undefined ? (
-                  <p className="mt-2 border-l border-hairline-strong pl-4 text-sm text-text-faint">
-                    No active source. Trade for the relic or wait for an unvaulting.
-                  </p>
-                ) : (
-                  <div className="mt-2 border-l border-hairline-strong pl-4">
-                    <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
-                      <span className="text-text">{chain.missionName}</span>
-                      {chain.planet !== undefined && (
-                        <span className="text-text-faint">{chain.planet}</span>
-                      )}
-                      {chain.missionType !== undefined && (
-                        <span className="text-text-faint">· {chain.missionType}</span>
-                      )}
-                      {chain.stage !== undefined && (
-                        <span className="label ml-1">{chain.stage}</span>
-                      )}
-                    </div>
-
-                    {/* Relics, runs and time — the units a player plans in. A per-run
-                        percentage is not one of them: you never crack a relic on the run
-                        that dropped it. */}
-                    <table className="mt-3 w-full max-w-md text-xs">
-                      <thead>
-                        <tr className="text-left text-text-faint">
-                          <th scope="col" className="pb-1 font-normal" />
-                          <th scope="col" className="pb-1 text-right font-normal">
-                            Relics
-                          </th>
-                          <th scope="col" className="pb-1 text-right font-normal">
-                            Farm runs
-                          </th>
-                          <th scope="col" className="pb-1 text-right font-normal">
-                            Total
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          <th scope="row" className="py-0.5 text-left font-normal text-text-dim">
-                            Solo
-                          </th>
-                          <td className="data-num py-0.5 text-right text-text">
-                            {ceilCount(chain.solo.relics)}
-                          </td>
-                          <td className="data-num py-0.5 text-right text-text">
-                            {chain.solo.farmRuns.toFixed(0)}
-                          </td>
-                          <td className="data-num py-0.5 text-right text-text">
-                            {formatMinutes(chain.solo.minutes)}
-                          </td>
-                        </tr>
-                        <tr>
-                          <th scope="row" className="py-0.5 text-left font-normal text-text-dim">
-                            Share ×{SHARE_SIZE}
-                          </th>
-                          <td className="data-num py-0.5 text-right text-text">
-                            {ceilCount(chain.share.relics)}
-                          </td>
-                          <td className="data-num py-0.5 text-right text-text">
-                            {chain.share.farmRuns.toFixed(0)}
-                          </td>
-                          <td className="data-num py-0.5 text-right text-text">
-                            {formatMinutes(chain.share.minutes)}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        </Panel>
-      )}
-
-      {directEdges.length > 0 && (
-        <Panel className="mt-8">
-          <PanelHeader
-            title="Direct sources"
-            aside={
-              directEdges.length > SOURCE_LIMIT
-                ? `${String(SOURCE_LIMIT)} of ${String(directEdges.length)} · by time`
-                : `${String(directEdges.length)} sources · by time`
-            }
-          />
-          <ul>
-            {directEdges.slice(0, SOURCE_LIMIT).map(({ edge, source, p, minutes }, index) => {
-              const stage = stageLabel(source?.missionType, edge.rotation)
-              const kind = kindLabel(source)
-              return (
-                <li
-                  key={`${edge.sourceId}-${String(index)}`}
-                  className="border-b border-hairline/50 px-5 py-3 last:border-0"
-                >
-                  <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
-                    <span className="text-text">{source?.name ?? edge.sourceId}</span>
-                    {source?.planet !== undefined && (
-                      <span className="text-text-faint">{source.planet}</span>
-                    )}
-                    {source?.missionType !== undefined && (
-                      <span className="text-text-faint">· {source.missionType}</span>
-                    )}
-                    {kind !== undefined && <span className="label">{kind}</span>}
-                    {stage !== undefined && <span className="label ml-auto">{stage}</span>}
-                  </div>
-                  <div className="data-num mt-1 text-xs text-text-faint">
-                    ~{expectedRuns(p).toFixed(0)} {source?.kind === 'enemy' ? 'kills' : 'runs'}
-                    {minutes !== undefined && (
-                      <>
-                        <span className="mx-1.5 text-hairline-strong" aria-hidden="true">|</span>
-                        {formatMinutes(expectedRuns(p) * minutes)}
-                      </>
-                    )}
-                  </div>
-                  <div className="mt-2">
-                    <ProbabilityBar value={p} max={maxDirect} />
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-        </Panel>
-      )}
-
-      {/* Only explain the relic assumptions on pages that actually make them. */}
-      {(chains.length > 0 || relicContents.length > 0) && (
+      {/* Only explain the relic table on pages that actually show one. */}
+      {(relicPaths.length > 0 || relicContents.length > 0) && (
         <p className="mt-8 max-w-prose text-xs text-text-faint">
-          Odds assume the refinement that is best for that reward&rsquo;s rarity — Intact for
-          commons, since refining trades common odds for rare ones.
-          {chains.length > 0 && (
-            <>
-              {' '}
-              Totals include {FISSURE_RUN_MINUTES} minutes per fissure run to crack each relic.
-              Mission durations are hand-curated estimates, not measured data.
-            </>
-          )}
+          Relic odds are per opened relic, per reward slot. Refining trades common odds for rare
+          ones, so the best level is not always Radiant — for a common reward Intact pays the
+          most. The highlighted column is the best one for that reward.
         </p>
       )}
     </div>

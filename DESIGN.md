@@ -9,7 +9,7 @@ A Warframe drop-source lookup tool. Static site, client-side data, deployed on V
 
 ## 1. Goals
 
-**Primary.** Answer "how do I get this item, and what's the fastest path" for every obtainable
+**Primary.** Answer "how do I get this item, and where is it likeliest" for every obtainable
 item in the game — including the ~60% of interesting items that are gated behind Void Relics,
 where the honest answer is a *chain* (item → relic → relic's own drop sources → mission and
 rotation) rather than a single table row.
@@ -331,8 +331,8 @@ Never store a filter in React state alone. If it changes what's displayed, it be
 
 | Route | Job |
 |---|---|
-| `/` | Search-first. The palette *is* the home page. Below it: recently vaulted, newly added, common lookups. |
-| `/item/[slug]` | The main event. All paths to the item, ranked by expected time, with the chain trace. Statically generated for every item — this is what gets indexed by search engines. |
+| `/` | Search-first. The palette *is* the home page. Below it: a directory of the browsable surfaces — not corpus statistics, which describe the dataset rather than offering a way in. Unbuilt surfaces are listed and marked, never linked. |
+| `/item/[slug]` | The main event. Direct sources and relic sources side by side, each ranked by drop rate. Statically generated for every item — this is what gets indexed by search engines. **2026-08-24:** the effort model (expected time, relics needed, solo-vs-share) came off this page on owner feedback; the page answers *where*, and time-ranking belongs on a surface that compares unlike missions. `rotationCycleCost()` and `mission-durations.ts` stay in core, tested, for that surface. |
 | `/source/[kind]/[slug]` | Forward view: what a mission, relic, or enemy drops, by rotation. Also statically generated. |
 | `/browse` | The filterable table. Virtualized, dense, sortable, URL-driven. |
 | `/relics` | Relic browser with vaulted filtering and refinement comparison. |
@@ -404,8 +404,11 @@ Scale: 12 / 14 / 16 / 20 / 28 / 40. Six sizes, no more.
 - Panels chamfer their top-left and bottom-right corners at 10px via a shared `clip-path` utility.
   One asymmetric cut, applied consistently — this is the only Orokin geometry the design borrows,
   and one is enough.
-- Probability bars are typographic objects: a hairline track, a filled segment, the number set in
-  mono immediately adjacent. Never a chart library, never a gradient.
+- ~~Probability bars are typographic objects: a hairline track, a filled segment, the number set
+  in mono immediately adjacent.~~ **Removed 2026-08-24** on owner feedback. Inside one item's
+  source list the bar re-encoded a numeric column that is now sorted, and its per-page `max`
+  scaling meant the same 5% drew a different width on a different page — inviting a comparison
+  it could not support. The number, set in mono and sorted, is the whole object.
 - Vaulted content is desaturated and marked, never hidden by default.
 - Density over comfort in tables. This is a reference tool used with the game running.
 

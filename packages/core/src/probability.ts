@@ -183,3 +183,28 @@ export function runsForRelicPath(
   if (perRound <= 0) return Number.POSITIVE_INFINITY
   return (1 / perRound) * (1 / pRelicFromSource)
 }
+
+/**
+ * Refinement levels in upgrade order.
+ *
+ * Declared explicitly rather than read off `Object.keys(REFINEMENT_TABLE)`: the key order of
+ * an object literal is not part of its type, so relying on it would make a UI column order
+ * depend on a property nothing guarantees.
+ */
+export const REFINEMENT_ORDER = ['intact', 'exceptional', 'flawless', 'radiant'] as const
+
+/**
+ * Every refinement level's odds for one reward rarity, in upgrade order.
+ *
+ * The whole table is worth showing rather than only the best row, because the choice is a
+ * real one the player makes with traces: for a common reward the odds get WORSE as you
+ * refine (25.33% → 16.67%), and only the full row makes that visible.
+ */
+export function chancesByRefinement(
+  rarity: RelicRarity,
+): Array<{ refinement: Refinement; chance: number }> {
+  return REFINEMENT_ORDER.map((refinement) => ({
+    refinement,
+    chance: REFINEMENT_TABLE[refinement][rarity],
+  }))
+}
