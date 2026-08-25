@@ -460,9 +460,22 @@ Write these into code comments as you hit them.
    with identical values; some carry chances as malformed strings. Normalize in one place.
 3. **Wiki/official disagreement.** The wiki has entries the official repo lacks. If you join them,
    tag every edge with `provenance` and let users filter. Never silently blend the two.
-4. **Non-relic gacha.** Requiem relics, Archon shards, Duviri, Netracells, and Deep Archimedea don't
-   fit the standard relic model. Handle them as explicit special cases with their own edge kinds
-   rather than bending the relic math to cover them.
+4. **Non-relic gacha.** Archon shards, Duviri, Netracells, and Deep Archimedea don't fit the
+   standard relic model. Handle them as explicit special cases with their own edge kinds rather
+   than bending the relic math to cover them.
+
+   **Corrected 2026-08-25:** this line used to name Requiem relics too, and the pipeline excluded
+   the Requiem and Vanguard tiers wholesale on the strength of it. Checking every row showed the
+   claim was true of exactly ONE relic — Requiem ETERNA, eight flat 9.5% slots totalling 76%.
+   All 16 Vanguard rows and all 16 Requiem I–IV rows are ordinary 3/2/1 tables summing to 100%.
+   The guess cost real coverage: Vanguard relics carry Caliban, Mesa, Ash, Protea, Ember and Volt
+   Prime parts, so four relics' worth of prime-part sources were missing, along with the 1200×
+   Kuva in every Requiem relic. Inclusion is now decided by SHAPE — the Intact row must derive
+   cleanly to 3 common / 2 uncommon / 1 rare — and the count of rejects is budgeted so that a
+   change to DE's table fails the build instead of quietly emptying the dataset.
+
+   The general lesson: exclude on a property you can test, not on a category you inferred from
+   one example.
 5. **Vaulting churn.** Vaulted status changes with every Prime Access rotation. It's derived data —
    compute it in the pipeline from current relic drop availability, don't trust a static flag.
 6. **Steel Path variants** have different drop tables for some content. Model as a `Source` flag,

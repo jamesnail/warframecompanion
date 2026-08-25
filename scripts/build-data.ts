@@ -162,12 +162,28 @@ async function main(): Promise<void> {
   const { sources: missionSources, edges: missionDrops } = parseMissions(
     missionsParsed.data.missionRewards,
   )
-  const { relics, skipped, nonStandard } = parseRelics(relicsParsed.data.relics)
+  const { relics, skipped, nonStandard, nonStandardNames } = parseRelics(
+    relicsParsed.data.relics,
+  )
 
+  /**
+   * Exactly one relic is genuinely irregular today: Requiem ETERNA, eight flat 9.5% slots.
+   * The exclusion is structural now rather than a tier allowlist, which means a change to
+   * DE's reward table would show up here as a flood of "non-standard" relics and silently
+   * empty the dataset. Budget it, so that failure is loud.
+   */
+  const NONSTANDARD_BUDGET = 3
+  if (nonStandard > NONSTANDARD_BUDGET) {
+    fail(
+      `${String(nonStandard)} relics failed the 3/2/1 structure test (budget ` +
+        `${String(NONSTANDARD_BUDGET)}). DE likely changed the relic reward table. ` +
+        `Offenders: ${nonStandardNames.slice(0, 10).join(', ')}`,
+    )
+  }
   if (nonStandard > 0) {
     console.log(
-      `  note    excluded ${String(nonStandard)} non-standard relic row(s) ` +
-        `(Requiem/Vanguard — see DESIGN.md 10.4)`,
+      `  note    excluded ${String(nonStandard)} relic(s) without the 3/2/1 structure: ` +
+        nonStandardNames.join(', '),
     )
   }
 
