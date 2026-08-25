@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { Item, Manifest } from '@provenance/core'
+import { DropEdge, Item, Manifest, Source } from '@provenance/core'
 
 import { pruneStale, readChunk, writeChunk } from './store'
 
@@ -10,14 +10,20 @@ import { pruneStale, readChunk, writeChunk } from './store'
  *   2. compare its hash against what IndexedDB holds
  *   3. match -> hydrate from IDB; mismatch or empty -> fetch the hashed chunk and store it
  *
- * Only `items` is loaded here. The palette searches names, and pulling the 2 MB edge list
- * to power a search box would blow the two-second cold-load budget for no benefit. The
- * store is generic, so /browse can add the chunks it needs in a later phase.
+ * Chunks are loaded per surface, not all at once. The palette searches names and needs only
+ * `items` (833 KB); pulling the 3.8 MB edge list to power a search box would blow the
+ * two-second cold-load budget for nothing. /browse asks for the edges explicitly, because
+ * that is the page whose whole job is to show them.
  */
 
 export interface ClientDataset {
   manifest: z.infer<typeof Manifest>
   items: z.infer<typeof Item>[]
+}
+
+export interface BrowseDataset extends ClientDataset {
+  sources: z.infer<typeof Source>[]
+  edges: z.infer<typeof DropEdge>[]
 }
 
 /**
@@ -32,21 +38,56 @@ async function fetchParsed<T>(url: string, schema: { parse: (input: unknown) => 
   return schema.parse(await response.json())
 }
 
-export async function loadDataset(): Promise<ClientDataset> {
-  // Same-origin only. The client never talks to Digital Extremes (CLAUDE.md constraint 2).
-  const manifest = await fetchParsed('/data/manifest.json', Manifest)
+/**
+ * One content-addressed chunk, from IndexedDB if it is current and from the network if not.
+ *
+ * The write is fire-and-forget: a cache that fails to persist must behave like a cache
+ * miss, never like an error, because private browsing and exhausted quota both throw here.
+ */
+async function loadChunk<T>(
+  manifest: z.infer<typeof Manifest>,
+  name: string,
+  schema: { parse: (input: unknown) => T[] },
+): Promise<T[]> {
+  const filename = manifest.files[name]
+  if (filename === undefined) throw new Error(`manifest has no ${name} chunk`)
 
-  const filename = manifest.files.items
-  if (filename === undefined) throw new Error('manifest has no items chunk')
+  const cached = await readChunk<T[]>(name, manifest.hash)
+  if (cached !== undefined) return cached
 
-  const cached = await readChunk<z.infer<typeof Item>[]>('items', manifest.hash)
-  if (cached !== undefined) return { manifest, items: cached }
-
-  const items = await fetchParsed(`/data/${filename}`, z.array(Item))
+  const rows = await fetchParsed(`/data/${filename}`, schema)
 
   // Written after the data is in hand, so a failed fetch cannot leave a half-populated
-  // cache that looks current. Pruning is fire-and-forget; it must never delay first paint.
-  void writeChunk('items', manifest.hash, items).then(() => pruneStale(manifest.hash))
+  // cache that looks current. Pruning must never delay first paint.
+  void writeChunk(name, manifest.hash, rows).then(() => pruneStale(manifest.hash))
 
+  return rows
+}
+
+async function loadManifest(): Promise<z.infer<typeof Manifest>> {
+  // Same-origin only. The client never talks to Digital Extremes (CLAUDE.md constraint 2).
+  return fetchParsed('/data/manifest.json', Manifest)
+}
+
+/** Items only — what the ⌘K palette needs. */
+export async function loadDataset(): Promise<ClientDataset> {
+  const manifest = await loadManifest()
+  const items = await loadChunk(manifest, 'items', z.array(Item))
   return { manifest, items }
+}
+
+/**
+ * Items, sources and edges — what /browse needs.
+ *
+ * Fetched in parallel, and every one of them is content-addressed and immutable, so the
+ * second visit to /browse costs no network at all.
+ */
+export async function loadBrowseDataset(): Promise<BrowseDataset> {
+  const manifest = await loadManifest()
+  const [items, sources, edges] = await Promise.all([
+    loadChunk(manifest, 'items', z.array(Item)),
+    loadChunk(manifest, 'sources', z.array(Source)),
+    loadChunk(manifest, 'edges', z.array(DropEdge)),
+  ])
+  return { manifest, items, sources, edges }
 }

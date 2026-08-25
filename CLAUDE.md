@@ -93,6 +93,15 @@ pnpm data:diff          # show what a fresh pipeline run would change
 
 pnpm only. If you see `npm install` or a `package-lock.json` anywhere, that is a bug.
 
+**Table note (2026-08-25).** `/browse` ships with TanStack **Virtual** only; TanStack Table v8
+was dropped from the plan. Virtualization is genuinely required — 28k rows — but the table
+itself is four fixed columns with one sort key and a handful of AND-ed predicates, all of which
+live in `apps/web/src/lib/browse.ts` as ~60 lines of pure, unit-tested functions. TanStack
+Table earns its weight on grouping, pagination, column resizing and faceted state; none of that
+is on the roadmap here, and routing sort and filter through its state model would have put an
+abstraction between the URL and the predicate when CLAUDE.md constraint 5 requires the URL to
+BE the state. Revisit if /browse grows column pinning or grouping.
+
 ---
 
 ## Stack
@@ -106,7 +115,7 @@ this document was written in August 2026 and majors move.
 | Routing state | `nuqs` | Typed search params without hand-rolling serialization. |
 | Runtime data | Plain `fetch` + IndexedDB | TanStack Query is for volatile data only (market prices). Static JSON keyed by build hash doesn't need a query cache. |
 | IndexedDB | `idb` | Not Dexie — we store a handful of blobs keyed by hash, we don't query IDB. Filtering happens in memory. |
-| Tables | TanStack Table v8 + TanStack Virtual | Source lists run to tens of thousands of rows. Virtualization is mandatory. |
+| Tables | TanStack Virtual (see note) | Source lists run to tens of thousands of rows. Virtualization is mandatory. |
 | Search | `uFuzzy` | Fastest option for a fixed ~6k string list; powers the ⌘K palette. |
 | Styling | Tailwind + shadcn/ui primitives | shadcn is the *starting* point, heavily reskinned. See DESIGN.md § Visual System. |
 | Charts | Recharts, or hand-rolled SVG | Prefer hand-rolled for the probability bars — they're typographic objects, not charts. |

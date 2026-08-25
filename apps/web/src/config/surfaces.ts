@@ -1,12 +1,15 @@
 /**
  * The browsable surfaces of the tool, and the single place their names and order live.
  *
- * Most of these are not built yet. They are listed anyway, deliberately: the home page's job
- * is to say what kind of tool this is, and a menu that only shows the one finished route
- * describes the tool wrongly. Entries without an `href` render as non-interactive and marked
- * — NOT as links to routes that would 404. A dead link on a public, indexable site is a
- * defect, and "coming soon" pages are pages we would then have to keep static and crawlable
- * for no benefit.
+ * Most of these are one route: /browse, pre-filtered by a search param. That is what the
+ * URL-as-state rule buys — a tile is just a link, and the page it opens is a view the user
+ * can then edit, bookmark or send to someone.
+ *
+ * The two that remain unbuilt are listed anyway, deliberately: the home page's job is to say
+ * what kind of tool this is, and a menu that hides the gaps describes it wrongly. Entries
+ * without an `href` render as non-interactive and marked — NOT as links to routes that would
+ * 404. A dead link on a public, indexable site is a defect, and "coming soon" pages are pages
+ * we would then have to keep static and crawlable for no benefit.
  *
  * To ship one: build the route, add its `href` here. Nothing else needs to change.
  */
@@ -44,22 +47,52 @@ export const surfaceGroups: SurfaceGroup[] = [
   {
     title: 'By item',
     surfaces: [
-      { name: 'Items', blurb: 'Everything, filterable', count: 'items' },
-      { name: 'Relics', blurb: 'By tier and vault status', count: 'relics' },
-      { name: 'Mods', blurb: 'Where each mod drops', count: 'mods' },
-      { name: 'Arcanes', blurb: 'Ranks and sources', count: 'arcanes' },
-      { name: 'Resources', blurb: 'Best farm per resource', count: 'resources' },
+      { name: 'Items', blurb: 'Everything, filterable', href: '/browse', count: 'items' },
+      {
+        name: 'Relics',
+        blurb: 'By tier and vault status',
+        href: '/browse?category=Relic',
+        count: 'relics',
+      },
+      { name: 'Mods', blurb: 'Where each mod drops', href: '/browse?category=Mod', count: 'mods' },
+      {
+        name: 'Arcanes',
+        blurb: 'Ranks and sources',
+        href: '/browse?category=Arcane',
+        count: 'arcanes',
+      },
+      {
+        name: 'Resources',
+        blurb: 'Best farm per resource',
+        href: '/browse?category=Resource',
+        count: 'resources',
+      },
     ],
   },
   {
     title: 'By source',
     surfaces: [
-      { name: 'Missions', blurb: 'Nodes by planet', count: 'missions' },
+      { name: 'Missions', blurb: 'Nodes by planet', href: '/browse?kind=mission', count: 'missions' },
       { name: 'Factions', blurb: 'Grineer, Corpus, Infested', count: 'factions' },
-      { name: 'Enemies', blurb: 'Individual drop tables', count: 'enemies' },
-      { name: 'Bounties', blurb: 'Open-world reward tables', count: 'bounties' },
-      { name: 'Syndicates', blurb: 'Bought with standing', count: 'syndicates' },
-      { name: 'Sorties', blurb: 'Daily and weekly rotations', count: 'sorties' },
+      { name: 'Enemies', blurb: 'Individual drop tables', href: '/browse?kind=enemy', count: 'enemies' },
+      {
+        name: 'Bounties',
+        blurb: 'Open-world reward tables',
+        href: '/browse?kind=bounty',
+        count: 'bounties',
+      },
+      {
+        name: 'Syndicates',
+        blurb: 'Bought with standing',
+        href: '/browse?kind=syndicate',
+        count: 'syndicates',
+      },
+      {
+        name: 'Sorties',
+        blurb: 'Daily and weekly rotations',
+        href: '/browse?kind=sortie',
+        count: 'sorties',
+      },
       { name: 'Vendors', blurb: 'Baro, Darvo, and the rest' },
     ],
   },

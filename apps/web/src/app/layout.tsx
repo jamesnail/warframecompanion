@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import { Archivo, IBM_Plex_Mono, Inter_Tight } from 'next/font/google'
+import { NuqsAdapter } from 'nuqs/adapters/next/app'
+
 import { CommandPalette } from '@/components/CommandPalette'
 import { attributions, site } from '@/config/site'
 import './globals.css'
@@ -37,6 +39,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${archivo.variable} ${interTight.variable} ${plexMono.variable}`}>
       <body className="min-h-dvh flex flex-col">
+        {/* CLAUDE.md constraint 5: the URL is the source of truth for every filter. nuqs
+            needs its adapter above anything that reads or writes a search param. */}
+        <NuqsAdapter>
         <main className="flex-1">{children}</main>
         {/* Mounted once, globally, so the shortcut works on every page. */}
         <CommandPalette />
@@ -55,6 +60,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             ))}
           </ul>
         </footer>
+        </NuqsAdapter>
       </body>
     </html>
   )
