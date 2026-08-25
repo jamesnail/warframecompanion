@@ -50,15 +50,15 @@ export function parseMissions(
       for (const [rotation, reward] of rewardEntries(node.rewards)) {
         // Elite Sanctuary Onslaught pays in Radiant relics; the refinement rides on the
         // edge rather than minting a second item (see parseRewardName).
-        const { name: rewardItemName, refinement } = parseRewardName(reward.itemName)
+        const { name: rewardItemName, refinement, quantity } = parseRewardName(reward.itemName)
         edges.push({
           itemId: slug(rewardItemName),
           sourceId,
           chance: normalizeChance(reward.chance),
           rotation,
-          // Upstream carries no per-drop quantity for mission rewards; the reward name
-          // encodes it instead ("2,000 Credits Cache"). Treat as one drop event.
-          quantity: [1, 1],
+          // Upstream carries no separate quantity for mission rewards — the reward name
+          // encodes it ("100X Plastids"), and parseRewardName has now pulled it out.
+          quantity: quantity === undefined ? [1, 1] : [quantity, quantity],
           ...(refinement === undefined ? {} : { refinement }),
           provenance: 'official',
         })

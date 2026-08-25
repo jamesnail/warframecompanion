@@ -485,6 +485,26 @@ Write these into code comments as you hit them.
     actual parsed relics, it immediately caught the Requiem structure (hazard 4). When adding a
     sanity gate, confirm it can fail.
 
+11. **The reward NAME is overloaded, and unpacking it is not optional.** Upstream encodes at least
+    three separate facts in the name string, each of which mints a bogus item if slugged raw:
+    a refinement (`"Lith A12 Relic (Radiant)"`, 29 items), and a per-drop count in two spellings
+    (`"100X Plastids"` and `"100 Endo"`, 247 items between them). Both belong on the edge —
+    `refinement` and `quantity` — not in the item's identity. All of it funnels through
+    `parseRewardName` in `packages/sources/src/slug.ts`; call `itemIdFor`, never `slug`, on
+    anything that came from upstream.
+
+    Unpacking must be conservative, because over-stripping invents facts as readily as
+    under-stripping fragments them. `"1,500 Credits Cache"` is ONE cache paying 1,500 credits,
+    not 1,500 caches, and `"3 Day Affinity Booster"` is a product name with no quantity in it at
+    all. The bare-number form is therefore opt-in per noun; an unrecognised name keeps its number
+    and stays whole.
+
+12. **Every id must be minted the same way, and the orphan gate is what proves it.** The quantity
+    work updated four id sites and missed a fifth — relic rewards, which slugged their names
+    independently. The build failed on 164 orphaned edges pointing at `2x-forma-blueprint`, an
+    item that no longer existed. That is the gate doing exactly its job; without it the dataset
+    would have shipped with two relic rewards silently unreachable.
+
 ---
 
 ## 11. Phases

@@ -255,6 +255,17 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
                         >
                           <th scope="row" className="px-3 py-3 sm:px-5 sm:py-2.5 text-left font-normal">
                             <span className="text-text">{source?.name ?? edge.sourceId}</span>
+                            {/* Units per drop. On a resource page this decides more than
+                                the drop rate does — 350 Plastids at 4% beats 10 at 20% —
+                                so it sits beside the name, not buried in the detail line. */}
+                            {edge.quantity[1] > 1 && (
+                              <span className="data-num ml-2 text-xs text-text-dim">
+                                ×
+                                {edge.quantity[0] === edge.quantity[1]
+                                  ? edge.quantity[0].toLocaleString()
+                                  : `${edge.quantity[0].toLocaleString()}–${edge.quantity[1].toLocaleString()}`}
+                              </span>
+                            )}
                             {detail !== '' && (
                               <span className="mt-0.5 block text-xs text-text-faint">{detail}</span>
                             )}

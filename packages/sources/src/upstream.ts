@@ -188,3 +188,18 @@ export function normalizeReward(raw: number | string): {
 
   return { chance: value / 100, quantity: [1, 1] }
 }
+
+/**
+ * Compose the count encoded in a reward's NAME with the count implied by its CHANCE.
+ *
+ * They are independent facts. Upstream expresses a guaranteed multiple as a chance above
+ * 100% (see normalizeReward), and separately writes a per-drop count into the name, so
+ * "100X Plastids" at 200% is two drops of a hundred — 200 — not one of either.
+ */
+export function scaleQuantity(
+  quantity: [number, number],
+  perDrop: number | undefined,
+): [number, number] {
+  if (perDrop === undefined) return quantity
+  return [quantity[0] * perDrop, quantity[1] * perDrop]
+}

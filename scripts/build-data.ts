@@ -34,6 +34,7 @@ import {
   parseKeys,
   parseMissions,
   parseRelics,
+  parseRewardName,
   parseSorties,
   parseSyndicates,
   parseTransient,
@@ -186,7 +187,10 @@ async function main(): Promise<void> {
   const relicRewardNames = new Map<string, string>()
   for (const relic of relicsParsed.data.relics) {
     for (const reward of relic.rewards) {
-      relicRewardNames.set(slug(reward.itemName), reward.itemName)
+      // Keyed and named canonically, so the item table and the relic rewards that point
+      // at it cannot disagree about an id.
+      const canonical = parseRewardName(reward.itemName).name
+      relicRewardNames.set(slug(canonical), canonical)
     }
   }
 

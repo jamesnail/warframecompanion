@@ -1,5 +1,5 @@
 import { RelicTier, type RelicDetail, type RelicRarity, type Refinement } from '@provenance/core'
-import { relicItemId, slug } from './slug'
+import { itemIdFor, relicItemId } from './slug'
 import { normalizeChance, type RawRelic } from './upstream'
 
 /**
@@ -129,7 +129,10 @@ export function parseRelics(raw: RawRelic[]): ParsedRelics {
       // Vaulting is derived later, from whether anything still drops this relic.
       vaulted: false,
       rewards: entry.rewards.map((reward) => ({
-        itemId: slug(reward.itemName),
+        // itemIdFor, not slug: two relic rewards carry a count in the name ("2X Forma
+        // Blueprint", "1200X Kuva"). Slugging those raw pointed the reward at an item id
+        // that buildItems no longer mints, which the orphan gate correctly rejected.
+        itemId: itemIdFor(reward.itemName),
         rarity: deriveRarity(refinement, normalizeChance(reward.chance)),
       })),
     })
