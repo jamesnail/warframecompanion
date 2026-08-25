@@ -44,15 +44,15 @@ export default async function HomePage() {
   const built = new Date(manifest.builtAt)
 
   return (
-    <div className="mx-auto max-w-4xl px-5 py-16 sm:px-6 sm:py-24">
-      <h1 className="font-display text-2xl font-bold tracking-tight text-orokin">{site.name}</h1>
+    <div className="mx-auto max-w-4xl px-5 py-12 sm:px-6 sm:py-24">
+      <h1 className="font-display text-xl font-bold tracking-tight text-orokin sm:text-2xl">{site.name}</h1>
 
       <div className="mt-8 max-w-xl">
         <SearchTrigger />
       </div>
 
       {surfaceGroups.map((group) => (
-        <section key={group.title} className="mt-12">
+        <section key={group.title} className="mt-10 sm:mt-12">
           <h2 className="label border-b border-hairline pb-2">{group.title}</h2>
           <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {group.surfaces.map((surface) => (

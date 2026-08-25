@@ -203,7 +203,7 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
       {(directEdges.length > 0 || relicPaths.length > 0) && (
         <div className="mt-10 grid items-start gap-6 lg:grid-cols-2">
           {directEdges.length > 0 && (
-            <Panel>
+            <Panel className="min-w-0">
               <PanelHeader
                 title="Direct sources"
                 aside={
@@ -219,13 +219,13 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
                   </caption>
                   <thead>
                     <tr className="border-b border-hairline text-left">
-                      <th scope="col" className="label px-5 py-2 font-normal">
+                      <th scope="col" className="label px-3 py-2 sm:px-5 font-normal">
                         Source
                       </th>
-                      <th scope="col" className="label px-5 py-2 text-right font-normal">
+                      <th scope="col" className="label px-3 py-2 sm:px-5 text-right font-normal">
                         Chance
                       </th>
-                      <th scope="col" className="label px-5 py-2 text-right font-normal">
+                      <th scope="col" className="label px-3 py-2 sm:px-5 text-right font-normal">
                         Runs
                       </th>
                     </tr>
@@ -242,16 +242,16 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
                           key={`${edge.sourceId}-${String(index)}`}
                           className="border-b border-hairline/50 last:border-0"
                         >
-                          <th scope="row" className="px-5 py-2.5 text-left font-normal">
+                          <th scope="row" className="px-3 py-3 sm:px-5 sm:py-2.5 text-left font-normal">
                             <span className="text-text">{source?.name ?? edge.sourceId}</span>
                             {detail !== '' && (
                               <span className="mt-0.5 block text-xs text-text-faint">{detail}</span>
                             )}
                           </th>
-                          <td className="data-num px-5 py-2.5 text-right text-text">
+                          <td className="data-num px-3 py-3 sm:px-5 sm:py-2.5 text-right text-text">
                             {(p * 100).toFixed(2)}%
                           </td>
-                          <td className="data-num px-5 py-2.5 text-right text-text-faint">
+                          <td className="data-num px-3 py-3 sm:px-5 sm:py-2.5 text-right text-text-faint">
                             ~{expectedRuns(p).toFixed(0)}
                           </td>
                         </tr>
@@ -264,7 +264,7 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
           )}
 
           {relicPaths.length > 0 && (
-            <Panel>
+            <Panel className="min-w-0">
               <PanelHeader
                 title="From relics"
                 aside={
@@ -282,14 +282,14 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
                   </caption>
                   <thead>
                     <tr className="border-b border-hairline text-left">
-                      <th scope="col" className="label px-5 py-2 font-normal">
+                      <th scope="col" className="label px-3 py-2 sm:px-5 font-normal">
                         Relic
                       </th>
                       {REFINEMENT_ORDER.map((refinement) => (
                         <th
                           key={refinement}
                           scope="col"
-                          className="label px-2 py-2 text-right font-normal last:pr-5"
+                          className="label px-1.5 py-2 sm:px-2 text-right font-normal last:pr-5"
                         >
                           <span className="sr-only">{refinement}</span>
                           <span aria-hidden="true">{REFINEMENT_ABBR[refinement]}</span>
@@ -305,7 +305,7 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
                           path.vaulted ? 'vaulted' : ''
                         }`}
                       >
-                        <th scope="row" className="px-5 py-2.5 text-left font-normal">
+                        <th scope="row" className="px-3 py-3 sm:px-5 sm:py-2.5 text-left font-normal">
                           <Link
                             href={`/item/${path.relicId}`}
                             className="text-text transition-colors hover:text-orokin"
@@ -320,7 +320,7 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
                         {path.chances.map(({ refinement, chance }) => (
                           <td
                             key={refinement}
-                            className={`data-num px-2 py-2.5 text-right last:pr-5 ${
+                            className={`data-num px-1.5 py-3 sm:px-2 sm:py-2.5 text-right last:pr-5 ${
                               chance === path.best ? 'text-text' : 'text-text-faint'
                             }`}
                           >
@@ -347,7 +347,7 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
             {vendorOfferings.map(({ edge, source }, index) => (
               <li
                 key={`${edge.sourceId}-${String(index)}`}
-                className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-hairline/50 px-5 py-3 text-sm last:border-0"
+                className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-hairline/50 px-3 py-3 sm:px-5 text-sm last:border-0"
               >
                 <span className="text-text">{source?.name ?? edge.sourceId}</span>
                 {(() => {
@@ -372,7 +372,8 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
         <Panel className="mt-6">
           <PanelHeader
             title="Relic contents"
-            aside={`${String(relicContents.length)} rewards · all refinements`}
+            // Names the unit, because the cells drop their % sign on narrow screens.
+            aside={`${String(relicContents.length)} rewards · chance %`}
           />
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -381,19 +382,32 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
               </caption>
               <thead>
                 <tr className="border-b border-hairline text-left">
-                  <th scope="col" className="label px-5 py-2 font-normal">
+                  <th scope="col" className="label px-3 py-2 sm:px-5 font-normal">
                     Reward
                   </th>
-                  <th scope="col" className="label px-5 py-2 text-left font-normal">
+                  {/* Six columns do not fit a 360px phone: Flawless and Radiant fell off the
+                      right edge, hiding the rare reward's best cell — the single number most
+                      worth seeing — behind a horizontal scroll nothing advertised. Rarity
+                      moves under the reward name on mobile and the heads abbreviate. */}
+                  <th
+                    scope="col"
+                    className="label hidden px-3 py-2 text-left font-normal sm:table-cell sm:px-5"
+                  >
                     Rarity
                   </th>
                   {REFINEMENT_ORDER.map((refinement) => (
                     <th
                       key={refinement}
                       scope="col"
-                      className="label px-3 py-2 text-right font-normal capitalize last:pr-5"
+                      className="label px-1.5 py-2 text-right font-normal last:pr-2 sm:px-3 sm:last:pr-5"
                     >
-                      {refinement}
+                      <span className="sr-only">{refinement}</span>
+                      <span aria-hidden="true" className="sm:hidden">
+                        {REFINEMENT_ABBR[refinement]}
+                      </span>
+                      <span aria-hidden="true" className="hidden capitalize sm:inline">
+                        {refinement}
+                      </span>
                     </th>
                   ))}
                 </tr>
@@ -401,25 +415,32 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
               <tbody>
                 {relicContents.map((reward) => (
                   <tr key={reward.itemId} className="border-b border-hairline/50 last:border-0">
-                    <th scope="row" className="px-5 py-2.5 text-left font-normal">
+                    <th scope="row" className="px-3 py-3 sm:px-5 sm:py-2.5 text-left font-normal">
                       <Link
                         href={`/item/${reward.itemId}`}
                         className="text-text transition-colors hover:text-orokin"
                       >
                         {reward.name}
                       </Link>
+                      {/* Rarity rides under the name where its own column does not fit. */}
+                      <span className="mt-0.5 block sm:hidden">
+                        <RarityTag rarity={reward.rarity} />
+                      </span>
                     </th>
-                    <td className="px-5 py-2.5">
+                    <td className="hidden px-3 py-3 sm:table-cell sm:px-5 sm:py-2.5">
                       <RarityTag rarity={reward.rarity} />
                     </td>
                     {reward.chances.map(({ refinement, chance }) => (
                       <td
                         key={refinement}
-                        className={`data-num px-3 py-2.5 text-right last:pr-5 ${
+                        className={`data-num px-1.5 py-3 text-right last:pr-2 sm:px-3 sm:py-2.5 sm:last:pr-5 ${
                           refinement === reward.best.refinement ? 'text-text' : 'text-text-faint'
                         }`}
                       >
-                        {(chance * 100).toFixed(2)}%
+                        {(chance * 100).toFixed(2)}
+                        {/* The % costs ~10px per column, which is the difference between four
+                            columns fitting and two of them falling off the screen. */}
+                        <span className="hidden sm:inline">%</span>
                       </td>
                     ))}
                   </tr>

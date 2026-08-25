@@ -40,7 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <main className="flex-1">{children}</main>
         {/* Mounted once, globally, so the shortcut works on every page. */}
         <CommandPalette />
-        <footer className="mt-24 border-t border-hairline px-5 py-10 text-xs text-text-faint sm:px-6">
+        <footer className="mt-16 border-t border-hairline px-5 py-8 text-xs text-text-faint sm:mt-24 sm:px-6 sm:py-10">
           <p className="max-w-prose">
             Unofficial fan tool, not affiliated with or endorsed by Digital Extremes. Warframe and
             all game data are property of Digital Extremes.

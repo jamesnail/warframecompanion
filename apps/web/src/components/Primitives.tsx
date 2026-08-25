@@ -15,9 +15,12 @@ export function Panel({
 /** Section heading. Display face, sentence case, sitting on a hairline. */
 export function PanelHeader({ title, aside }: { title: string; aside?: ReactNode }) {
   return (
-    <header className="flex items-baseline justify-between gap-4 border-b border-hairline px-5 py-3">
-      <h2 className="font-display text-sm font-semibold">{title}</h2>
-      {aside !== undefined && <div className="label shrink-0">{aside}</div>}
+    // flex-wrap, and the title never breaks: on a narrow screen the aside drops to its own
+    // line instead of being clipped, and "Direct sources" stays one phrase rather than
+    // splitting across two lines to make room for it.
+    <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-hairline px-3 py-3 sm:px-5">
+      <h2 className="font-display text-sm font-semibold whitespace-nowrap">{title}</h2>
+      {aside !== undefined && <div className="label">{aside}</div>}
     </header>
   )
 }

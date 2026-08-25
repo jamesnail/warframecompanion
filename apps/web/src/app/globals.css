@@ -131,6 +131,9 @@
 
 html {
   color-scheme: dark;
+  /* iOS inflates text in landscape unless this is pinned, which silently breaks the type
+     scale and the column widths that depend on it. */
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -139,6 +142,28 @@ body {
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  /* A dense reference tool has many long unbroken strings — "Sanctuary Onslaught (Elite)",
+     item slugs, planet-node pairs. Without this one of them eventually pushes the page wider
+     than the screen, and the entire layout scrolls sideways over a single row. */
+  overflow-wrap: break-word;
+}
+
+/* The grey flash Safari paints over any tapped element does not belong on a surface this
+   dark; the hover and active states below carry the feedback instead. */
+a,
+button,
+[role='option'] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Touch devices never resolve :hover, so a row that only responds to hover gives a tap no
+   acknowledgement at all. Active state covers both. */
+@media (hover: none) {
+  a:active,
+  button:active,
+  [role='option']:active {
+    background-color: var(--color-void-700);
+  }
 }
 
 /* Display type is set tight; wide industrial grotesque needs the tracking pulled in. */

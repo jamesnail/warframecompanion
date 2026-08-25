@@ -21,17 +21,26 @@ export function openSearch(): void {
   window.dispatchEvent(new CustomEvent(OPEN_EVENT))
 }
 
-/** A button that opens the palette. Safe to render anywhere. */
+/**
+ * A button that opens the palette. Safe to render anywhere.
+ *
+ * The ⌘K hint is hidden below `sm`: a phone has no ⌘ key, so on the devices that most need
+ * the button the badge advertises a shortcut that cannot be pressed. The button itself is
+ * the affordance there.
+ */
 export function SearchTrigger({ compact = false }: { compact?: boolean }) {
   if (compact) {
     return (
       <button
         type="button"
         onClick={openSearch}
-        className="flex items-center gap-2 text-text-faint transition-colors hover:text-text"
+        // -my-2 keeps the row height while giving the tap target its 44px.
+        className="-my-2 flex items-center gap-2 py-2 text-text-faint transition-colors hover:text-text"
       >
         <span>Search</span>
-        <kbd className="data-num border border-hairline px-1.5 py-0.5 text-xs">⌘K</kbd>
+        <kbd className="data-num hidden border border-hairline px-1.5 py-0.5 text-xs sm:inline-block">
+          ⌘K
+        </kbd>
       </button>
     )
   }
@@ -40,10 +49,12 @@ export function SearchTrigger({ compact = false }: { compact?: boolean }) {
     <button
       type="button"
       onClick={openSearch}
-      className="chamfer-sm flex w-full items-center gap-3 border border-hairline bg-void-800 px-4 py-3 text-left text-sm text-text-faint transition-colors hover:border-hairline-strong hover:text-text-dim"
+      className="chamfer-sm flex w-full items-center gap-3 border border-hairline bg-void-800 px-4 py-3.5 text-left text-sm text-text-faint transition-colors hover:border-hairline-strong hover:text-text-dim"
     >
       <span className="flex-1">Search items…</span>
-      <kbd className="data-num border border-hairline px-1.5 py-0.5 text-xs">⌘K</kbd>
+      <kbd className="data-num hidden border border-hairline px-1.5 py-0.5 text-xs sm:inline-block">
+        ⌘K
+      </kbd>
     </button>
   )
 }
@@ -168,8 +179,12 @@ export function CommandPalette() {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-void-950/80 px-4 pt-[10vh]"
-      onMouseDown={() => {
+      // dvh, not vh: with the on-screen keyboard open, vh still reports the FULL viewport,
+      // so a 10vh offset plus a 50vh list pushed the results under the keyboard on a phone.
+      // dvh tracks the visible viewport, and the offset is small on mobile because there is
+      // no room to spend on a decorative gap.
+      className="fixed inset-0 z-50 flex items-start justify-center bg-void-950/80 px-3 pt-4 sm:px-4 sm:pt-[10vh]"
+      onPointerDown={() => {
         setOpen(false)
       }}
     >
@@ -178,10 +193,11 @@ export function CommandPalette() {
         role="dialog"
         aria-modal="true"
         aria-label="Search items"
-        className="panel w-full max-w-xl"
-        // mousedown, not click: a drag that starts inside and ends outside should not
-        // dismiss the dialog.
-        onMouseDown={(event) => {
+        className="panel flex max-h-[85dvh] w-full max-w-xl flex-col"
+        // pointerdown, not click: a drag that starts inside and ends outside should not
+        // dismiss the dialog. Pointer events cover touch and pen as well as mouse, so a
+        // tap inside is stopped from reaching the backdrop the same way a click is.
+        onPointerDown={(event) => {
           event.stopPropagation()
         }}
         onKeyDown={onKeyDown}
@@ -199,8 +215,12 @@ export function CommandPalette() {
           aria-controls="palette-results"
           aria-activedescendant={activeId}
           autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
           spellCheck={false}
-          className="w-full border-b border-hairline bg-transparent px-5 py-4 text-base text-text outline-none transition-colors focus:border-orokin placeholder:text-text-faint"
+          // text-base is load-bearing on iOS: Safari zooms the page when a focused input is
+          // under 16px, and the zoom is not undone on blur. Do not drop this to text-sm.
+          className="w-full shrink-0 border-b border-hairline bg-transparent px-4 py-4 text-base text-text outline-none transition-colors focus:border-orokin placeholder:text-text-faint sm:px-5"
         />
 
         <ul
@@ -208,7 +228,10 @@ export function CommandPalette() {
           id="palette-results"
           role="listbox"
           aria-label="Search results"
-          className="max-h-[50vh] overflow-y-auto"
+          // Flexes inside the dvh-capped dialog rather than carrying its own vh cap, so the
+          // list is exactly the space left over after the input. min-h-0 is required or the
+          // flex item refuses to shrink below its content and scrolls the page instead.
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
         >
           {results.map((hit, index) => (
             <li
@@ -227,7 +250,7 @@ export function CommandPalette() {
               onClick={() => {
                 commit(hit.id)
               }}
-              className={`flex cursor-pointer items-baseline justify-between gap-4 px-5 py-2.5 text-sm ${
+              className={`flex cursor-pointer items-baseline justify-between gap-4 px-4 py-3 text-sm sm:px-5 sm:py-2.5 ${
                 index === active ? 'bg-void-700 text-text' : 'text-text-dim'
               }`}
             >
@@ -244,7 +267,7 @@ export function CommandPalette() {
             : ''}
         </p>
         {query.trim() !== '' && results.length === 0 && (
-          <p className="px-5 py-4 text-sm text-text-faint">
+          <p className="shrink-0 px-4 py-4 text-sm text-text-faint sm:px-5">
             {status === 'loading'
               ? 'Loading items…'
               : status === 'failed'
