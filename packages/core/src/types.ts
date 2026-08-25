@@ -145,7 +145,19 @@ export const RelicDetail = z.object({
   id: ItemId,
   tier: RelicTier,
   vaulted: z.boolean(),
-  rewards: z.array(z.object({ itemId: ItemId, rarity: RelicRarity })),
+  rewards: z.array(
+    z.object({
+      itemId: ItemId,
+      rarity: RelicRarity,
+      /**
+       * Units per reward, where the relic pays more than one — "2X Forma Blueprint" and
+       * "1200X Kuva" are the only two today. The count used to live in the reward's name,
+       * which made it a different item; pulling it out of the name would otherwise have
+       * silently dropped the fact that this slot pays double.
+       */
+      quantity: z.number().int().positive().optional(),
+    }),
+  ),
 })
 export type RelicDetail = z.infer<typeof RelicDetail>
 

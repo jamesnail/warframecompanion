@@ -97,7 +97,8 @@ export function relicEdges(relics: RelicDetail[], intactChance: Record<string, n
         itemId: reward.itemId,
         sourceId: `relic:${relic.id.replace(/-relic$/, '')}`,
         chance,
-        quantity: [1, 1],
+        // A relic slot that pays 2 Forma is a different offer from one that pays 1.
+        quantity: reward.quantity === undefined ? [1, 1] : [reward.quantity, reward.quantity],
         provenance: 'official',
       })
     }

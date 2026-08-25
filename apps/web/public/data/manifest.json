@@ -1,11 +1,11 @@
 {
-  "hash": "d22813df9d09",
+  "hash": "45290b58adf3",
   "builtAt": "2026-06-25T20:55:17.196Z",
   "files": {
-    "items": "items.d22813df9d09.json",
-    "sources": "sources.d22813df9d09.json",
-    "edges": "edges.d22813df9d09.json",
-    "relics": "relics.d22813df9d09.json"
+    "items": "items.45290b58adf3.json",
+    "sources": "sources.45290b58adf3.json",
+    "edges": "edges.45290b58adf3.json",
+    "relics": "relics.45290b58adf3.json"
   },
   "upstream": {
     "warframe-drop-data": "a0ece5e9be2e2d55c75040720ef3226a"

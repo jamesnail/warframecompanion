@@ -64,6 +64,8 @@ interface RelicPath {
   vaulted: boolean
   chances: { refinement: Refinement; chance: number }[]
   best: number
+  /** Units this relic pays for this reward, where it pays more than one. */
+  quantity: number | undefined
 }
 
 export default async function ItemPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -111,6 +113,7 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
       vaulted: relic.vaulted,
       chances: chancesByRefinement(reward.rarity),
       best: bestRefinementFor(reward.rarity).chance,
+      quantity: reward.quantity,
     })
   }
 
@@ -334,6 +337,12 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
                           >
                             {path.relicName}
                           </Link>
+                          {/* The same fact from the reward's side: this relic pays two. */}
+                          {path.quantity !== undefined && (
+                            <span className="data-num ml-2 text-xs text-text-dim">
+                              ×{path.quantity.toLocaleString()}
+                            </span>
+                          )}
                           <span className="mt-0.5 flex items-baseline gap-2">
                             <RarityTag rarity={path.rarity} />
                             {path.vaulted && <span className="label">Vaulted</span>}
@@ -444,6 +453,13 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
                       >
                         {reward.name}
                       </Link>
+                      {/* The slot pays more than one. Dropping this when the count came out
+                          of the name would have quietly claimed it pays a single Forma. */}
+                      {reward.quantity !== undefined && (
+                        <span className="data-num ml-2 text-xs text-text-dim">
+                          ×{reward.quantity.toLocaleString()}
+                        </span>
+                      )}
                       {/* Rarity rides under the name where its own column does not fit. */}
                       <span className="mt-0.5 block sm:hidden">
                         <RarityTag rarity={reward.rarity} />

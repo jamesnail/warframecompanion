@@ -1,5 +1,5 @@
 import { RelicTier, type RelicDetail, type RelicRarity, type Refinement } from '@provenance/core'
-import { itemIdFor, relicItemId } from './slug'
+import { parseRewardName, relicItemId, slug } from './slug'
 import { normalizeChance, type RawRelic } from './upstream'
 
 /**
@@ -128,13 +128,18 @@ export function parseRelics(raw: RawRelic[]): ParsedRelics {
       tier: parseTier(entry.tier),
       // Vaulting is derived later, from whether anything still drops this relic.
       vaulted: false,
-      rewards: entry.rewards.map((reward) => ({
-        // itemIdFor, not slug: two relic rewards carry a count in the name ("2X Forma
+      rewards: entry.rewards.map((reward) => {
+        // Parsed, not slugged: two relic rewards carry a count in the name ("2X Forma
         // Blueprint", "1200X Kuva"). Slugging those raw pointed the reward at an item id
-        // that buildItems no longer mints, which the orphan gate correctly rejected.
-        itemId: itemIdFor(reward.itemName),
-        rarity: deriveRarity(refinement, normalizeChance(reward.chance)),
-      })),
+        // that buildItems no longer mints, which the orphan gate correctly rejected — and
+        // the count has to be kept, or the slot silently claims to pay one.
+        const { name, quantity } = parseRewardName(reward.itemName)
+        return {
+          itemId: slug(name),
+          rarity: deriveRarity(refinement, normalizeChance(reward.chance)),
+          ...(quantity === undefined ? {} : { quantity }),
+        }
+      }),
     })
   }
 
