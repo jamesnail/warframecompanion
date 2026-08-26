@@ -41,6 +41,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     entry('/browse', 0.8, 'daily'),
     // Weekly, because that is exactly how often DE republishes the trade statistics.
     entry('/rivens', 0.8, 'weekly'),
+    entry('/relics', 0.8, 'weekly'),
     // Hourly is not an exaggeration: fissures turn over faster than that.
     entry('/world', 0.7, 'hourly'),
     entry('/about', 0.5, 'monthly'),

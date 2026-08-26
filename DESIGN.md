@@ -363,7 +363,7 @@ Never store a filter in React state alone. If it changes what's displayed, it be
 | `/source/[kind]/[...slug]` | Forward view: what a mission, enemy, bounty or syndicate drops, by rotation. Statically generated; catch-all because a source id carries slashes (`mission:earth/cambria`). **Shipped 2026-08-25.** Relics are excluded deliberately — a relic is an item too, and `/item/<relic>` already shows its contents at every refinement level, so a second page would split one object across two URLs that each know half of it. Tables here are uncapped: on `/item` the source list is context, here it IS the page. |
 | `/source/[kind]` | Index of one kind, grouped by planet where the kind has one. Exists for reachability, not decoration — see hazard 15. |
 | `/browse` | The filterable table. Virtualized, dense, sortable, URL-driven. Carries the **Farmable now** filter, which cuts paths that run through a vaulted relic — 455 of 582 prime parts are reachable only that way, so it is a different question from "where is it from". |
-| `/relics` | Relic browser with vaulted filtering and refinement comparison. |
+| `/relics` | **Shipped 2026-08-26.** 771 relics, tier and vault filtering, and the refinement ladder stated once. Distinct from `/browse?category=Relic`, where a row is one EDGE and a relic appears once per place it drops; here a row is one RELIC and the question is what is inside it. Search matches CONTENTS, because you look for the part, not the relic. |
 | `/collection` | What you own and which sets it completes, closest to finished first. Prerendered like everything else; only the owned ids come from IndexedDB, inside a client island. Carries the export/import backup story. |
 | `/rivens` | Disposition and weekly trade price per weapon, sortable and filterable. Prerendered shell, client table, 132 KB chunk. Weapons link to their item page only where the drop data knows one — 243 of 687; the rest are bought, never dropped. |
 | `/world` | **The one live surface.** Open fissures by relic tier, invasions, sortie, archon hunt, Baro, and open-world cycles. Prerendered shell, client island, fetched from WFCD's status API — see § 2.1. This is also where the Factions tile ended up. |
@@ -753,6 +753,24 @@ Write these into code comments as you hit them.
     `abating_link`), and some items are simply not traded. Join on an identity instead —
     `gameRef` is the `/Lotus/...` uniqueName both sides already have — and the match rate is
     99.5% of tradable items with zero guesses. A link that exists is then a link that resolves.
+
+30. **A pooled haystack is wrong when one row holds several distinct things.** `/browse`
+    matches every search term anywhere in a row's combined text, which is right there because
+    a row is one item from one source. A relic holds six different rewards, so the same rule
+    let "braton prime barrel" match a relic containing Braton Prime *Receiver* alongside a
+    different prime *Barrel* — 79 relics, where the item page's independently computed count
+    said 39. Terms must all land on the SAME field: the relic's name, or one reward's name.
+    The cost is that "lith forma" now finds nothing, which is the right trade — the tier
+    filter expresses that exactly, and a false positive here is silent where an empty result
+    is not.
+
+31. **`sr-only` is `position: absolute`, so it escapes an `overflow-x-auto` container.**
+    Adding screen-reader-only full words beside abbreviated column heads put 13px of real
+    horizontal overflow on `/relics`: the spans were not clipped by the scroll container,
+    they grew the document. Put the accessible name on the `<th>` with `aria-label` and mark
+    both visible spans `aria-hidden` instead. Same root cause as hazard 16 — and note the fix
+    is to stop emitting an absolutely positioned element inside a scroll container, not to
+    widen the container.
 
 29. **Our `tradable` flag is not the authority on what a market sells.** 486 items it marks
     untradable have warframe.market pages, assembled Prime sets among them. Gating the link on

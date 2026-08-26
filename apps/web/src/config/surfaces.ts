@@ -55,8 +55,8 @@ export const surfaceGroups: SurfaceGroup[] = [
       },
       {
         name: 'Relics',
-        blurb: 'By tier and vault status',
-        href: '/browse?category=Relic',
+        blurb: 'Contents, tiers, vault status',
+        href: '/relics',
         count: 'relics',
       },
       { name: 'Mods', blurb: 'Where each mod drops', href: '/browse?category=Mod', count: 'mods' },

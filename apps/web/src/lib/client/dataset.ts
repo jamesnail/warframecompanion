@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { DropEdge, Item, Manifest, RivenWeapon, Source } from '@provenance/core'
+import { DropEdge, Item, Manifest, RelicDetail, RivenWeapon, Source } from '@provenance/core'
 
 import { pruneStale, readChunk, writeChunk } from './store'
 
@@ -80,6 +80,22 @@ export async function loadRivens(): Promise<{ manifest: z.infer<typeof Manifest>
   const manifest = await loadManifest()
   const rivens = await loadChunk(manifest, 'rivens', z.array(RivenWeapon))
   return { manifest, rivens }
+}
+
+/**
+ * The relic table — 294 KB, and all /relics needs.
+ *
+ * The item chunk is deliberately NOT pulled alongside it: the page needs 1,366 display names
+ * out of a 1 MB table, so the server hands those down in the HTML instead. Fetching a
+ * megabyte to read 35 KB of it would be the expensive way to be consistent.
+ */
+export async function loadRelicDetails(): Promise<{
+  manifest: z.infer<typeof Manifest>
+  relics: z.infer<typeof RelicDetail>[]
+}> {
+  const manifest = await loadManifest()
+  const relics = await loadChunk(manifest, 'relics', z.array(RelicDetail))
+  return { manifest, relics }
 }
 
 /** Items only — what the ⌘K palette needs. */
