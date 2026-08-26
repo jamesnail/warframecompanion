@@ -50,6 +50,9 @@ import {
   buildSets,
   RawRivenFile,
   buildRivens,
+  RawMarketItems,
+  buildMarketIndex,
+  linkMarketSlugs,
   parseRelics,
   parseRewardName,
   parseSorties,
@@ -89,6 +92,17 @@ const ITEMS_REPO = 'https://raw.githubusercontent.com/WFCD/warframe-items/master
  */
 const RIVENS_API = 'https://api.warframestat.us/pc/rivens'
 
+/**
+ * warframe.market's own item catalogue — one request for all 3,840 entries, read at build
+ * time so item pages can link to where a thing is traded. Only slugs are taken; live prices
+ * would need a runtime proxy, because this API sends no CORS headers.
+ */
+const MARKET_API = 'https://api.warframe.market/v2/items'
+
+/** 2,699 of 2,713 tradable items resolve today, plus 486 more their catalogue sells that
+ *  ours marks untradable. A collapse means they restructured, not that trading stopped. */
+const MARKET_FLOOR = 2500
+
 /** Weapons carrying a disposition, plus whatever traded that week. A collapse here means
  *  upstream moved, not that Warframe stopped having rivens. */
 const RIVEN_FLOOR = 500
@@ -98,6 +112,7 @@ const ATTRIBUTIONS = [
   { name: 'WFCD / warframe-drop-data', url: 'https://github.com/WFCD/warframe-drop-data' },
   { name: '@wfcd/items', url: 'https://github.com/WFCD/warframe-items' },
   { name: 'WFCD / warframe-status-api', url: 'https://docs.warframestat.us' },
+  { name: 'warframe.market', url: 'https://warframe.market' },
   { name: 'Digital Extremes', url: 'https://www.warframe.com' },
 ]
 
@@ -426,7 +441,7 @@ async function main(): Promise<void> {
    * resolves; see packages/sources/src/sets.ts for why a partial recipe is worse than none.
    */
   const setResult = buildSets(wfcdFiles, (id) => enrichedIds.has(id))
-  const items: Item[] = applySets(enrichedItems, setResult)
+  let items: Item[] = applySets(enrichedItems, setResult)
 
   console.log(
     `  sets    ${String(setResult.sets.length)} assembled items ` +
@@ -437,6 +452,32 @@ async function main(): Promise<void> {
       `only ${String(setResult.sets.length)} set recipes resolved (floor ${String(SET_FLOOR)}). ` +
         `WFCD likely renamed components or restructured its recipe nesting. ` +
         `First few incomplete: ${setResult.partial.slice(0, 5).join(' | ')}`,
+    )
+  }
+
+  /**
+   * warframe.market slugs. After sets, deliberately: assembled items are exactly what the
+   * market sells as "<name>_set", so linking before they exist would miss all 309 of them.
+   *
+   * Joined on gameRef, which is the /Lotus/... uniqueName enrichment already attached.
+   * Deriving their slug from ours instead is wrong 26% of the time and the misses are not
+   * random — see packages/sources/src/market.ts.
+   */
+  const marketRaw = await fetchJson<unknown>(MARKET_API)
+  const marketParsed = RawMarketItems.safeParse(marketRaw)
+  if (!marketParsed.success) {
+    fail(`warframe.market item list failed validation: ${marketParsed.error.message}`)
+  }
+  const marketLinked = linkMarketSlugs(items, buildMarketIndex(marketParsed.data.data))
+  items = marketLinked.items
+
+  console.log(
+    `  market  ${String(marketLinked.linked)} of ${String(items.length)} items link to warframe.market`,
+  )
+  if (marketLinked.linked < MARKET_FLOOR) {
+    fail(
+      `only ${String(marketLinked.linked)} items matched warframe.market (floor ${String(MARKET_FLOOR)}). ` +
+        `They likely restructured their catalogue or renamed gameRef.`,
     )
   }
 

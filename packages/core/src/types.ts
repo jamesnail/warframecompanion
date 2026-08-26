@@ -89,6 +89,19 @@ export const Item = z.object({
   components: z
     .array(z.object({ itemId: ItemId, count: z.number().int().positive() }))
     .optional(),
+  /**
+   * This item's slug on warframe.market, for a link out to its trade listings.
+   *
+   * Resolved at build time against their own published catalogue and never derived from our
+   * slug: the naive transform is right about 74% of the time, and the misses are not random —
+   * assembled weapons are sold as "<name>_set", augment mods drop the warframe suffix our id
+   * keeps, and some items are simply not traded. Present only when their catalogue lists it,
+   * so a link that exists is a link that resolves.
+   *
+   * Deliberately independent of `tradable`: 486 items that flag marks untradable are sold
+   * there regardless, so their catalogue is the authority on this and ours is not.
+   */
+  marketSlug: z.string().min(1).optional(),
 })
 export type Item = z.infer<typeof Item>
 

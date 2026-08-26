@@ -183,7 +183,7 @@ export function OwnedToggle({ itemId, itemName }: { itemId: string; itemName: st
       onClick={() => {
         toggle(itemId, !have)
       }}
-      className={`chamfer-sm mt-4 border px-3 py-1.5 text-xs transition-colors disabled:opacity-40 ${
+      className={`chamfer-sm border px-3 py-1.5 text-xs transition-colors disabled:opacity-40 ${
         have
           ? 'border-orokin bg-void-700 text-orokin'
           : 'border-hairline text-text-dim hover:border-hairline-strong hover:text-text'

@@ -94,6 +94,13 @@ export default async function AboutPage() {
           third party, it says so, and if the connection fails the rest of the site is
           unaffected.
         </p>
+        <p>
+          <strong className="text-text">Trade prices are a link, not a number.</strong> Items
+          that warframe.market sells link straight to their page, resolved at build time
+          against their own catalogue so the link always lands. Quoting a price here would
+          mean a live proxy and a figure minutes out of date; their page shows every open
+          order, on both sides, right now.
+        </p>
         <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1">
           {manifest.attributions.map((attribution) => (
             <li key={attribution.url}>

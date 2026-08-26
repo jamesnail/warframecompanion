@@ -1,16 +1,16 @@
 {
-  "hash": "2c85becbdd9c",
+  "hash": "a995b0ea5bf9",
   "builtAt": "2026-06-25T20:55:17.196Z",
   "files": {
-    "items": "items.2c85becbdd9c.json",
-    "sources": "sources.2c85becbdd9c.json",
-    "edges": "edges.2c85becbdd9c.json",
-    "relics": "relics.2c85becbdd9c.json",
-    "rivens": "rivens.2c85becbdd9c.json"
+    "items": "items.a995b0ea5bf9.json",
+    "sources": "sources.a995b0ea5bf9.json",
+    "edges": "edges.a995b0ea5bf9.json",
+    "relics": "relics.a995b0ea5bf9.json",
+    "rivens": "rivens.a995b0ea5bf9.json"
   },
   "upstream": {
     "warframe-drop-data": "a0ece5e9be2e2d55c75040720ef3226a",
-    "riven-trades-fetched": "2026-08-26T11:08:28.876Z"
+    "riven-trades-fetched": "2026-08-26T13:26:25.524Z"
   },
   "attributions": [
     {
@@ -24,6 +24,10 @@
     {
       "name": "WFCD / warframe-status-api",
       "url": "https://docs.warframestat.us"
+    },
+    {
+      "name": "warframe.market",
+      "url": "https://warframe.market"
     },
     {
       "name": "Digital Extremes",

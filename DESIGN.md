@@ -489,6 +489,31 @@ lives in your browser and nowhere else — clearing site data deletes it.
 Share a single roll via a URL fragment: serialize compactly, compress with `lz-string`, put it after
 `#` so it never reaches a server. `/rivens/share#<compressed>`.
 
+### 9.1 Market: a link, not a proxy
+
+The plan was an Edge pass-through to `api.warframe.market` serving live listings. What shipped
+instead is a link to the item’s page there, and the reasoning is worth keeping because the
+investigation changed the answer twice.
+
+- **The proxy would genuinely have been required.** CLAUDE.md hedged that the API "may not"
+  send CORS headers. It does not — no `Access-Control-Allow-Origin` on any response — so
+  unlike world state, a browser cannot call it directly.
+- **The v1 API is retired.** `/v1/items` 404s and the v1 orders endpoint 403s. Anything built
+  against the API this document was drafted from would have been dead on arrival. Current is
+  `/v2/orders/item/{slug}`.
+- **The payload is mostly noise.** One item is 135 KB and 278 orders, of which 11 were from
+  sellers actually in game. A proxy worth having would have had to trim it to a handful of
+  numbers, which is real server-side logic to own, cache, rate-limit and keep working.
+- **A link costs none of that** and shows more: every open order, both sides, live, on a page
+  built for exactly that. Owner’s call, and the right one.
+
+The slug is resolved at BUILD time against warframe.market’s own catalogue — one request for
+all 3,840 entries — joined on `gameRef`, which is the same `/Lotus/...` uniqueName our items
+already carry from WFCD. 3,185 of 4,875 items link. See hazard 28 for why the obvious
+shortcut is wrong.
+
+---
+
 ### Grading — deliberately not built
 
 The original plan was to compare each rolled stat against the range that weapon's disposition
@@ -721,6 +746,19 @@ Write these into code comments as you hit them.
     actually fetches the links a page renders is what caught this; reading the markup would not
     have.
 
+28. **Do not derive another site’s slug from your own.** `braton-prime-barrel` →
+    `braton_prime_barrel` looks like the whole problem and is right about 74% of the time.
+    The 26% is not random: assembled weapons are sold as `<name>_set` (`akbronco_prime_set`),
+    augment mods drop the warframe suffix our id keeps (`abating-link-trinity` is their
+    `abating_link`), and some items are simply not traded. Join on an identity instead —
+    `gameRef` is the `/Lotus/...` uniqueName both sides already have — and the match rate is
+    99.5% of tradable items with zero guesses. A link that exists is then a link that resolves.
+
+29. **Our `tradable` flag is not the authority on what a market sells.** 486 items it marks
+    untradable have warframe.market pages, assembled Prime sets among them. Gating the link on
+    our own flag would have silently dropped every one. Their catalogue answers the question
+    "do they sell this"; ours does not.
+
 ---
 
 ## 11. Phases
@@ -740,7 +778,7 @@ Each phase ends deployable. Don't start the next until the current one ships.
 | 7b | **Owned-parts tracking** — IndexedDB collection, set progress, JSON export/import | Shipped 2026-08-26: a tick survives a reload and reaches another page, verified end-to-end over CDP |
 | ~~7c~~ | ~~Expected-time ranking, mission duration table~~ | **Dropped 2026-08-26.** A number that averages a 90-second Capture against a 20-minute Survival reads as precision and answers a question no player asks. `mission-durations.ts` and `rotations.ts` were deleted rather than left inert. |
 | 8 | **Rivens — dispositions and weekly trade prices** | Shipped 2026-08-26: 687 weapons, 416 with an observed price. Roll logging and grading deliberately NOT built — see § 9. |
-| 9 | Market proxy + live listings | Degrades cleanly when the proxy is unavailable |
+| ~~9~~ | ~~Market proxy + live listings~~ | **Replaced 2026-08-26 by a link.** See § 9.1. No server route was built; constraint 3’s escape hatch remains unspent. |
 | 9.5 | **World state** — live fissures, invasions, factions, Baro | Shipped 2026-08-26. Absorbed the Factions and Vendors tiles, both of which were blocked on data that turned out to be live rather than static. |
 | 10 | Polish — wiki supplement join, perf pass, a11y audit (`/about` shipped 2026-08-26) | Lighthouse ≥ 95 across the board |
 

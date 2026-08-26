@@ -239,9 +239,33 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
         </p>
       )}
 
-      {/* Only where it means something. Ticking "owned" on a resource you have 40,000 of is
-          not a fact worth storing; on a part that completes a set it is the whole point. */}
-      {partOf.length > 0 && <OwnedToggle itemId={item.id} itemName={item.name} />}
+      {/* The two things you can DO with this item, grouped. Owned-tracking only where it
+          means something — ticking a resource you have 40,000 of is not a fact worth
+          storing; on a part that completes a set it is the whole point. */}
+      {(partOf.length > 0 || item.marketSlug !== undefined) && (
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          {partOf.length > 0 && <OwnedToggle itemId={item.id} itemName={item.name} />}
+
+          {/* A link, not a price. Live listings would need a proxy — warframe.market sends
+              no CORS headers — and a number that is five minutes stale is worth less than
+              the page showing every open order. The slug is resolved at build time against
+              their own catalogue, so this link is never a guess. */}
+          {item.marketSlug !== undefined && (
+            <a
+              href={`https://warframe.market/items/${item.marketSlug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="chamfer-sm border border-hairline px-3 py-1.5 text-xs text-text-dim transition-colors hover:border-hairline-strong hover:text-text"
+            >
+              Trade on warframe.market
+              <span aria-hidden="true" className="ml-1">
+                ↗
+              </span>
+              <span className="sr-only"> (opens in a new tab)</span>
+            </a>
+          )}
+        </div>
+      )}
 
       {recipe.length > 0 && bestDirect === undefined && relicPaths.length === 0 ? (
         // An assembled item is built, not farmed. Saying "no source found" would be wrong,
