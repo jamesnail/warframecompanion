@@ -636,7 +636,7 @@ Each phase ends deployable. Don't start the next until the current one ships.
 | 7c | Expected-time ranking, mission duration table | Paths ranked by minutes |
 | 8 | Riven tracker — dispositions, weekly trade data, local storage, export/import, grading | A roll can be logged, graded, and shared by URL |
 | 9 | Market proxy + live listings | Degrades cleanly when the proxy is unavailable |
-| 10 | Polish — wiki supplement join, `/about` methodology page, perf pass, a11y audit | Lighthouse ≥ 95 across the board |
+| 10 | Polish — wiki supplement join, perf pass, a11y audit (`/about` shipped 2026-08-26) | Lighthouse ≥ 95 across the board |
 
 Phase 5 is the one that matters. Everything before it is table stakes that other sites already
 have; everything after it is refinement. If the schedule slips, protect phase 5.

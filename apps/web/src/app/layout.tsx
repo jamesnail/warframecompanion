@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { Archivo, IBM_Plex_Mono, Inter_Tight } from 'next/font/google'
 import { NuqsAdapter } from 'nuqs/adapters/next/app'
 
@@ -51,6 +52,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             all game data are property of Digital Extremes.
           </p>
           <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1">
+            {/* First, because it is the page that explains the rest of this footer. */}
+            <li>
+              <Link className="underline underline-offset-4 transition-colors hover:text-text" href="/about">
+                About the data
+              </Link>
+            </li>
             {attributions.map((a) => (
               <li key={a.url}>
                 <a className="underline underline-offset-4 transition-colors hover:text-text" href={a.url}>
