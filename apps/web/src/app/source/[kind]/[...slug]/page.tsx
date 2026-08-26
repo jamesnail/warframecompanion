@@ -56,12 +56,17 @@ export async function generateMetadata({
   if (source === undefined) return { title: 'Not found' }
 
   const where = [source.planet, source.missionType].filter((part) => part !== undefined).join(', ')
+  const description =
+    where === ''
+      ? `Everything ${source.name} drops in Warframe, with drop rates.`
+      : `Everything ${source.name} (${where}) drops in Warframe, with drop rates.`
+  const { kind, slug } = await params
+  const path = `/source/${kind}/${slug.map(encodeURIComponent).join('/')}`
   return {
     title: `${source.name} drop table`,
-    description:
-      where === ''
-        ? `Everything ${source.name} drops in Warframe, with drop rates.`
-        : `Everything ${source.name} (${where}) drops in Warframe, with drop rates.`,
+    description,
+    alternates: { canonical: path },
+    openGraph: { title: `${source.name} drop table`, description, url: path },
   }
 }
 

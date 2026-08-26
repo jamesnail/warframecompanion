@@ -10,6 +10,7 @@ export const metadata: Metadata = {
   title: 'About the data',
   description:
     'Where Provenance gets its drop data, how it is validated, and where the numbers are estimates rather than facts.',
+  alternates: { canonical: '/about' },
 }
 
 /**

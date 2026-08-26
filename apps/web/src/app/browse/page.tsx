@@ -9,6 +9,9 @@ export const metadata: Metadata = {
   title: 'Browse every drop',
   description:
     'Every item and every source that drops it, filterable by category, source and drop rate.',
+  // Bare /browse, so the many filtered permutations consolidate onto one indexable page
+  // instead of competing with each other for the same content.
+  alternates: { canonical: '/browse' },
 }
 
 /**

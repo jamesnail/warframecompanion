@@ -31,9 +31,27 @@ const plexMono = IBM_Plex_Mono({
   display: 'swap',
 })
 
+/**
+ * metadataBase is what lets every page emit an absolute canonical and Open Graph URL from a
+ * relative path. Without it Next cannot resolve them at all, and social cards silently ship
+ * with no URL rather than with a wrong one.
+ */
 export const metadata: Metadata = {
+  metadataBase: new URL(site.url),
   title: { default: site.name, template: `%s · ${site.name}` },
   description: site.description,
+  applicationName: site.name,
+  // The site is public and every page is meant to be indexed; this states it rather than
+  // relying on the absence of a rule.
+  robots: { index: true, follow: true },
+  openGraph: {
+    type: 'website',
+    siteName: site.name,
+    title: site.name,
+    description: site.description,
+    url: '/',
+  },
+  twitter: { card: 'summary', title: site.name, description: site.description },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

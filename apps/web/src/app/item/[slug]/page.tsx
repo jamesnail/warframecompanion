@@ -56,9 +56,12 @@ export async function generateMetadata({
   const item = itemsById.get(slug)
   if (item === undefined) return { title: 'Not found' }
 
+  const description = `Every way to get ${item.name} in Warframe.`
   return {
     title: `${item.name} drop locations`,
-    description: `Every way to get ${item.name} in Warframe.`,
+    description,
+    alternates: { canonical: `/item/${item.id}` },
+    openGraph: { title: item.name, description, url: `/item/${item.id}` },
   }
 }
 

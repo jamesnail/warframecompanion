@@ -9,6 +9,9 @@ export const metadata: Metadata = {
   title: 'Your collection',
   description:
     'Track which prime parts you already own and how close each set is to complete. Stored in your browser, never uploaded.',
+  // Nothing here is the same for two visitors — the page is whatever the viewer has ticked —
+  // so there is no stable content to index. Kept out of the sitemap for the same reason.
+  robots: { index: false, follow: true },
 }
 
 /**

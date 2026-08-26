@@ -341,9 +341,21 @@ Never store a filter in React state alone. If it changes what's displayed, it be
 | `/rivens` | The riven tracker. Client-only, no prerender. |
 | `/about` | Data sources, update cadence, attribution, methodology — including honest notes on where the numbers are estimates. |
 
-`generateStaticParams` over every item and source produces roughly 8,000 static pages. That is well
-within Next's comfort zone and is the entire SEO strategy: each page targets the query a player
-actually types, which is the item name plus the word "drop".
+`generateStaticParams` over every item and source produces roughly 6,500 static pages. That is well
+within Next's comfort zone and is the backbone of the SEO strategy: each page targets the query a
+player actually types, which is the item name plus the word "drop".
+
+Generating them is only half of it, though — a crawler still has to find them. Three things close
+that gap: the per-kind source indexes make every page reachable by following links (hazard 15),
+`sitemap.xml` makes them discoverable without the walk, and every page declares a canonical so the
+many filtered `/browse` permutations consolidate onto one URL instead of competing with each other.
+`/collection` is `noindex` and absent from the sitemap — its content is whatever the viewer has
+ticked, so there is nothing stable to index.
+
+The canonical origin lives in `site.ts` as a plain constant, NOT an environment variable. Vercel's
+own `VERCEL_URL` is per-deployment, so a preview build would emit canonicals pointing at itself and
+invite search engines to index a throwaway origin. Attaching a custom domain means editing that one
+line — and it lifts the SSO gate too, since Vercel exempts custom domains from it.
 
 ---
 
@@ -623,6 +635,12 @@ Write these into code comments as you hit them.
     filter cuts paths rather than items. The relic source and the relic item are the same
     object under two ids — `relic:axi-a1` and `axi-a1-relic` — and only the item carries
     `vaulted`, because vaulting is itself derived from whether anything currently drops it.
+
+23. **A sitemap that advertises a 404 is worse than no sitemap.** The URLs are built by the same
+    `sourceHref`/`needsSourcePage` resolver the pages themselves use, never by re-deriving the
+    path, so the two cannot drift. Verified by cross-checking every `<loc>` against the emitted
+    `.html` files: 6,531 URLs, 0 with no page, 0 duplicates, and the only built page absent from
+    the sitemap is `/collection`, which is deliberate.
 
 ---
 

@@ -61,9 +61,12 @@ export async function generateMetadata({
   const { kind } = await params
   if (!isKind(kind)) return { title: 'Not found' }
   const plural = SOURCE_KIND_PLURAL[kind].toLowerCase()
+  const description = `Every source among Warframe's ${plural}, and what each one drops.`
   return {
     title: `Every ${SOURCE_KIND_LABEL[kind].toLowerCase()} drop table`,
-    description: `Every source among Warframe's ${plural}, and what each one drops.`,
+    description,
+    alternates: { canonical: `/source/${kind}` },
+    openGraph: { title: SOURCE_KIND_PLURAL[kind], description, url: `/source/${kind}` },
   }
 }
 

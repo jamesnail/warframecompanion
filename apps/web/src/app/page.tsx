@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import type { Metadata } from 'next'
 
 import { SearchTrigger } from '@/components/CommandPalette'
 import { getDataset } from '@/lib/data'
@@ -14,6 +15,10 @@ import type { Surface, SurfaceCount } from '@/config/surfaces'
  * with. What replaces them is the set of ways to browse, plus the palette — which is still
  * the fastest route to a named item (DESIGN.md § 7).
  */
+/** The root is its own canonical. Without this the home page is the only one that does
+ *  not declare one, which leaves any tracking parameter appended to it indexable. */
+export const metadata: Metadata = { alternates: { canonical: '/' } }
+
 export default async function HomePage() {
   const { items, sources, relics, manifest } = await getDataset()
 
