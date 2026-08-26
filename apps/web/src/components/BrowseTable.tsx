@@ -36,6 +36,7 @@ const FILTER_PARSERS = {
   kind: parseAsArrayOf(parseAsString).withDefault([]),
   min: parseAsFloat.withDefault(0),
   tradable: parseAsBoolean.withDefault(false),
+  farmable: parseAsBoolean.withDefault(false),
   sort: parseAsStringLiteral(SORT_COLUMNS).withDefault('chance'),
   dir: parseAsStringLiteral(SORT_DIRECTIONS).withDefault('desc'),
 }
@@ -97,9 +98,10 @@ export function BrowseTable() {
       kinds: filters.kind as SourceKind[],
       minChance: filters.min,
       tradableOnly: filters.tradable,
+      farmableOnly: filters.farmable,
     })
     return sortRows(filtered, filters.sort, filters.dir)
-  }, [all, filters.q, filters.category, filters.kind, filters.min, filters.tradable, filters.sort, filters.dir])
+  }, [all, filters.q, filters.category, filters.kind, filters.min, filters.tradable, filters.farmable, filters.sort, filters.dir])
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const virtualizer = useVirtualizer({
@@ -113,7 +115,7 @@ export function BrowseTable() {
   // 4,000 of a 12-row result, which reads as an empty table.
   useEffect(() => {
     virtualizer.scrollToOffset(0)
-  }, [filters.q, filters.category, filters.kind, filters.min, filters.tradable, virtualizer])
+  }, [filters.q, filters.category, filters.kind, filters.min, filters.tradable, filters.farmable, virtualizer])
 
   const toggle = (key: 'category' | 'kind', value: string): void => {
     const current = filters[key]
@@ -129,7 +131,8 @@ export function BrowseTable() {
     filters.category.length > 0 ||
     filters.kind.length > 0 ||
     filters.min > 0 ||
-    filters.tradable
+    filters.tradable ||
+    filters.farmable
 
   return (
     <div>
@@ -158,6 +161,18 @@ export function BrowseTable() {
               className="size-4 accent-orokin"
             />
             Tradable only
+          </label>
+
+          {/* 455 of 582 prime parts are reachable only through a vaulted relic, so this is
+              the difference between "where is it from" and "what can I farm tonight". */}
+          <label className="flex items-center gap-2 text-sm text-text-dim">
+            <input
+              type="checkbox"
+              checked={filters.farmable}
+              onChange={(event) => void setFilters({ farmable: event.target.checked })}
+              className="size-4 accent-orokin"
+            />
+            Farmable now
           </label>
 
           <label className="flex items-center gap-2 text-sm text-text-dim">
@@ -227,16 +242,18 @@ export function BrowseTable() {
                       </Link>
                       <span className="label block truncate">{row.category}</span>
                     </div>
-                    <div className="min-w-0">
+                    <div className={`min-w-0 ${row.vaulted ? 'vaulted' : ''}`}>
                       <Link
                         href={row.sourceHref}
                         className="block truncate text-text-dim transition-colors hover:text-orokin"
                       >
                         {row.sourceName}
                       </Link>
-                      {row.detail !== '' && (
-                        <span className="block truncate text-xs text-text-faint">{row.detail}</span>
-                      )}
+                      <span className="block truncate text-xs text-text-faint">
+                        {row.vaulted && <span className="text-r-legendary">Vaulted</span>}
+                        {row.vaulted && row.detail !== '' && ' · '}
+                        {row.detail}
+                      </span>
                     </div>
                     <div className="data-num text-right text-text">
                       {(row.chance * 100).toFixed(2)}%

@@ -181,3 +181,41 @@ describe('facetsOf', () => {
     expect(facets.kinds).toEqual(['enemy', 'mission'])
   })
 })
+
+describe('vaulted paths', () => {
+  const withRelics: Item[] = [
+    ...items,
+    { id: 'axi-a1-relic', name: 'Axi A1 Relic', category: 'Relic', tradable: true, vaulted: true },
+    { id: 'neo-b2-relic', name: 'Neo B2 Relic', category: 'Relic', tradable: true, vaulted: false },
+  ]
+  const relicSources: Source[] = [
+    ...sources,
+    { id: 'relic:axi-a1', kind: 'relic', name: 'Axi A1 Relic' },
+    { id: 'relic:neo-b2', kind: 'relic', name: 'Neo B2 Relic' },
+  ]
+  const relicEdges: DropEdge[] = [
+    { itemId: 'braton-prime-barrel', sourceId: 'relic:axi-a1', chance: 0.2533, quantity: [1, 1], provenance: 'official' },
+    { itemId: 'braton-prime-barrel', sourceId: 'relic:neo-b2', chance: 0.1, quantity: [1, 1], provenance: 'official' },
+  ]
+  const relicRows = buildRows(withRelics, relicSources, relicEdges, stage)
+
+  it('marks a path through a vaulted relic', () => {
+    expect(relicRows.find((r) => r.sourceId === 'relic:axi-a1')?.vaulted).toBe(true)
+    expect(relicRows.find((r) => r.sourceId === 'relic:neo-b2')?.vaulted).toBe(false)
+  })
+
+  it('never marks a non-relic source vaulted', () => {
+    expect(rows.every((row) => !row.vaulted)).toBe(true)
+  })
+
+  // The point of the filter: one live relic keeps the item farmable even when four others
+  // are vaulted, so this must cut PATHS and not items.
+  it('keeps the live path and drops the vaulted one', () => {
+    const out = filterRows(relicRows, { ...EMPTY_FILTERS, farmableOnly: true })
+    expect(out.map((row) => row.sourceId)).toEqual(['relic:neo-b2'])
+  })
+
+  it('leaves everything alone when the filter is off', () => {
+    expect(filterRows(relicRows, EMPTY_FILTERS)).toHaveLength(2)
+  })
+})

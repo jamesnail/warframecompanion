@@ -335,7 +335,7 @@ Never store a filter in React state alone. If it changes what's displayed, it be
 | `/item/[slug]` | The main event. Also serves assembled sets (hazard 17): an item with `components` shows a Needs table with each part's best source, and an item with `buildsInto` gets a "Part of" backlink, capped because Orokin Cell builds into 177 of them. Direct sources and relic sources side by side, each ranked by drop rate. Statically generated for every item — this is what gets indexed by search engines. **2026-08-24:** the effort model (expected time, relics needed, solo-vs-share) came off this page on owner feedback; the page answers *where*, and time-ranking belongs on a surface that compares unlike missions. `rotationCycleCost()` and `mission-durations.ts` stay in core, tested, for that surface. |
 | `/source/[kind]/[...slug]` | Forward view: what a mission, enemy, bounty or syndicate drops, by rotation. Statically generated; catch-all because a source id carries slashes (`mission:earth/cambria`). **Shipped 2026-08-25.** Relics are excluded deliberately — a relic is an item too, and `/item/<relic>` already shows its contents at every refinement level, so a second page would split one object across two URLs that each know half of it. Tables here are uncapped: on `/item` the source list is context, here it IS the page. |
 | `/source/[kind]` | Index of one kind, grouped by planet where the kind has one. Exists for reachability, not decoration — see hazard 15. |
-| `/browse` | The filterable table. Virtualized, dense, sortable, URL-driven. |
+| `/browse` | The filterable table. Virtualized, dense, sortable, URL-driven. Carries the **Farmable now** filter, which cuts paths that run through a vaulted relic — 455 of 582 prime parts are reachable only that way, so it is a different question from "where is it from". |
 | `/relics` | Relic browser with vaulted filtering and refinement comparison. |
 | `/collection` | What you own and which sets it completes, closest to finished first. Prerendered like everything else; only the owned ids come from IndexedDB, inside a client island. Carries the export/import backup story. |
 | `/rivens` | The riven tracker. Client-only, no prerender. |
@@ -615,6 +615,14 @@ Write these into code comments as you hit them.
     lenient — it accepts a bare array, ignores unknown fields and reads a newer `version` —
     because an import that rejects a file the user cannot repair has destroyed their only
     backup for them.
+
+22. **Vaulting is a property of the PATH, not the item.** A prime part can sit in one relic
+    still in rotation and four that are not; collapsing that to a per-item flag would hide
+    the one row that still works. Braton Prime Barrel is in 39 relics and exactly 2 of them
+    are live. So the flag rides on the browse ROW, derived from the relic source, and the
+    filter cuts paths rather than items. The relic source and the relic item are the same
+    object under two ids — `relic:axi-a1` and `axi-a1-relic` — and only the item carries
+    `vaulted`, because vaulting is itself derived from whether anything currently drops it.
 
 ---
 

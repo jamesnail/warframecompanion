@@ -253,10 +253,28 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
           <Stat label="95% confident" value={String(runsForConfidence(bestDirect.p))} unit="runs" />
         </div>
       ) : relicPaths.length > 0 ? (
+        // Whether it can be farmed TODAY is the first thing a prime part has to answer, and
+        // "found in 39 relics" answers it wrongly when 37 of them are out of rotation.
         <p className="mt-6 max-w-prose text-sm text-text-dim">
-          No direct drop. Found only in Void Relics —{' '}
-          {relicPaths.length === 1 ? 'one relic' : `${String(relicPaths.length)} relics`} listed
-          below.
+          {vaultedCount === relicPaths.length ? (
+            <>
+              <span className="text-r-legendary">Vaulted.</span> No relic currently in rotation
+              contains this — trade for it, or wait for an unvaulting. All{' '}
+              {relicPaths.length === 1 ? 'one relic' : `${String(relicPaths.length)} relics`} that
+              hold it are listed below.
+            </>
+          ) : (
+            <>
+              No direct drop. Found in{' '}
+              {relicPaths.length === 1 ? 'one relic' : `${String(relicPaths.length)} relics`}
+              {vaultedCount > 0 && (
+                <>
+                  , {String(relicPaths.length - vaultedCount)} of them still in rotation
+                </>
+              )}
+              . Farmable ones are listed first.
+            </>
+          )}
         </p>
       ) : vendorOfferings.length > 0 ? (
         // A guaranteed purchase is a source; it just isn't a farm.

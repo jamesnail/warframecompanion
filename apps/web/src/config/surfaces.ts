@@ -49,6 +49,11 @@ export const surfaceGroups: SurfaceGroup[] = [
     surfaces: [
       { name: 'Items', blurb: 'Everything, filterable', href: '/browse', count: 'items' },
       {
+        name: 'Farmable now',
+        blurb: 'Skip anything vaulted',
+        href: '/browse?farmable=true',
+      },
+      {
         name: 'Relics',
         blurb: 'By tier and vault status',
         href: '/browse?category=Relic',
