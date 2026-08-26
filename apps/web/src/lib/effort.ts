@@ -1,35 +1,15 @@
-import { missionDurationMinutes } from '@provenance/core'
 import type { Source } from '@provenance/core'
 
 /**
- * How long one "run" of a source takes, in minutes — or undefined where the question has
- * no honest answer.
+ * Labels for where a drop comes from.
  *
- * Every source is reached by running something — that is why the UI counts runs and never
- * kills. What an enemy lacks is a DURATION: you do not queue "one Corrupted Heavy Gunner",
- * you kill however many spawn while doing something else, so any minute figure here would be
- * invented. Returning undefined keeps such sources rankable by chance while excluding them
- * from time estimates.
+ * This file used to also model how long a run takes, so paths could be ranked by expected
+ * minutes. That model is gone: it came off the item page on owner feedback and was then
+ * dropped from the project outright as a useless metric. Averaging a 90-second Capture
+ * against a 20-minute Survival produces a number that reads as precision and answers a
+ * question no player actually asks — they ask where a thing is likeliest, and that is what
+ * the tables now say and all they say.
  */
-export function runMinutes(source: Source | undefined): number | undefined {
-  if (source === undefined) return undefined
-
-  switch (source.kind) {
-    case 'mission':
-      return missionDurationMinutes(source.missionType)
-    case 'bounty':
-      // A bounty is several stages; longer than a single mission node.
-      return 8
-    case 'sortie':
-      // Three missions, and it is once per day regardless.
-      return 15
-    case 'transient':
-      return 5
-    default:
-      // enemy, syndicate, relic, cache, other — no meaningful per-run duration.
-      return undefined
-  }
-}
 
 /** Human label for where a drop comes from, when it is not a plain mission node. */
 export function kindLabel(source: Source | undefined): string | undefined {

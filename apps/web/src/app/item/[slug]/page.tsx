@@ -96,10 +96,11 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
     .filter((edge) => sourcesById.get(edge.sourceId)?.kind === 'syndicate')
     .map((edge) => ({ edge, source: sourcesById.get(edge.sourceId) }))
 
-  // Ranked by drop rate, highest first. This deliberately ignores how long a run takes: a
-  // 20% reward on a 20-minute Survival now outranks a 15% one on a 90-second Capture. The
-  // table answers "where is it likeliest", not "what is fastest" — mission-durations.ts and
-  // rotationCycleCost() still exist for the ranked surfaces in a later phase.
+  // Ranked by drop rate, highest first, and by nothing else. Ranking by expected TIME was
+  // tried, cut from this page on owner feedback, and then dropped from the project outright
+  // as a useless metric — a number that averages a 90-second Capture against a 20-minute
+  // Survival answers a question no player actually asks. The table says where it is
+  // likeliest; that is the whole claim.
   const directEdges = incoming
     .filter((edge) => {
       if (edge.sourceId.startsWith('relic:')) return false
