@@ -18,7 +18,7 @@ import {
   Manifest,
   REFINEMENT_TABLE,
   RelicDetail,
-  RivenWeapon,
+  RivenFamily,
   Source,
   refinementRowTotal,
 } from '@provenance/core'
@@ -48,6 +48,7 @@ import {
   enrichItems,
   applySets,
   buildSets,
+  normalizeDisplayName,
   RawRivenFile,
   buildRivens,
   RawMarketItems,
@@ -103,9 +104,9 @@ const MARKET_API = 'https://api.warframe.market/v2/items'
  *  ours marks untradable. A collapse means they restructured, not that trading stopped. */
 const MARKET_FLOOR = 2500
 
-/** Weapons carrying a disposition, plus whatever traded that week. A collapse here means
- *  upstream moved, not that Warframe stopped having rivens. */
-const RIVEN_FLOOR = 500
+/** Riven FAMILIES, not weapons — one mod fits every variant it covers, so the family count
+ *  is well below the weapon count. A collapse here means upstream moved. */
+const RIVEN_FLOOR = 350
 const OUT_DIR = fileURLToPath(new URL('../apps/web/public/data/', import.meta.url))
 
 const ATTRIBUTIONS = [
@@ -441,7 +442,16 @@ async function main(): Promise<void> {
    * resolves; see packages/sources/src/sets.ts for why a partial recipe is worse than none.
    */
   const setResult = buildSets(wfcdFiles, (id) => enrichedIds.has(id))
-  let items: Item[] = applySets(enrichedItems, setResult)
+  /**
+   * QUIRK — both upstreams title-case roman numerals, so "Lavan Apoc Mk III" arrives as
+   * "Mk Ii/Iii/Iv". DE ships 30 such names and zero correct ones, so this is not a WFCD
+   * artefact. Applied once here, after every name has been minted, and ids are untouched
+   * because they are slugged lowercase.
+   */
+  let items: Item[] = applySets(enrichedItems, setResult).map((item) => {
+    const name = normalizeDisplayName(item.name)
+    return name === item.name ? item : { ...item, name }
+  })
 
   console.log(
     `  sets    ${String(setResult.sets.length)} assembled items ` +
@@ -493,13 +503,15 @@ async function main(): Promise<void> {
     fail(`riven trade data failed validation: ${rivenParsed.error.message}`)
   }
   const rivenBuild = buildRivens(wfcdFiles, rivenParsed.data, items)
-  const rivens: RivenWeapon[] = rivenBuild.weapons
+  const rivens: RivenFamily[] = rivenBuild.families
 
-  const pricedCount = rivens.filter((w) => w.unrolled !== undefined || w.rerolled !== undefined).length
+  const pricedCount = rivens.filter((f) => f.unrolled !== undefined || f.rerolled !== undefined).length
+  const weaponCount = rivens.reduce((total, f) => total + f.weapons.length, 0)
   console.log(
-    `  rivens  ${String(rivens.length)} weapons, ${String(pricedCount)} with a traded price ` +
-      `(${String(rivenBuild.veiled)} veiled placeholder(s) dropped, ` +
-      `${String(rivenBuild.unmatched.length)} priced without a disposition)`,
+    `  rivens  ${String(rivens.length)} families covering ${String(weaponCount)} weapons, ` +
+      `${String(pricedCount)} with a traded price (${String(rivenBuild.excluded)} non-rivenable ` +
+      `excluded, ${String(rivenBuild.veiled)} veiled, ${String(rivenBuild.unmatched.length)} traded ` +
+      `without a matching weapon)`,
   )
   if (rivens.length < RIVEN_FLOOR) {
     fail(
@@ -619,7 +631,7 @@ async function main(): Promise<void> {
     ['sources', Source, sources],
     ['edges', DropEdge, edges],
     ['relics', RelicDetail, relics],
-    ['rivens', RivenWeapon, rivens],
+    ['rivens', RivenFamily, rivens],
   ]
   for (const [name, schema, rows] of shapes) {
     const result = z.array(schema).safeParse(rows)

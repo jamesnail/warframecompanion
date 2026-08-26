@@ -2,21 +2,28 @@ import { describe, expect, it } from 'vitest'
 
 import type { Item } from '@provenance/core'
 
-import { buildRivens, type RawRivenFile } from './rivens'
+import { buildRivens, familyMatcher, type RawRivenFile } from './rivens'
 import type { RawWfcdItem } from './enrich'
 
 const weapons: RawWfcdItem[] = [
-  { name: 'Braton Prime', type: 'Rifle', disposition: 3, omegaAttenuation: 1.0 },
-  { name: 'Acceltra', type: 'Rifle', disposition: 1, omegaAttenuation: 0.65 },
-  { name: 'Hek', type: 'Shotgun', disposition: 5, omegaAttenuation: 1.55 },
-  { name: 'Catchmoon', type: 'Kitgun Component', disposition: 1, omegaAttenuation: 0.75 },
-  // Present in the same files but not a weapon: no omegaAttenuation, so no riven.
+  { name: 'Cernos', type: 'Bow', disposition: 4, omegaAttenuation: 1.3 },
+  { name: 'Cernos Prime', type: 'Bow', disposition: 4, omegaAttenuation: 1.25 },
+  { name: 'Rakta Cernos', type: 'Bow', disposition: 4, omegaAttenuation: 1.25 },
+  { name: 'Mutalist Cernos', type: 'Rifle', disposition: 5, omegaAttenuation: 1.35 },
+  { name: 'Mk1-Braton', type: 'Rifle', disposition: 5, omegaAttenuation: 1.35 },
+  { name: 'Braton', type: 'Rifle', disposition: 5, omegaAttenuation: 1.35 },
+  // Classes that take no riven at all.
+  { name: 'Mote Amp', type: 'Amp', omegaAttenuation: 1.0 },
+  { name: 'Exalted Blade', type: 'Exalted Weapon', omegaAttenuation: 1.0 },
+  // Not a weapon: no omegaAttenuation.
   { name: 'Serration', type: 'Mod' },
+  // Upstream mis-casing must be fixed on the way in.
+  { name: 'Lavan Apoc Mk Ii', type: 'Arch-Gun', disposition: 3, omegaAttenuation: 1.0 },
 ]
 
 const stat = (over: Record<string, unknown>) => ({
   itemType: 'Rifle Riven Mod',
-  compatibility: 'Braton Prime',
+  compatibility: 'Cernos',
   rerolled: false,
   avg: 120,
   stddev: 40,
@@ -29,98 +36,120 @@ const stat = (over: Record<string, unknown>) => ({
 
 const prices: RawRivenFile = {
   'Rifle Riven Mod': {
-    'Braton Prime': {
-      unrolled: stat({}),
-      rerolled: stat({ rerolled: true, median: 250, avg: 300, pop: 5 }),
-    },
-    // The generic unidentified riven for the class — not a weapon.
+    Cernos: { unrolled: stat({}), rerolled: stat({ rerolled: true, median: 250, pop: 5 }) },
+    'Mutalist Cernos': { unrolled: stat({ compatibility: 'Mutalist Cernos', median: 40 }) },
+    Braton: { unrolled: stat({ compatibility: 'Braton', median: 15 }) },
     'Veiled Rifle Riven Mod': { unrolled: stat({ compatibility: 'Veiled Rifle Riven Mod' }) },
   },
   'Zaw Riven Mod': {
-    // Priced, but upstream publishes no disposition for zaw strikes.
+    // Traded, but upstream names no weapon this way.
     Akaten: { unrolled: stat({ itemType: 'Zaw Riven Mod', compatibility: 'Akaten', median: 40 }) },
   },
-  // A category we do not recognise must not fail the build.
-  'Fishing Spear Riven Mod': { Lanzo: { unrolled: stat({ compatibility: 'Lanzo' }) } },
 }
 
-const items: Item[] = [
-  { id: 'braton-prime', name: 'Braton Prime', category: 'Primary', tradable: false },
-]
+const items: Item[] = [{ id: 'cernos-prime', name: 'Cernos Prime', category: 'Primary', tradable: false }]
 
 const built = buildRivens([{ rows: weapons }], prices, items)
+const family = (name: string) => built.families.find((f) => f.name === name)
+
+describe('familyMatcher', () => {
+  const match = familyMatcher(['Cernos', 'Mutalist Cernos', 'Braton'])
+
+  it('folds variants into the family whose riven they share', () => {
+    expect(match('Cernos Prime')).toBe('Cernos')
+    expect(match('Rakta Cernos')).toBe('Cernos')
+  })
+
+  // The rule the whole grouping turns on.
+  it('prefers the LONGEST family, so a separately traded variant stays its own', () => {
+    expect(match('Mutalist Cernos')).toBe('Mutalist Cernos')
+  })
+
+  it('treats a hyphen as a word boundary', () => {
+    expect(match('Mk1-Braton')).toBe('Braton')
+  })
+
+  it('does not match a family name inside a longer word', () => {
+    expect(match('Cernosaurus')).toBeUndefined()
+  })
+
+  it('returns nothing when no family fits', () => {
+    expect(match('Soma')).toBeUndefined()
+  })
+})
 
 describe('buildRivens', () => {
-  it('includes only entries that carry a disposition multiplier', () => {
-    expect(built.weapons.some((w) => w.name === 'Serration')).toBe(false)
-    expect(built.weapons.some((w) => w.name === 'Braton Prime')).toBe(true)
+  it('groups Cernos, Cernos Prime and Rakta Cernos under one riven', () => {
+    expect(family('Cernos')?.weapons.map((w) => w.name)).toEqual([
+      'Cernos',
+      'Cernos Prime',
+      'Rakta Cernos',
+    ])
   })
 
-  it('keeps both the dots and the real multiplier', () => {
-    const hek = built.weapons.find((w) => w.name === 'Hek')
-    expect(hek?.dispositionStars).toBe(5)
-    expect(hek?.disposition).toBe(1.55)
+  it('keeps the family head first', () => {
+    expect(family('Cernos')?.weapons[0]?.name).toBe('Cernos')
   })
 
-  it('rounds the multiplier to the two decimals the game uses', () => {
-    const rounded = buildRivens(
-      [{ rows: [{ name: 'Acceltra', type: 'Rifle', omegaAttenuation: 0.64999998 }] }],
-      {},
-      [],
-    )
-    expect(rounded.weapons[0]?.disposition).toBe(0.65)
+  it('keeps Mutalist Cernos separate, because its riven is traded separately', () => {
+    expect(family('Mutalist Cernos')?.weapons.map((w) => w.name)).toEqual(['Mutalist Cernos'])
   })
 
-  it('attaches unrolled and rerolled prices separately', () => {
-    const braton = built.weapons.find((w) => w.name === 'Braton Prime')
-    expect(braton?.unrolled?.median).toBe(90)
-    expect(braton?.unrolled?.pop).toBe(12)
-    expect(braton?.rerolled?.median).toBe(250)
+  // Disposition is per weapon even though the mod is per family.
+  it('keeps each variant its own disposition', () => {
+    const members = family('Cernos')?.weapons ?? []
+    expect(members.map((w) => w.disposition)).toEqual([1.3, 1.25, 1.25])
   })
 
-  it('keeps a weapon that has a disposition but no trades that week', () => {
-    const hek = built.weapons.find((w) => w.name === 'Hek')
-    expect(hek).toBeDefined()
-    expect(hek?.unrolled).toBeUndefined()
-    expect(hek?.rerolled).toBeUndefined()
+  it('puts the price on the family, not on each weapon', () => {
+    const cernos = family('Cernos')
+    expect(cernos?.unrolled?.median).toBe(90)
+    expect(cernos?.rerolled?.median).toBe(250)
+    expect(cernos?.weapons[1]).not.toHaveProperty('unrolled')
   })
 
-  // A veiled riven is an unidentified one of that class, not a weapon; minting a page for it
-  // would invent a weapon that does not exist.
+  it('takes the riven class from the trade file, so a Bow correctly reads Rifle', () => {
+    expect(family('Cernos')?.rivenType).toBe('Rifle')
+  })
+
+  it('excludes classes that cannot take a riven', () => {
+    expect(family('Mote Amp')).toBeUndefined()
+    expect(family('Exalted Blade')).toBeUndefined()
+    expect(built.excluded).toBe(2)
+  })
+
+  it('ignores entries with no disposition multiplier at all', () => {
+    expect(built.families.some((f) => f.name === 'Serration')).toBe(false)
+  })
+
   it('drops veiled placeholders and counts them', () => {
-    expect(built.weapons.some((w) => /^Veiled/.test(w.name))).toBe(false)
+    expect(built.families.some((f) => /^Veiled/.test(f.name))).toBe(false)
     expect(built.veiled).toBe(1)
   })
 
-  it('keeps a priced weapon whose disposition upstream does not publish', () => {
-    const akaten = built.weapons.find((w) => w.name === 'Akaten')
-    expect(akaten?.rivenType).toBe('Zaw')
-    expect(akaten?.unrolled?.median).toBe(40)
-    expect(akaten?.disposition).toBeUndefined()
+  // One week of trades must not delete a weapon from the site.
+  it('still ships a traded family whose weapons upstream names differently', () => {
+    expect(family('Akaten')?.unrolled?.median).toBe(40)
     expect(built.unmatched).toContain('Akaten')
   })
 
-  it('ignores a riven category it does not recognise rather than failing', () => {
-    expect(built.weapons.some((w) => w.name === 'Lanzo')).toBe(false)
+  it('normalises upstream roman-numeral casing', () => {
+    expect(built.families.some((f) => f.name === 'Lavan Apoc Mk II')).toBe(true)
+    expect(built.families.some((f) => f.name === 'Lavan Apoc Mk Ii')).toBe(false)
   })
 
-  it('maps a kitgun component onto the Kitgun riven class', () => {
-    expect(built.weapons.find((w) => w.name === 'Catchmoon')?.rivenType).toBe('Kitgun')
-  })
-
-  it('links to the catalogue only where the drop data knows the weapon', () => {
-    expect(built.weapons.find((w) => w.name === 'Braton Prime')?.itemId).toBe('braton-prime')
-    // Bought from the market, never dropped, so there is no page to link to.
-    expect(built.weapons.find((w) => w.name === 'Hek')?.itemId).toBeUndefined()
+  it('links a variant to the catalogue only where the drop data knows it', () => {
+    const members = family('Cernos')?.weapons ?? []
+    expect(members.find((w) => w.name === 'Cernos Prime')?.itemId).toBe('cernos-prime')
+    expect(members.find((w) => w.name === 'Cernos')?.itemId).toBeUndefined()
   })
 
   it('returns a stable, name-sorted order so rebuilds hash identically', () => {
-    const names = built.weapons.map((w) => w.name)
+    const names = built.families.map((f) => f.name)
     expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)))
   })
 
-  it('does not emit the same weapon twice', () => {
-    const ids = built.weapons.map((w) => w.id)
-    expect(ids.length).toBe(new Set(ids).size)
+  it('never emits an empty family', () => {
+    expect(built.families.every((f) => f.weapons.length > 0)).toBe(true)
   })
 })

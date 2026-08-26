@@ -182,6 +182,13 @@ export default async function AboutPage() {
           chains.
         </p>
         <p>
+          <strong className="text-text">Rivens are listed per family.</strong> One riven mod
+          fits every variant of a weapon — a Cernos riven works on the Cernos, the Cernos Prime
+          and the Rakta Cernos — so the price belongs to the family while the disposition
+          belongs to each weapon separately. The families are derived from which weapons
+          actually have riven trades, because no source publishes the grouping directly.
+        </p>
+        <p>
           <strong className="text-text">Rivens cover disposition and price, not grading.</strong>{" "}
           Both of those are published facts. Judging an individual roll is not: it would mean
           comparing each stat against the range that weapon&rsquo;s disposition allows, and no

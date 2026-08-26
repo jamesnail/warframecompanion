@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import type { DropEdge, Item, Manifest, RelicDetail, RivenWeapon, Source } from '@provenance/core'
+import type { DropEdge, Item, Manifest, RelicDetail, RivenFamily, Source } from '@provenance/core'
 
 /**
  * Build-time data access.
@@ -20,7 +20,7 @@ export interface Dataset {
   sources: Source[]
   edges: DropEdge[]
   relics: RelicDetail[]
-  rivens: RivenWeapon[]
+  rivens: RivenFamily[]
   itemsById: Map<string, Item>
   sourcesById: Map<string, Source>
   /** The reverse index — the whole point of the tool. */
@@ -30,9 +30,9 @@ export interface Dataset {
   relicsByReward: Map<string, RelicDetail[]>
   /** A relic is an item too, so its own page can show what it contains. */
   relicsById: Map<string, RelicDetail>
-  /** Keyed by the weapon's catalogue item id, for the riven panel on an item page. Only
-   *  243 of 687 riven weapons have one — the rest are bought, never dropped. */
-  rivensByItem: Map<string, RivenWeapon>
+  /** Keyed by each COVERED weapon's catalogue item id, so a Cernos Prime page finds the
+   *  Cernos family. Several ids map to the same family, which is the point. */
+  rivensByItem: Map<string, RivenFamily>
 }
 
 let cached: Promise<Dataset> | undefined
@@ -49,12 +49,14 @@ async function load(): Promise<Dataset> {
     readChunk<Source[]>(manifest.files.sources ?? ''),
     readChunk<DropEdge[]>(manifest.files.edges ?? ''),
     readChunk<RelicDetail[]>(manifest.files.relics ?? ''),
-    readChunk<RivenWeapon[]>(manifest.files.rivens ?? ''),
+    readChunk<RivenFamily[]>(manifest.files.rivens ?? ''),
   ])
 
-  const rivensByItem = new Map<string, RivenWeapon>()
-  for (const weapon of rivens) {
-    if (weapon.itemId !== undefined) rivensByItem.set(weapon.itemId, weapon)
+  const rivensByItem = new Map<string, RivenFamily>()
+  for (const family of rivens) {
+    for (const weapon of family.weapons) {
+      if (weapon.itemId !== undefined) rivensByItem.set(weapon.itemId, family)
+    }
   }
 
   const itemsById = new Map(items.map((item) => [item.id, item]))

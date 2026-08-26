@@ -336,7 +336,7 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
       {recipe.length > 0 && <RecipeTable rows={recipe} itemName={item.name} />}
 
       {/* Weapons only, and only where this weapon actually takes a riven. */}
-      {riven !== undefined && <RivenPanel weapon={riven} />}
+      {riven !== undefined && <RivenPanel family={riven} weaponId={item.id} />}
 
       {/* Direct sources and relics answer the same question two ways, so they are read
           together rather than one scrolled past to reach the other. */}

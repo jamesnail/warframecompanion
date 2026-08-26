@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { DropEdge, Item, Manifest, RelicDetail, RivenWeapon, Source } from '@provenance/core'
+import { DropEdge, Item, Manifest, RelicDetail, RivenFamily, Source } from '@provenance/core'
 
 import { pruneStale, readChunk, writeChunk } from './store'
 
@@ -76,9 +76,12 @@ async function loadManifest(): Promise<z.infer<typeof Manifest>> {
  * self-contained dataset keyed by weapon name, and 443 of the 687 weapons have no catalogue
  * item at all because they are bought rather than dropped.
  */
-export async function loadRivens(): Promise<{ manifest: z.infer<typeof Manifest>; rivens: z.infer<typeof RivenWeapon>[] }> {
+export async function loadRivens(): Promise<{
+  manifest: z.infer<typeof Manifest>
+  rivens: z.infer<typeof RivenFamily>[]
+}> {
   const manifest = await loadManifest()
-  const rivens = await loadChunk(manifest, 'rivens', z.array(RivenWeapon))
+  const rivens = await loadChunk(manifest, 'rivens', z.array(RivenFamily))
   return { manifest, rivens }
 }
 

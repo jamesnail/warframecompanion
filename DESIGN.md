@@ -365,7 +365,7 @@ Never store a filter in React state alone. If it changes what's displayed, it be
 | `/browse` | The filterable table. Virtualized, dense, sortable, URL-driven. Carries the **Farmable now** filter, which cuts paths that run through a vaulted relic — 455 of 582 prime parts are reachable only that way, so it is a different question from "where is it from". |
 | `/relics` | **Shipped 2026-08-26.** 771 relics, tier and vault filtering, and the refinement ladder stated once. Distinct from `/browse?category=Relic`, where a row is one EDGE and a relic appears once per place it drops; here a row is one RELIC and the question is what is inside it. Search matches CONTENTS, because you look for the part, not the relic. |
 | `/collection` | What you own and which sets it completes, closest to finished first. Prerendered like everything else; only the owned ids come from IndexedDB, inside a client island. Carries the export/import backup story. |
-| `/rivens` | Disposition and weekly trade price per weapon, sortable and filterable. Prerendered shell, client table, 132 KB chunk. Weapons link to their item page only where the drop data knows one — 243 of 687; the rest are bought, never dropped. |
+| `/rivens` | Disposition and weekly trade price per riven FAMILY (see § 9.2), sortable and filterable. Prerendered shell, client table, 132 KB chunk. Weapons link to their item page only where the drop data knows one — 243 of 687; the rest are bought, never dropped. |
 | `/world` | **The one live surface.** Open fissures by relic tier, invasions, sortie, archon hunt, Baro, and open-world cycles. Prerendered shell, client island, fetched from WFCD's status API — see § 2.1. This is also where the Factions tile ended up. |
 | `/about` | Data sources, update cadence, attribution, methodology — including honest notes on where the numbers are estimates. |
 
@@ -511,6 +511,32 @@ The slug is resolved at BUILD time against warframe.market’s own catalogue —
 all 3,840 entries — joined on `gameRef`, which is the same `/Lotus/...` uniqueName our items
 already carry from WFCD. 3,185 of 4,875 items link. See hazard 28 for why the obvious
 shortcut is wrong.
+
+---
+
+### 9.2 Rivens are per FAMILY, not per weapon
+
+A riven mod fits every variant of a weapon: a Cernos riven works on the Cernos, the Cernos
+Prime and the Rakta Cernos. That is why the market lists Cernos riven trades and no Rakta
+Cernos ones — and why the existence of *separate* Mutalist Cernos trades is the signal that it
+is a family of its own rather than another Cernos variant.
+
+The first cut modelled one row per weapon. That listed the same tradeable mod three times and
+implied two prices that do not exist. The shipped model is 516 families covering 724 weapons.
+
+**Deriving the families.** No upstream publishes them. WFCD has no variant link, and the
+`uniqueName` paths do not share a key (`AntlerBow` / `PrimeCernos` / `RVCernos`). The
+candidates are therefore the names DE's weekly trade file lists, because those ARE the riven
+mods that exist; a weapon joins the family whose name appears in its own at a word boundary,
+LONGEST match first. Longest-first is load-bearing, not an optimisation — matching "Cernos"
+before checking "Mutalist Cernos" would silently merge two separately traded rivens. Hyphens
+count as boundaries, so `Mk1-Braton` joins Braton.
+
+**Disposition stays per weapon.** Cernos is 1.30 while Cernos Prime and Rakta Cernos are both
+1.25, and the game applies the disposition of whichever weapon the riven is equipped on. So the
+price belongs to the family and the disposition belongs to the member. A variant's item page
+says so in as many words, because a reader who assumed the price was for a "Cernos Prime riven"
+would go hunting for a mod that does not exist.
 
 ---
 
@@ -776,6 +802,23 @@ Write these into code comments as you hit them.
     both visible spans `aria-hidden` instead. Same root cause as hazard 16 — and note the fix
     is to stop emitting an absolutely positioned element inside a scroll container, not to
     widen the container.
+
+32. **Upstream title-cases roman numerals, and BOTH upstreams do it.** "Lavan Apoc Mk III"
+    arrives as "Mk Iii" — from WFCD *and* from DE, whose drop tables carry 30 such names and
+    zero correct ones. 115 items were affected. Normalised once, after every name is minted,
+    with an explicit allowlist of numeral tokens rather than a "looks like a numeral" pattern:
+    a pattern also matches ordinary words, and this is a game that names things Ivara and Xaku.
+    Ids are untouched because they are slugged lowercase, so the fix cannot break a bookmark.
+
+33. **An `omegaAttenuation` is not proof a thing takes a riven.** Reading it that way put
+    Operator Amps, K-Drive parts, Exalted weapons and Conservation Prey in the riven table —
+    86 entries. The fix is a denylist of the four classes that genuinely cannot rather than an
+    allowlist of those that can, so a weapon class added upstream shows up rather than silently
+    vanishing. The inverse error was live at the same time: an allowlist of weapon TYPES was
+    dropping 163 real weapons because `Bow`, `Sniper`, `Launcher` and `Dual Pistols` were
+    missing from it, which is how Cernos Prime and Rakta Cernos went absent. Take the riven
+    class from the family's traded entry, which is authoritative, and fall back to weapon type
+    only when the trade file is silent.
 
 ---
 

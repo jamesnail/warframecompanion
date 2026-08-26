@@ -1,12 +1,11 @@
-import type { RivenType, RivenWeapon } from '@provenance/core'
+import type { RivenFamily, RivenType } from '@provenance/core'
 
 /**
- * Filtering and sorting for the riven table, kept pure so the numbers are testable and the
- * component stays presentational.
+ * Filtering and sorting for the riven table, kept pure so the numbers are testable.
  *
- * The dataset is 687 weapons, not 28,000 edges, so this does not need virtualizing and does
- * not get a haystack — a lowercase compare over 687 short names is not the slow part of
- * anything.
+ * A row is a FAMILY, not a weapon: one riven mod fits every variant it covers, so listing
+ * Cernos, Cernos Prime and Rakta Cernos as three rows would show the same tradeable mod
+ * three times and imply two prices that do not exist.
  */
 
 export type RivenSortColumn = 'name' | 'type' | 'disposition' | 'unrolled' | 'rerolled' | 'trades'
@@ -16,14 +15,13 @@ export interface RivenFilters {
   q: string
   types: RivenType[]
   /**
-   * Minimum observed trades. This is the honesty control, not a nicety: the five most
-   * expensive rerolled medians in the dataset all come from a SINGLE trade — Arca Scisco
-   * reads 15,000 platinum on a population of one — and a median drawn from one sale is a
-   * anecdote wearing a statistic's clothes.
+   * Minimum observed trades. The honesty control: the most expensive medians in the dataset
+   * come from a single trade, which is an anecdote wearing a statistic's clothes.
    */
   minTrades: number
-  /** Hide weapons nobody traded that week. */
   pricedOnly: boolean
+  /** Only families whose riven covers more than one weapon. */
+  multiOnly: boolean
 }
 
 export const EMPTY_RIVEN_FILTERS: RivenFilters = {
@@ -31,6 +29,7 @@ export const EMPTY_RIVEN_FILTERS: RivenFilters = {
   types: [],
   minTrades: 0,
   pricedOnly: false,
+  multiOnly: false,
 }
 
 /** Trades below this are shown with a caveat rather than as a price. */
@@ -40,55 +39,82 @@ export function isThin(pop: number | undefined): boolean {
   return pop !== undefined && pop < THIN_SAMPLE
 }
 
-/** The best trade count the weapon has, across both roll states. */
-export function tradesOf(weapon: RivenWeapon): number {
-  return Math.max(weapon.unrolled?.pop ?? 0, weapon.rerolled?.pop ?? 0)
-}
-
-export function filterRivens(weapons: RivenWeapon[], filters: RivenFilters): RivenWeapon[] {
-  const terms = filters.q.toLowerCase().split(/\s+/).filter(Boolean)
-  const types = filters.types.length === 0 ? undefined : new Set(filters.types)
-
-  return weapons.filter((weapon) => {
-    if (types !== undefined && !types.has(weapon.rivenType)) return false
-    if (filters.pricedOnly && weapon.unrolled === undefined && weapon.rerolled === undefined) {
-      return false
-    }
-    // Applied to the weapon's best sample, so raising it hides thin data rather than hiding
-    // a weapon that has one solid price and one thin one.
-    if (filters.minTrades > 0 && tradesOf(weapon) < filters.minTrades) return false
-    const name = weapon.name.toLowerCase()
-    for (const term of terms) {
-      if (!name.includes(term)) return false
-    }
-    return true
-  })
+/** The best trade count the family has, across both roll states. */
+export function tradesOf(family: RivenFamily): number {
+  return Math.max(family.unrolled?.pop ?? 0, family.rerolled?.pop ?? 0)
 }
 
 /**
- * Sorted copy.
+ * The disposition range across a family's weapons.
  *
- * Missing values always sort last regardless of direction. A weapon with no observed trades
- * has no price, which is not the same as a price of zero — letting it sort as zero would put
- * every untraded weapon at the top of "cheapest first" and answer a question nobody asked.
+ * Variants do NOT share a disposition — Cernos sits at 1.30 while Cernos Prime and Rakta
+ * Cernos sit at 1.25 — so a single number would be a lie about at least one of them. When
+ * every member agrees, low and high are equal and the UI shows one figure.
+ */
+export function dispositionRange(family: RivenFamily): { low: number; high: number } | undefined {
+  const values = family.weapons
+    .map((weapon) => weapon.disposition)
+    .filter((value): value is number => value !== undefined)
+  if (values.length === 0) return undefined
+  return { low: Math.min(...values), high: Math.max(...values) }
+}
+
+export function filterRivens(families: RivenFamily[], filters: RivenFilters): RivenFamily[] {
+  const terms = filters.q.toLowerCase().split(/\s+/).filter(Boolean)
+  const types = filters.types.length === 0 ? undefined : new Set(filters.types)
+
+  return families.filter((family) => {
+    if (types !== undefined && !types.has(family.rivenType)) return false
+    if (filters.pricedOnly && family.unrolled === undefined && family.rerolled === undefined) {
+      return false
+    }
+    if (filters.multiOnly && family.weapons.length < 2) return false
+    if (filters.minTrades > 0 && tradesOf(family) < filters.minTrades) return false
+    if (terms.length === 0) return true
+
+    // Matched against the family name OR any covered weapon, so searching "rakta cernos"
+    // finds the Cernos riven — which is the mod that actually fits it.
+    const fields = [family.name, ...family.weapons.map((weapon) => weapon.name)]
+    return fields.some((field) => {
+      const lower = field.toLowerCase()
+      return terms.every((term) => lower.includes(term))
+    })
+  })
+}
+
+/** Which covered weapons a query matched, so a row can show why it is in the results. */
+export function matchedWeapons(family: RivenFamily, query: string): string[] {
+  const terms = query.toLowerCase().split(/\s+/).filter(Boolean)
+  if (terms.length === 0) return []
+  return family.weapons
+    .filter((weapon) => {
+      const lower = weapon.name.toLowerCase()
+      return terms.every((term) => lower.includes(term))
+    })
+    .map((weapon) => weapon.name)
+}
+
+/**
+ * Sorted copy. Missing values always sort last regardless of direction: a family nobody
+ * traded has no price, which is not the same as a price of zero.
  */
 export function sortRivens(
-  weapons: RivenWeapon[],
+  families: RivenFamily[],
   column: RivenSortColumn,
   direction: SortDirection,
-): RivenWeapon[] {
+): RivenFamily[] {
   const sign = direction === 'asc' ? 1 : -1
 
-  const value = (weapon: RivenWeapon): number | undefined => {
+  const value = (family: RivenFamily): number | undefined => {
     switch (column) {
       case 'disposition':
-        return weapon.disposition
+        return dispositionRange(family)?.high
       case 'unrolled':
-        return weapon.unrolled?.median
+        return family.unrolled?.median
       case 'rerolled':
-        return weapon.rerolled?.median
+        return family.rerolled?.median
       case 'trades': {
-        const trades = tradesOf(weapon)
+        const trades = tradesOf(family)
         return trades === 0 ? undefined : trades
       }
       default:
@@ -96,23 +122,20 @@ export function sortRivens(
     }
   }
 
-  return [...weapons].sort((a, b) => {
+  return [...families].sort((a, b) => {
     if (column === 'name') return a.name.localeCompare(b.name) * sign
     if (column === 'type') {
-      const byType = a.rivenType.localeCompare(b.rivenType) * sign
-      return byType || a.name.localeCompare(b.name)
+      return a.rivenType.localeCompare(b.rivenType) * sign || a.name.localeCompare(b.name)
     }
-
     const left = value(a)
     const right = value(b)
     if (left === undefined && right === undefined) return a.name.localeCompare(b.name)
     if (left === undefined) return 1
     if (right === undefined) return -1
-    // Ties break on name so the order is total and the table does not reshuffle.
     return (left - right) * sign || a.name.localeCompare(b.name)
   })
 }
 
-export function rivenFacets(weapons: RivenWeapon[]): RivenType[] {
-  return [...new Set(weapons.map((weapon) => weapon.rivenType))].sort((a, b) => a.localeCompare(b))
+export function rivenFacets(families: RivenFamily[]): RivenType[] {
+  return [...new Set(families.map((family) => family.rivenType))].sort((a, b) => a.localeCompare(b))
 }

@@ -1,16 +1,16 @@
 {
-  "hash": "a995b0ea5bf9",
+  "hash": "5387fe1083e6",
   "builtAt": "2026-06-25T20:55:17.196Z",
   "files": {
-    "items": "items.a995b0ea5bf9.json",
-    "sources": "sources.a995b0ea5bf9.json",
-    "edges": "edges.a995b0ea5bf9.json",
-    "relics": "relics.a995b0ea5bf9.json",
-    "rivens": "rivens.a995b0ea5bf9.json"
+    "items": "items.5387fe1083e6.json",
+    "sources": "sources.5387fe1083e6.json",
+    "edges": "edges.5387fe1083e6.json",
+    "relics": "relics.5387fe1083e6.json",
+    "rivens": "rivens.5387fe1083e6.json"
   },
   "upstream": {
     "warframe-drop-data": "a0ece5e9be2e2d55c75040720ef3226a",
-    "riven-trades-fetched": "2026-08-26T13:26:25.524Z"
+    "riven-trades-fetched": "2026-08-26T17:29:17.998Z"
   },
   "attributions": [
     {
@@ -38,6 +38,6 @@
     "items": 4875,
     "sources": 2417,
     "edges": 28020,
-    "rivens": 687
+    "rivens": 516
   }
 }

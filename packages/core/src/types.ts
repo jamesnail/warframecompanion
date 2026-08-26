@@ -234,10 +234,17 @@ export const RivenPrice = z.object({
 })
 export type RivenPrice = z.infer<typeof RivenPrice>
 
-export const RivenWeapon = z.object({
+/**
+ * One weapon inside a riven family.
+ *
+ * Disposition is per WEAPON even though the riven mod is per family: Cernos sits at 1.30
+ * while Cernos Prime and Rakta Cernos both sit at 1.25, and the game applies the disposition
+ * of whichever weapon the riven is equipped on. So the price belongs to the family and the
+ * disposition belongs here.
+ */
+export const RivenVariant = z.object({
   id: ItemId,
   name: z.string().min(1),
-  rivenType: RivenType,
   /**
    * Disposition as the game draws it, 1 to 5 dots. Carried alongside the real multiplier
    * because the dots are what players actually say to each other ("it's a five-dot riven"),
@@ -246,10 +253,29 @@ export const RivenWeapon = z.object({
   dispositionStars: z.number().int().min(1).max(5).optional(),
   /** The multiplier the game applies to rolled stats, 0.5 to 1.55. Higher is better. */
   disposition: z.number().min(0.5).max(1.55).optional(),
-  /** Prices for an unrolled riven, and for one that has been rerolled at least once. */
-  unrolled: RivenPrice.optional(),
-  rerolled: RivenPrice.optional(),
   /** The catalogue item for this weapon, where the drop data knows one. */
   itemId: ItemId.optional(),
 })
-export type RivenWeapon = z.infer<typeof RivenWeapon>
+export type RivenVariant = z.infer<typeof RivenVariant>
+
+/**
+ * A riven FAMILY: one riven mod and every weapon it fits.
+ *
+ * Rivens are not per weapon, they are per family. A Cernos riven fits the Cernos, the Cernos
+ * Prime and the Rakta Cernos, which is why the market has Cernos riven trades and no Rakta
+ * Cernos ones — and why the existence of separate Mutalist Cernos trades tells you it is a
+ * family of its own rather than another Cernos variant. Modelling one row per weapon listed
+ * the same tradeable mod three times and implied prices that do not exist.
+ */
+export const RivenFamily = z.object({
+  /** Slug of the family name, which is the name the riven mod itself carries. */
+  id: ItemId,
+  name: z.string().min(1),
+  rivenType: RivenType,
+  /** Prices belong to the family, because that is what is bought and sold. */
+  unrolled: RivenPrice.optional(),
+  rerolled: RivenPrice.optional(),
+  /** Every weapon this riven fits, the family head first. Never empty. */
+  weapons: z.array(RivenVariant).min(1),
+})
+export type RivenFamily = z.infer<typeof RivenFamily>
