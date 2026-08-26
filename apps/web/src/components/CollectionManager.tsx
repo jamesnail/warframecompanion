@@ -114,6 +114,9 @@ export function CollectionManager({ sets, names }: { sets: SetSummary[]; names: 
             ref={fileRef}
             type="file"
             accept="application/json,.json"
+            // Visually replaced by the Import button, but still reachable by a screen reader,
+            // so it needs a name of its own rather than being announced as "file, button".
+            aria-label="Choose a collection file to import"
             className="sr-only"
             onChange={(event) => {
               const file = event.target.files?.[0]
