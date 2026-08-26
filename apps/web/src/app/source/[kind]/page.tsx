@@ -7,6 +7,7 @@ import { SourceKind } from '@provenance/core'
 import { SearchTrigger } from '@/components/CommandPalette'
 import { Panel, PanelHeader } from '@/components/Primitives'
 import { getDataset } from '@/lib/data'
+import { socialImage } from '@/config/site'
 import {
   SOURCE_KIND_LABEL,
   SOURCE_KIND_PLURAL,
@@ -66,7 +67,12 @@ export async function generateMetadata({
     title: `Every ${SOURCE_KIND_LABEL[kind].toLowerCase()} drop table`,
     description,
     alternates: { canonical: `/source/${kind}` },
-    openGraph: { title: SOURCE_KIND_PLURAL[kind], description, url: `/source/${kind}` },
+    openGraph: {
+      title: SOURCE_KIND_PLURAL[kind],
+      description,
+      url: `/source/${kind}`,
+      images: [socialImage],
+    },
   }
 }
 

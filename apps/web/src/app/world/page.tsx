@@ -5,6 +5,7 @@ import { SearchTrigger } from '@/components/CommandPalette'
 import { WorldStateView } from '@/components/WorldStateView'
 import type { NodeIndex } from '@/lib/world'
 import { getDataset } from '@/lib/data'
+import { socialImage } from '@/config/site'
 
 export const metadata: Metadata = {
   title: 'World state',
@@ -16,6 +17,7 @@ export const metadata: Metadata = {
     description:
       'Open void fissures by relic tier, invasions, sortie, archon hunt, Baro Ki’Teer and open-world cycles.',
     url: '/world',
+    images: [socialImage],
   },
 }
 

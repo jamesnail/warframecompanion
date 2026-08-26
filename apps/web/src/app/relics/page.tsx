@@ -9,6 +9,7 @@ import { SearchTrigger } from '@/components/CommandPalette'
 import { Panel, PanelHeader, RarityTag } from '@/components/Primitives'
 import { RelicTable } from '@/components/RelicTable'
 import { getDataset } from '@/lib/data'
+import { socialImage } from '@/config/site'
 
 export const metadata: Metadata = {
   title: 'Void Relics',
@@ -19,6 +20,7 @@ export const metadata: Metadata = {
     title: 'Void Relics',
     description: 'Every Void Relic, what it contains, and which are still farmable.',
     url: '/relics',
+    images: [socialImage],
   },
 }
 

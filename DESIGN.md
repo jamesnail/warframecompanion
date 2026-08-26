@@ -415,6 +415,18 @@ ornament — wide engineered type, generous negative space, hairline structure �
 exactly once per view, on the thing you searched for. Restraint is the point. The gold reads as
 gold *because* nothing else is competing with it.
 
+### Logo and icons
+
+The logo is a hexagonal badge with a P monogram — the hexagon echoing the same Orokin
+chamfer the panels use. It is supplied as dark slate on transparency, so it is composited
+onto a light plate for every derived icon: left as-is it would be invisible against this
+site’s near-black background. Inverting it for a dark plate is an open question for the
+owner, not something to decide in a build script.
+
+`icon.png` and `apple-icon.png` are the MONOGRAM only. The full lockup is unreadable at
+16px, which is the size that actually matters for a favicon; `opengraph-image.png` uses the
+whole lockup because 1200×630 can carry it. Regeneration is documented in `assets/README.md`.
+
 ### Signature element
 
 **The drop-chain trace.** A rendered path from item back to the mission you actually queue, drawn

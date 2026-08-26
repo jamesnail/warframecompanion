@@ -24,6 +24,16 @@ export const site = {
 } as const
 
 /**
+ * The social card, served by `app/opengraph-image.png`.
+ *
+ * Stated explicitly rather than left to Next's file convention, because a page that declares
+ * its own `openGraph` REPLACES the parent's object rather than merging into it — every item
+ * page was shipping with no og:image at all, which is precisely the page most likely to be
+ * shared.
+ */
+export const socialImage = '/opengraph-image.png'
+
+/**
  * Attribution is a legal requirement, not a courtesy (CLAUDE.md § Legal and attribution).
  * The pipeline also writes these into manifest.json; this list is the fallback for the
  * footer before any data has shipped.

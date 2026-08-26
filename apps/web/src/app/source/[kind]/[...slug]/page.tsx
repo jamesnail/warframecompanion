@@ -9,6 +9,7 @@ import { SearchTrigger } from '@/components/CommandPalette'
 import { Panel, PanelHeader, Stat } from '@/components/Primitives'
 import { getDataset } from '@/lib/data'
 import { groupDrops, type DropGroup } from '@/lib/source-drops'
+import { socialImage } from '@/config/site'
 import {
   SOURCE_KIND_LABEL,
   needsSourcePage,
@@ -66,7 +67,12 @@ export async function generateMetadata({
     title: `${source.name} drop table`,
     description,
     alternates: { canonical: path },
-    openGraph: { title: `${source.name} drop table`, description, url: path },
+    openGraph: {
+      title: `${source.name} drop table`,
+      description,
+      url: path,
+      images: [socialImage],
+    },
   }
 }
 

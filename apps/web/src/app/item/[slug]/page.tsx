@@ -20,6 +20,7 @@ import { RivenPanel } from '@/components/RivenPanel'
 import { getDataset } from '@/lib/data'
 import { kindLabel } from '@/lib/effort'
 import { sourceHref } from '@/lib/source-route'
+import { socialImage } from '@/config/site'
 
 /** How many rows each list shows. Both headers disclose when they are truncating. */
 const RELIC_LIMIT = 12
@@ -62,7 +63,7 @@ export async function generateMetadata({
     title: `${item.name} drop locations`,
     description,
     alternates: { canonical: `/item/${item.id}` },
-    openGraph: { title: item.name, description, url: `/item/${item.id}` },
+    openGraph: { title: item.name, description, url: `/item/${item.id}`, images: [socialImage] },
   }
 }
 

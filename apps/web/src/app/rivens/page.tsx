@@ -4,6 +4,7 @@ import type { Metadata } from 'next'
 
 import { SearchTrigger } from '@/components/CommandPalette'
 import { RivenTable } from '@/components/RivenTable'
+import { socialImage } from '@/config/site'
 
 export const metadata: Metadata = {
   title: 'Riven dispositions and prices',
@@ -15,6 +16,7 @@ export const metadata: Metadata = {
     description:
       'Every weapon that takes a riven, with its disposition and last week’s observed trade prices.',
     url: '/rivens',
+    images: [socialImage],
   },
 }
 

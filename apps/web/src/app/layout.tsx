@@ -4,7 +4,7 @@ import { Archivo, IBM_Plex_Mono, Inter_Tight } from 'next/font/google'
 import { NuqsAdapter } from 'nuqs/adapters/next/app'
 
 import { CommandPalette } from '@/components/CommandPalette'
-import { attributions, site } from '@/config/site'
+import { attributions, site, socialImage } from '@/config/site'
 import './globals.css'
 
 /**
@@ -50,8 +50,12 @@ export const metadata: Metadata = {
     title: site.name,
     description: site.description,
     url: '/',
+    images: [socialImage],
   },
-  twitter: { card: 'summary', title: site.name, description: site.description },
+  // Card type only. Title, description and image are deliberately absent so Twitter falls
+  // back to each page's own og: tags; setting them here stamped the site title onto every
+  // page's card.
+  twitter: { card: 'summary_large_image' },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -45,6 +45,9 @@ export default tseslint.config(
       '**/dist/**',
       '**/.turbo/**',
       '**/public/data/**',
+      // Hand-run asset tooling, outside the TypeScript project on purpose: it takes the
+      // path to sharp as an argument because sharp is not a declared dependency.
+      'scripts/build-icons.mjs',
     ],
   },
   js.configs.recommended,
