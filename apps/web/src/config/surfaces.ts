@@ -27,6 +27,7 @@ export type SurfaceCount =
   | 'bounties'
   | 'syndicates'
   | 'sorties'
+  | 'rivens'
 
 export interface Surface {
   name: string
@@ -109,7 +110,12 @@ export const surfaceGroups: SurfaceGroup[] = [
         blurb: 'Parts you own, sets in progress',
         href: '/collection',
       },
-      { name: 'Rivens', blurb: 'Rolls, grading, dispositions' },
+      {
+        name: 'Rivens',
+        blurb: 'Dispositions and trade prices',
+        href: '/rivens',
+        count: 'rivens',
+      },
     ],
   },
 ]

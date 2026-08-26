@@ -39,6 +39,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const fixed = [
     entry('/', 1, 'daily'),
     entry('/browse', 0.8, 'daily'),
+    // Weekly, because that is exactly how often DE republishes the trade statistics.
+    entry('/rivens', 0.8, 'weekly'),
     entry('/about', 0.5, 'monthly'),
   ]
 

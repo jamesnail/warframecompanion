@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { DropEdge, Item, Manifest, Source } from '@provenance/core'
+import { DropEdge, Item, Manifest, RivenWeapon, Source } from '@provenance/core'
 
 import { pruneStale, readChunk, writeChunk } from './store'
 
@@ -67,6 +67,19 @@ async function loadChunk<T>(
 async function loadManifest(): Promise<z.infer<typeof Manifest>> {
   // Same-origin only. The client never talks to Digital Extremes (CLAUDE.md constraint 2).
   return fetchParsed('/data/manifest.json', Manifest)
+}
+
+/**
+ * The riven table — 132 KB, and the only chunk /rivens needs.
+ *
+ * Deliberately not bundled with the item table: dispositions and weekly trade prices are a
+ * self-contained dataset keyed by weapon name, and 443 of the 687 weapons have no catalogue
+ * item at all because they are bought rather than dropped.
+ */
+export async function loadRivens(): Promise<{ manifest: z.infer<typeof Manifest>; rivens: z.infer<typeof RivenWeapon>[] }> {
+  const manifest = await loadManifest()
+  const rivens = await loadChunk(manifest, 'rivens', z.array(RivenWeapon))
+  return { manifest, rivens }
 }
 
 /** Items only — what the ⌘K palette needs. */

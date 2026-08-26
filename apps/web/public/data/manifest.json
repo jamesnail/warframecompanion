@@ -1,14 +1,16 @@
 {
-  "hash": "171a929af3c9",
+  "hash": "2c85becbdd9c",
   "builtAt": "2026-06-25T20:55:17.196Z",
   "files": {
-    "items": "items.171a929af3c9.json",
-    "sources": "sources.171a929af3c9.json",
-    "edges": "edges.171a929af3c9.json",
-    "relics": "relics.171a929af3c9.json"
+    "items": "items.2c85becbdd9c.json",
+    "sources": "sources.2c85becbdd9c.json",
+    "edges": "edges.2c85becbdd9c.json",
+    "relics": "relics.2c85becbdd9c.json",
+    "rivens": "rivens.2c85becbdd9c.json"
   },
   "upstream": {
-    "warframe-drop-data": "a0ece5e9be2e2d55c75040720ef3226a"
+    "warframe-drop-data": "a0ece5e9be2e2d55c75040720ef3226a",
+    "riven-trades-fetched": "2026-08-26T11:08:28.876Z"
   },
   "attributions": [
     {
@@ -20,6 +22,10 @@
       "url": "https://github.com/WFCD/warframe-items"
     },
     {
+      "name": "WFCD / warframe-status-api",
+      "url": "https://docs.warframestat.us"
+    },
+    {
       "name": "Digital Extremes",
       "url": "https://www.warframe.com"
     }
@@ -27,6 +33,7 @@
   "counts": {
     "items": 4875,
     "sources": 2417,
-    "edges": 28020
+    "edges": 28020,
+    "rivens": 687
   }
 }

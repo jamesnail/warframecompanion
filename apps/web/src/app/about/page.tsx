@@ -83,7 +83,9 @@ export default async function AboutPage() {
         <p>
           None of that is fetched by your browser. It is downloaded, parsed, validated and
           committed as static JSON when the site is built, so a page load talks only to this
-          site. The one exception is live market pricing, which is not yet built.
+          site. Riven prices come the same way, from Digital Extremes&rsquo; weekly trade
+          statistics — there is no live market call, so the numbers are as fresh as the last
+          build and no fresher.
         </p>
         <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1">
           {manifest.attributions.map((attribution) => (
@@ -163,7 +165,15 @@ export default async function AboutPage() {
         <p>
           <strong className="text-text">Some content is not modelled.</strong> Archon shards,
           Netracells and Deep Archimedea do not fit the relic model and are not represented as
-          chains. Riven dispositions, market pricing and the riven tracker are not built.
+          chains.
+        </p>
+        <p>
+          <strong className="text-text">Rivens cover disposition and price, not grading.</strong>{" "}
+          Both of those are published facts. Judging an individual roll is not: it would mean
+          comparing each stat against the range that weapon&rsquo;s disposition allows, and no
+          source publishes those ranges. Riven prices are also violently skewed, so the median
+          is shown rather than the mean, and any figure drawn from fewer than three trades is
+          marked as such — several of the highest prices in the set come from a single sale.
         </p>
       </Section>
 

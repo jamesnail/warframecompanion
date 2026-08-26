@@ -72,6 +72,11 @@ export const RawWfcdItem = z.object({
   tradable: z.boolean().optional(),
   imageName: z.string().optional(),
   components: z.array(RawWfcdComponent).optional(),
+  /** Riven disposition as the game draws it, 1-5 dots. Weapons only. */
+  disposition: z.number().int().min(1).max(5).optional(),
+  /** The multiplier the game actually applies, 0.5-1.55. Its presence is what marks an
+   *  entry as a weapon that can take a riven at all. */
+  omegaAttenuation: z.number().optional(),
 })
 export type RawWfcdItem = z.infer<typeof RawWfcdItem>
 

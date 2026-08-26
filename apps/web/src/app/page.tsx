@@ -20,7 +20,7 @@ import type { Surface, SurfaceCount } from '@/config/surfaces'
 export const metadata: Metadata = { alternates: { canonical: '/' } }
 
 export default async function HomePage() {
-  const { items, sources, relics, manifest } = await getDataset()
+  const { items, sources, relics, rivens, manifest } = await getDataset()
 
   const byCategory = new Map<string, number>()
   for (const item of items) byCategory.set(item.category, (byCategory.get(item.category) ?? 0) + 1)
@@ -44,6 +44,7 @@ export default async function HomePage() {
     bounties: byKind.get('bounty') ?? 0,
     syndicates: byKind.get('syndicate') ?? 0,
     sorties: byKind.get('sortie') ?? 0,
+    rivens: rivens.length,
   }
 
   const built = new Date(manifest.builtAt)

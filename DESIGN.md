@@ -338,7 +338,7 @@ Never store a filter in React state alone. If it changes what's displayed, it be
 | `/browse` | The filterable table. Virtualized, dense, sortable, URL-driven. Carries the **Farmable now** filter, which cuts paths that run through a vaulted relic — 455 of 582 prime parts are reachable only that way, so it is a different question from "where is it from". |
 | `/relics` | Relic browser with vaulted filtering and refinement comparison. |
 | `/collection` | What you own and which sets it completes, closest to finished first. Prerendered like everything else; only the owned ids come from IndexedDB, inside a client island. Carries the export/import backup story. |
-| `/rivens` | The riven tracker. Client-only, no prerender. |
+| `/rivens` | Disposition and weekly trade price per weapon, sortable and filterable. Prerendered shell, client table, 132 KB chunk. Weapons link to their item page only where the drop data knows one — 243 of 687; the rest are bought, never dropped. |
 | `/about` | Data sources, update cadence, attribution, methodology — including honest notes on where the numbers are estimates. |
 
 `generateStaticParams` over every item and source produces roughly 6,500 static pages. That is well
@@ -438,13 +438,20 @@ under `prefers-reduced-motion`.
 
 ### Data
 
-- **Dispositions** from `@wfcd/items`, refreshed by the pipeline.
-- **Valuation floor** from DE's weekly trade JSON: median, min, max plat and population per weapon
-  per riven type. Committed weekly by the pipeline. This is a real dataset that almost nothing
-  surfaces well.
-- **Live listings** from `api.warframe.market` at runtime through the edge proxy, fetched on demand
-  per weapon (never bulk), cached in TanStack Query with a long stale time. Respect their rate
-  limits; degrade to weekly data if the proxy fails.
+- **Dispositions** from `@wfcd/items`, refreshed by the pipeline. Both forms are carried: the 1-5
+  dots the game draws, and `omegaAttenuation`, the multiplier it actually applies. Players say the
+  dots to each other; the multiplier is the precise number. Rounding one back from the other at
+  render time would reinvent a value we were handed.
+- **Valuation floor** from DE's weekly trade JSON, mirrored by WFCD's status API: median, min, max
+  plat and population per weapon per riven type. Fetched at BUILD time and committed as static
+  JSON like everything else, so the riven surface needs no server route and no runtime market call.
+- **The trade file carries no timestamp of its own.** DE republishes it weekly and dates nothing,
+  so the only honest provenance is when the pipeline read it — recorded in `manifest.upstream` as
+  `riven-trades-fetched` and NOT rendered as a publication date, which it is not. An early draft
+  of the page borrowed `manifest.builtAt` for this, which is the drop tables' date and has nothing
+  to do with riven prices.
+- **Live listings** from `api.warframe.market` remain unbuilt, and are the only reason the market
+  proxy in constraint 3 would ever be needed. The weekly file covers the question without it.
 
 ### Storage
 
@@ -454,13 +461,22 @@ lives in your browser and nowhere else — clearing site data deletes it.
 Share a single roll via a URL fragment: serialize compactly, compress with `lz-string`, put it after
 `#` so it never reaches a server. `/rivens/share#<compressed>`.
 
-### Grading
+### Grading — deliberately not built
 
-For each stat, compare the rolled value against the expected range for that weapon's disposition
-and the roll's stat count and polarity, and express it as a percentage of the possible range.
-Show the per-stat grade and a composite, but resist reducing a riven to one letter — whether a roll
-is good depends on the build, and pretending otherwise is a lie the interface shouldn't tell.
-Surface the inputs; let the player judge.
+The original plan was to compare each rolled stat against the range that weapon's disposition
+allows and express it as a percentage. That was scoped out on 2026-08-26, and the reason is worth
+keeping: **no upstream source publishes those ranges.** WFCD gives `disposition` (1-5 dots) and
+`omegaAttenuation` (the real 0.5-1.55 multiplier), and DE's trade file gives prices. Neither gives
+the per-stat base values a grade would need, so building one would mean reconstructing Warframe's
+stat formulas from memory and presenting the output as fact.
+
+That is the exact failure mode this project exists to avoid. A drop rate we cannot source is left
+blank; a riven grade should be held to the same standard. Disposition and price are both published
+facts and are what a player actually checks before buying or rolling, so the surface ships those
+and stops there.
+
+If a source for the stat ranges ever appears, this is a clean addition rather than a rewrite: the
+weapon table is already keyed the right way.
 
 ---
 
@@ -642,6 +658,22 @@ Write these into code comments as you hit them.
     `.html` files: 6,531 URLs, 0 with no page, 0 duplicates, and the only built page absent from
     the sitemap is `/collection`, which is deliberate.
 
+24. **A median is only as good as its sample, and riven prices prove it.** The five most expensive
+    rerolled medians in DE's trade file each come from a SINGLE trade — Arca Scisco reads 15,000
+    platinum on a population of one. Sorting by price without saying so would put pure noise at the
+    top of the table and call it a market. So `pop` rides under every price, anything under three
+    trades is called out in the warning colour rather than presented as a number, and "min trades"
+    is a first-class filter, not a nicety. The mean is carried in the data and never shown: the
+    file's own `avg` sits far above its `median` on almost every weapon, which is the skew
+    admitting itself.
+
+25. **Audit link integrity against `prerender-manifest.json`, not against the filesystem.** Next
+    leaves stale `.html` files in `.next/server/app` when a route stops being generated —
+    `/item/hek` sat there from an earlier build, served a 404, and still looked like a valid page
+    to a directory walk. Every earlier "zero broken links" run used that walk, so a link to a
+    deleted page could have audited clean. The manifest is the list of routes that actually ship;
+    a clean `rm -rf .next` build confirms the two agree.
+
 ---
 
 ## 11. Phases
@@ -660,7 +692,7 @@ Each phase ends deployable. Don't start the next until the current one ships.
 | 7a | **Assembled sets** — synthesised set items, recipes, `buildsInto` backlinks | Shipped 2026-08-25: 309 sets, 161 of 163 primes; component refs resolve 100% (was 5.3%) |
 | 7b | **Owned-parts tracking** — IndexedDB collection, set progress, JSON export/import | Shipped 2026-08-26: a tick survives a reload and reaches another page, verified end-to-end over CDP |
 | 7c | Expected-time ranking, mission duration table | Paths ranked by minutes |
-| 8 | Riven tracker — dispositions, weekly trade data, local storage, export/import, grading | A roll can be logged, graded, and shared by URL |
+| 8 | **Rivens — dispositions and weekly trade prices** | Shipped 2026-08-26: 687 weapons, 416 with an observed price. Roll logging and grading deliberately NOT built — see § 9. |
 | 9 | Market proxy + live listings | Degrades cleanly when the proxy is unavailable |
 | 10 | Polish — wiki supplement join, perf pass, a11y audit (`/about` shipped 2026-08-26) | Lighthouse ≥ 95 across the board |
 

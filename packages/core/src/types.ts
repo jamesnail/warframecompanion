@@ -183,6 +183,60 @@ export const Manifest = z.object({
     items: z.number().int().nonnegative(),
     sources: z.number().int().nonnegative(),
     edges: z.number().int().nonnegative(),
+    /** Optional so a manifest written before rivens existed still parses — the drift gates
+     *  read the PREVIOUS build, which may predate this field. */
+    rivens: z.number().int().nonnegative().optional(),
   }),
 })
 export type Manifest = z.infer<typeof Manifest>
+
+/**
+ * Riven mods.
+ *
+ * Deliberately modelled as a property of a WEAPON rather than of a roll. Grading an
+ * individual riven means comparing each stat against the range that weapon's disposition
+ * allows, and no upstream source publishes those ranges — inventing the formula would
+ * produce confident numbers with nothing behind them. Disposition and market price are both
+ * published facts, and they are what a player checks before buying or rolling.
+ */
+export const RivenType = z.enum(['Rifle', 'Shotgun', 'Pistol', 'Melee', 'Archgun', 'Kitgun', 'Zaw'])
+export type RivenType = z.infer<typeof RivenType>
+
+/**
+ * One week of observed trades, straight from Digital Extremes' own trade statistics.
+ *
+ * `median` leads everywhere in the UI: riven prices are violently skewed — a single
+ * thousand-plat sale drags `avg` far above anything a normal trade closes at — so the mean
+ * is carried but never shown as "the price". `pop` is the sample size and is the honest
+ * caveat on all of it; a median drawn from one trade is not a market.
+ */
+export const RivenPrice = z.object({
+  median: z.number().nonnegative(),
+  avg: z.number().nonnegative(),
+  min: z.number().nonnegative(),
+  max: z.number().nonnegative(),
+  stddev: z.number().nonnegative(),
+  /** Number of trades observed that week. */
+  pop: z.number().int().nonnegative(),
+})
+export type RivenPrice = z.infer<typeof RivenPrice>
+
+export const RivenWeapon = z.object({
+  id: ItemId,
+  name: z.string().min(1),
+  rivenType: RivenType,
+  /**
+   * Disposition as the game draws it, 1 to 5 dots. Carried alongside the real multiplier
+   * because the dots are what players actually say to each other ("it's a five-dot riven"),
+   * and rounding 1.42 back to dots at render time would reinvent a number we were given.
+   */
+  dispositionStars: z.number().int().min(1).max(5).optional(),
+  /** The multiplier the game applies to rolled stats, 0.5 to 1.55. Higher is better. */
+  disposition: z.number().min(0.5).max(1.55).optional(),
+  /** Prices for an unrolled riven, and for one that has been rerolled at least once. */
+  unrolled: RivenPrice.optional(),
+  rerolled: RivenPrice.optional(),
+  /** The catalogue item for this weapon, where the drop data knows one. */
+  itemId: ItemId.optional(),
+})
+export type RivenWeapon = z.infer<typeof RivenWeapon>

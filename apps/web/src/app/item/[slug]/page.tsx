@@ -16,6 +16,7 @@ import type { Refinement, RelicRarity } from '@provenance/core'
 import { SearchTrigger } from '@/components/CommandPalette'
 import { Panel, PanelHeader, RarityTag, Stat } from '@/components/Primitives'
 import { OwnedToggle, RecipeTable } from '@/components/RecipeTable'
+import { RivenPanel } from '@/components/RivenPanel'
 import { getDataset } from '@/lib/data'
 import { kindLabel } from '@/lib/effort'
 import { sourceHref } from '@/lib/source-route'
@@ -79,7 +80,8 @@ interface RelicPath {
 
 export default async function ItemPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  const { itemsById, sourcesById, edgesByItem, relicsByReward, relicsById } = await getDataset()
+  const { itemsById, sourcesById, edgesByItem, relicsByReward, relicsById, rivensByItem } =
+    await getDataset()
   const hasItem = (id: string): boolean => itemsById.has(id)
 
   const item = itemsById.get(slug)
@@ -191,6 +193,8 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
       directChance: direct?.p,
     }
   })
+
+  const riven = rivensByItem.get(item.id)
 
   const partOf = (item.buildsInto ?? [])
     .map((id) => ({ id, name: itemsById.get(id)?.name ?? id }))
@@ -305,6 +309,9 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
       )}
 
       {recipe.length > 0 && <RecipeTable rows={recipe} itemName={item.name} />}
+
+      {/* Weapons only, and only where this weapon actually takes a riven. */}
+      {riven !== undefined && <RivenPanel weapon={riven} />}
 
       {/* Direct sources and relics answer the same question two ways, so they are read
           together rather than one scrolled past to reach the other. */}

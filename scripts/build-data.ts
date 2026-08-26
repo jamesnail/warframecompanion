@@ -12,7 +12,16 @@ import { mkdir, readFile, readdir, unlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { DropEdge, Item, Manifest, REFINEMENT_TABLE, RelicDetail, Source, refinementRowTotal } from '@provenance/core'
+import {
+  DropEdge,
+  Item,
+  Manifest,
+  REFINEMENT_TABLE,
+  RelicDetail,
+  RivenWeapon,
+  Source,
+  refinementRowTotal,
+} from '@provenance/core'
 import { z } from 'zod'
 
 import {
@@ -39,6 +48,8 @@ import {
   enrichItems,
   applySets,
   buildSets,
+  RawRivenFile,
+  buildRivens,
   parseRelics,
   parseRewardName,
   parseSorties,
@@ -68,11 +79,25 @@ const ACCEPT_DRIFT = process.argv.includes('--accept-drift')
 
 const REPO = 'https://raw.githubusercontent.com/WFCD/warframe-drop-data/master/data'
 const ITEMS_REPO = 'https://raw.githubusercontent.com/WFCD/warframe-items/master/data/json'
+
+/**
+ * Digital Extremes' weekly riven trade statistics, mirrored by WFCD's status API.
+ *
+ * Fetched here rather than in the browser, like every other DE-derived dataset: it is read,
+ * validated and committed as static JSON, so the riven surface needs no runtime market call
+ * and no server route (CLAUDE.md constraints 2 and 3).
+ */
+const RIVENS_API = 'https://api.warframestat.us/pc/rivens'
+
+/** Weapons carrying a disposition, plus whatever traded that week. A collapse here means
+ *  upstream moved, not that Warframe stopped having rivens. */
+const RIVEN_FLOOR = 500
 const OUT_DIR = fileURLToPath(new URL('../apps/web/public/data/', import.meta.url))
 
 const ATTRIBUTIONS = [
   { name: 'WFCD / warframe-drop-data', url: 'https://github.com/WFCD/warframe-drop-data' },
   { name: '@wfcd/items', url: 'https://github.com/WFCD/warframe-items' },
+  { name: 'WFCD / warframe-status-api', url: 'https://docs.warframestat.us' },
   { name: 'Digital Extremes', url: 'https://www.warframe.com' },
 ]
 
@@ -415,6 +440,33 @@ async function main(): Promise<void> {
     )
   }
 
+  /**
+   * Rivens. Disposition from the same WFCD files the enrichment already read, price from
+   * DE's weekly trade statistics. Both are per-WEAPON facts; individual roll grading is
+   * deliberately absent because no upstream source publishes the stat ranges it would need,
+   * and a confident wrong grade is worse than none.
+   */
+  const rivenRaw = await fetchJson<unknown>(RIVENS_API)
+  const rivenParsed = RawRivenFile.safeParse(rivenRaw)
+  if (!rivenParsed.success) {
+    fail(`riven trade data failed validation: ${rivenParsed.error.message}`)
+  }
+  const rivenBuild = buildRivens(wfcdFiles, rivenParsed.data, items)
+  const rivens: RivenWeapon[] = rivenBuild.weapons
+
+  const pricedCount = rivens.filter((w) => w.unrolled !== undefined || w.rerolled !== undefined).length
+  console.log(
+    `  rivens  ${String(rivens.length)} weapons, ${String(pricedCount)} with a traded price ` +
+      `(${String(rivenBuild.veiled)} veiled placeholder(s) dropped, ` +
+      `${String(rivenBuild.unmatched.length)} priced without a disposition)`,
+  )
+  if (rivens.length < RIVEN_FLOOR) {
+    fail(
+      `only ${String(rivens.length)} riven weapons resolved (floor ${String(RIVEN_FLOOR)}). ` +
+        `WFCD or DE likely changed the disposition field or the trade file shape.`,
+    )
+  }
+
   console.log(
     `  parsed  ${String(items.length)} items, ${String(sources.length)} sources, ` +
       `${String(edges.length)} edges, ${String(relics.length)} relics`,
@@ -526,6 +578,7 @@ async function main(): Promise<void> {
     ['sources', Source, sources],
     ['edges', DropEdge, edges],
     ['relics', RelicDetail, relics],
+    ['rivens', RivenWeapon, rivens],
   ]
   for (const [name, schema, rows] of shapes) {
     const result = z.array(schema).safeParse(rows)
@@ -543,7 +596,7 @@ async function main(): Promise<void> {
   console.log('  gates   all passed')
 
   // ---- emit -------------------------------------------------------------------
-  const chunks: Record<string, unknown> = { items, sources, edges, relics }
+  const chunks: Record<string, unknown> = { items, sources, edges, relics, rivens }
   const payload = JSON.stringify(chunks)
   const hash = createHash('sha256').update(payload).digest('hex').slice(0, 12)
 
@@ -572,9 +625,21 @@ async function main(): Promise<void> {
     hash,
     builtAt: new Date(infoParsed.data.timestamp).toISOString(),
     files,
-    upstream: { 'warframe-drop-data': infoParsed.data.hash },
+    upstream: {
+      'warframe-drop-data': infoParsed.data.hash,
+      // The riven trade file carries no timestamp of its own — DE republishes it weekly and
+      // dates nothing — so the only honest provenance is when we read it. Recorded here
+      // rather than rendered as a publication date, which it is not. It only advances when
+      // a chunk actually changed, because an unchanged build returns before writing this.
+      'riven-trades-fetched': new Date().toISOString(),
+    },
     attributions: ATTRIBUTIONS,
-    counts: { items: items.length, sources: sources.length, edges: edges.length },
+    counts: {
+      items: items.length,
+      sources: sources.length,
+      edges: edges.length,
+      rivens: rivens.length,
+    },
   }
   await writeFile(join(OUT_DIR, 'manifest.json'), JSON.stringify(manifest, null, 2), 'utf8')
 

@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import type { DropEdge, Item, Manifest, RelicDetail, Source } from '@provenance/core'
+import type { DropEdge, Item, Manifest, RelicDetail, RivenWeapon, Source } from '@provenance/core'
 
 /**
  * Build-time data access.
@@ -20,6 +20,7 @@ export interface Dataset {
   sources: Source[]
   edges: DropEdge[]
   relics: RelicDetail[]
+  rivens: RivenWeapon[]
   itemsById: Map<string, Item>
   sourcesById: Map<string, Source>
   /** The reverse index — the whole point of the tool. */
@@ -29,6 +30,9 @@ export interface Dataset {
   relicsByReward: Map<string, RelicDetail[]>
   /** A relic is an item too, so its own page can show what it contains. */
   relicsById: Map<string, RelicDetail>
+  /** Keyed by the weapon's catalogue item id, for the riven panel on an item page. Only
+   *  243 of 687 riven weapons have one — the rest are bought, never dropped. */
+  rivensByItem: Map<string, RivenWeapon>
 }
 
 let cached: Promise<Dataset> | undefined
@@ -40,12 +44,18 @@ async function readChunk<T>(filename: string): Promise<T> {
 async function load(): Promise<Dataset> {
   const manifest = await readChunk<Manifest>('manifest.json')
 
-  const [items, sources, edges, relics] = await Promise.all([
+  const [items, sources, edges, relics, rivens] = await Promise.all([
     readChunk<Item[]>(manifest.files.items ?? ''),
     readChunk<Source[]>(manifest.files.sources ?? ''),
     readChunk<DropEdge[]>(manifest.files.edges ?? ''),
     readChunk<RelicDetail[]>(manifest.files.relics ?? ''),
+    readChunk<RivenWeapon[]>(manifest.files.rivens ?? ''),
   ])
+
+  const rivensByItem = new Map<string, RivenWeapon>()
+  for (const weapon of rivens) {
+    if (weapon.itemId !== undefined) rivensByItem.set(weapon.itemId, weapon)
+  }
 
   const itemsById = new Map(items.map((item) => [item.id, item]))
   const sourcesById = new Map(sources.map((source) => [source.id, source]))
@@ -81,12 +91,14 @@ async function load(): Promise<Dataset> {
     sources,
     edges,
     relics,
+    rivens,
     itemsById,
     sourcesById,
     edgesByItem,
     edgesBySource,
     relicsByReward,
     relicsById,
+    rivensByItem,
   }
 }
 
