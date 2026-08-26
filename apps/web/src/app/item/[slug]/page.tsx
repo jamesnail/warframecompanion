@@ -15,6 +15,7 @@ import type { Refinement, RelicRarity } from '@provenance/core'
 
 import { SearchTrigger } from '@/components/CommandPalette'
 import { Panel, PanelHeader, RarityTag, Stat } from '@/components/Primitives'
+import { OwnedToggle, RecipeTable } from '@/components/RecipeTable'
 import { getDataset } from '@/lib/data'
 import { kindLabel } from '@/lib/effort'
 import { sourceHref } from '@/lib/source-route'
@@ -226,6 +227,10 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
         </p>
       )}
 
+      {/* Only where it means something. Ticking "owned" on a resource you have 40,000 of is
+          not a fact worth storing; on a part that completes a set it is the whole point. */}
+      {partOf.length > 0 && <OwnedToggle itemId={item.id} itemName={item.name} />}
+
       {recipe.length > 0 && bestDirect === undefined && relicPaths.length === 0 ? (
         // An assembled item is built, not farmed. Saying "no source found" would be wrong,
         // and the recipe below is the actual answer.
@@ -274,82 +279,7 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
         </p>
       )}
 
-      {recipe.length > 0 && (
-        <Panel className="mt-10">
-          <PanelHeader
-            title="Needs"
-            aside={`${String(recipe.length)} ${recipe.length === 1 ? 'component' : 'components'}`}
-          />
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <caption className="sr-only">
-                Components required to build {item.name}, and where each one comes from
-              </caption>
-              <thead>
-                <tr className="border-b border-hairline text-left">
-                  <th scope="col" className="label px-3 py-2 font-normal sm:px-5">
-                    Component
-                  </th>
-                  <th scope="col" className="label px-3 py-2 text-right font-normal sm:px-5">
-                    Qty
-                  </th>
-                  <th scope="col" className="label px-3 py-2 text-right font-normal sm:px-5">
-                    Best source
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {recipe.map((component) => (
-                  <tr
-                    key={component.itemId}
-                    className="border-b border-hairline/50 last:border-0"
-                  >
-                    <th scope="row" className="px-3 py-3 text-left font-normal sm:px-5 sm:py-2.5">
-                      <Link
-                        href={`/item/${component.itemId}`}
-                        className="text-text transition-colors hover:text-orokin"
-                      >
-                        {component.name}
-                      </Link>
-                    </th>
-                    <td className="data-num px-3 py-3 text-right text-text sm:px-5 sm:py-2.5">
-                      ×{component.count.toLocaleString()}
-                    </td>
-                    <td className="px-3 py-3 text-right text-xs text-text-faint sm:px-5 sm:py-2.5">
-                      {/* Stacked, not inline: "Corrupted Vor 75.00%" wrapped mid-phrase at
-                          360px and split the source name from its own number. */}
-                      {component.relicCount > 0 ? (
-                        <>
-                          <span className="block text-text-dim">
-                            {component.relicCount.toLocaleString()}{' '}
-                            {component.relicCount === 1 ? 'relic' : 'relics'}
-                          </span>
-                          {component.bestRelic !== undefined && (
-                            <span className="data-num block">
-                              {(component.bestRelic * 100).toFixed(2)}%
-                            </span>
-                          )}
-                        </>
-                      ) : component.directName !== undefined ? (
-                        <>
-                          <span className="block text-text-dim">{component.directName}</span>
-                          {component.directChance !== undefined && (
-                            <span className="data-num block">
-                              {(component.directChance * 100).toFixed(2)}%
-                            </span>
-                          )}
-                        </>
-                      ) : (
-                        'No source recorded'
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Panel>
-      )}
+      {recipe.length > 0 && <RecipeTable rows={recipe} itemName={item.name} />}
 
       {/* Direct sources and relics answer the same question two ways, so they are read
           together rather than one scrolled past to reach the other. */}

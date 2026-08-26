@@ -1,5 +1,3 @@
-import { openDB, type IDBPDatabase } from 'idb'
-
 /**
  * The client-side dataset cache.
  *
@@ -11,38 +9,12 @@ import { openDB, type IDBPDatabase } from 'idb'
  * `idb` and not Dexie — nothing here queries IndexedDB (CLAUDE.md § Stack).
  */
 
-const DB_NAME = 'provenance'
-const DB_VERSION = 1
-const CHUNKS = 'chunks'
+import { CHUNKS, getDb, safely } from './db'
 
 interface StoredChunk {
   /** The manifest hash this chunk was fetched under. */
   hash: string
   data: unknown
-}
-
-let dbPromise: Promise<IDBPDatabase> | undefined
-
-function getDb(): Promise<IDBPDatabase> {
-  dbPromise ??= openDB(DB_NAME, DB_VERSION, {
-    upgrade(db) {
-      if (!db.objectStoreNames.contains(CHUNKS)) db.createObjectStore(CHUNKS)
-    },
-  })
-  return dbPromise
-}
-
-/**
- * Every IndexedDB call is wrapped: private browsing, disabled site data and quota
- * exhaustion all throw here, and none of them should blank the page. A cache miss and a
- * broken cache must behave identically — refetch and carry on (CLAUDE.md § Errors).
- */
-async function safely<T>(operation: () => Promise<T>, fallback: T): Promise<T> {
-  try {
-    return await operation()
-  } catch {
-    return fallback
-  }
 }
 
 export async function readChunk<T>(name: string, hash: string): Promise<T | undefined> {

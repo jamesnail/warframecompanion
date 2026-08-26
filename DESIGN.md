@@ -337,6 +337,7 @@ Never store a filter in React state alone. If it changes what's displayed, it be
 | `/source/[kind]` | Index of one kind, grouped by planet where the kind has one. Exists for reachability, not decoration — see hazard 15. |
 | `/browse` | The filterable table. Virtualized, dense, sortable, URL-driven. |
 | `/relics` | Relic browser with vaulted filtering and refinement comparison. |
+| `/collection` | What you own and which sets it completes, closest to finished first. Prerendered like everything else; only the owned ids come from IndexedDB, inside a client island. Carries the export/import backup story. |
 | `/rivens` | The riven tracker. Client-only, no prerender. |
 | `/about` | Data sources, update cadence, attribution, methodology — including honest notes on where the numbers are estimates. |
 
@@ -591,6 +592,30 @@ Write these into code comments as you hit them.
     because the reference is not an edge; `applySets` now prunes what cannot resolve, and the
     gate proves it.
 
+19. **One database, one version, one connection.** `openDB` throws VersionError when called
+    with a version LOWER than the one already open, so two modules each opening 'provenance'
+    at their own version is a bug that surfaces only in whichever order the user happens to
+    visit pages — the chunk cache at v1 and the collection at v2 would have broken the cache
+    for anyone who opened a set page first. `lib/client/db.ts` owns the schema; every store
+    is declared there and guarded by its own existence check, because the upgrade callback
+    runs both for a fresh database and for each intermediate upgrade.
+
+20. **A prerendered page has no user data, so the first paint must not pretend otherwise.**
+    Every page ships as HTML built with an empty collection. A toggle that rendered its real
+    state immediately would flash unchecked and then correct itself, which reads as data
+    loss on the one feature where that fear is real. Surfaces render neutral until IndexedDB
+    answers, gated on a `ready` flag. That flag is read from the store rather than tracked in
+    the hook: the store sets it BEFORE it notifies subscribers, and a local flag assigned in
+    `hydrate().then()` would be written after the notification meant to publish it, leaving
+    every subscriber stale.
+
+21. **Import merges by default.** Restoring a backup onto a device that already has a
+    collection and silently discarding it is the one mistake this feature cannot make.
+    Replace is offered, but as the deliberate choice. `normalizeIds` is correspondingly
+    lenient — it accepts a bare array, ignores unknown fields and reads a newer `version` —
+    because an import that rejects a file the user cannot repair has destroyed their only
+    backup for them.
+
 ---
 
 ## 11. Phases
@@ -607,7 +632,8 @@ Each phase ends deployable. Don't start the next until the current one ships.
 | 6 | `/browse` — virtualized table, full filter set, URL state | 40k rows scroll at 60fps; every filter is shareable |
 | 6.5 | `/source/[kind]` and `/source/[kind]/[...slug]` — the forward view, and the graph finally navigating both ways | Every source name on the site is a link; zero broken links and zero orphaned pages across all 6,223 |
 | 7a | **Assembled sets** — synthesised set items, recipes, `buildsInto` backlinks | Shipped 2026-08-25: 309 sets, 161 of 163 primes; component refs resolve 100% (was 5.3%) |
-| 7b | Expected-time ranking, mission duration table, owned-parts tracking | Paths ranked by minutes; owned-parts state persists |
+| 7b | **Owned-parts tracking** — IndexedDB collection, set progress, JSON export/import | Shipped 2026-08-26: a tick survives a reload and reaches another page, verified end-to-end over CDP |
+| 7c | Expected-time ranking, mission duration table | Paths ranked by minutes |
 | 8 | Riven tracker — dispositions, weekly trade data, local storage, export/import, grading | A roll can be logged, graded, and shared by URL |
 | 9 | Market proxy + live listings | Degrades cleanly when the proxy is unavailable |
 | 10 | Polish — wiki supplement join, `/about` methodology page, perf pass, a11y audit | Lighthouse ≥ 95 across the board |

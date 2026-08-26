@@ -96,4 +96,15 @@ export const surfaceGroups: SurfaceGroup[] = [
       { name: 'Vendors', blurb: 'Baro, Darvo, and the rest' },
     ],
   },
+  {
+    title: 'Yours',
+    surfaces: [
+      {
+        name: 'Collection',
+        blurb: 'Parts you own, sets in progress',
+        href: '/collection',
+      },
+      { name: 'Rivens', blurb: 'Rolls, grading, dispositions' },
+    ],
+  },
 ]
