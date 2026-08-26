@@ -79,6 +79,20 @@ build would publish a page that is wrong most of the time — actively wrong, no
 It is fetched in the browser from WFCD's status API, and each part of constraint 2's rationale
 was checked rather than assumed:
 
+**Source, as of 2026-08-26:** Digital Extremes' own `worldState`, mirrored minutely by
+`oracle.browse.wf`. The parsed mirror this replaced (`api.warframestat.us`) froze for six hours
+with its own timestamp stuck, taking the whole page down with it; a mirror of the SOURCE has one
+less thing between us and the truth. The cost is that everything arrives as an internal token —
+`SolNode232`, `VoidT3`, `MT_VOID_CASCADE` — so `lib/world.ts` is mostly translation, and node
+ids resolve through a committed star chart.
+
+**The star chart** comes from the Warframe wiki's `Module:Missions/data`, which publishes the
+only mapping from DE's internal ids to places a player recognises. All 44 nodes the live feed
+referenced resolved through it when measured. It is a Lua page, not an API — that instance has
+no Cargo — so it is fetched raw and parsed field-wise, which is more brittle than everything
+else here and is why the pipeline gates on the parsed count. It also carries per-node faction,
+level range and tileset, none of which DE's drop tables publish at all.
+
 | Constraint 2's reason | Why it does not apply |
 |---|---|
 | No CORS guarantees | Sends `access-control-allow-origin: *`. Also why no server route is needed, leaving constraint 3's single escape hatch unspent. |
@@ -837,6 +851,21 @@ Write these into code comments as you hit them.
     those as plain text that looked identical to a link made them read as dead links rather
     than as "there is nothing here to open". Draw the difference — underline the ones that go
     somewhere — rather than inventing a destination for the rest.
+
+36. **Prefer a mirror of the source to somebody else's summary.** The world state page was
+    built on `api.warframestat.us`, a parsed mirror, because parsed is easier to consume. When
+    it froze the page had nothing to fall back to. DE's own `worldState` is mirrored by
+    `oracle.browse.wf` with the same open CORS, and reading it costs a translation layer —
+    internal node ids, `VoidT3`, `MT_VOID_CASCADE` — which is real work but buys independence
+    from one intermediary's uptime. Worth noting the wiki turned out NOT to be a source at all:
+    its front page computes Baro and the open-world cycles from fixed epochs client-side and
+    shows no fissures, so its value here was the node mapping, not the state.
+
+37. **`Time` is the one field DE publishes in seconds.** Every other timestamp in `worldState`
+    is milliseconds inside a `{ $date: { $numberLong } }` wrapper. Reading `Time` the same way
+    dates the payload to 1970, which makes a perfectly healthy feed look 56 years stale and
+    trips the staleness guard on every load. Caught by a unit test asserting a healthy feed is
+    NOT stale — the assertion that would otherwise never have been written.
 
 ---
 

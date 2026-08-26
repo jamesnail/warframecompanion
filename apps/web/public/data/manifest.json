@@ -1,16 +1,17 @@
 {
-  "hash": "5387fe1083e6",
+  "hash": "6dd4839bb36b",
   "builtAt": "2026-06-25T20:55:17.196Z",
   "files": {
-    "items": "items.5387fe1083e6.json",
-    "sources": "sources.5387fe1083e6.json",
-    "edges": "edges.5387fe1083e6.json",
-    "relics": "relics.5387fe1083e6.json",
-    "rivens": "rivens.5387fe1083e6.json"
+    "items": "items.6dd4839bb36b.json",
+    "sources": "sources.6dd4839bb36b.json",
+    "edges": "edges.6dd4839bb36b.json",
+    "relics": "relics.6dd4839bb36b.json",
+    "rivens": "rivens.6dd4839bb36b.json",
+    "nodes": "nodes.6dd4839bb36b.json"
   },
   "upstream": {
     "warframe-drop-data": "a0ece5e9be2e2d55c75040720ef3226a",
-    "riven-trades-fetched": "2026-08-26T17:29:17.998Z"
+    "riven-trades-fetched": "2026-08-26T18:49:56.540Z"
   },
   "attributions": [
     {
@@ -28,6 +29,10 @@
     {
       "name": "warframe.market",
       "url": "https://warframe.market"
+    },
+    {
+      "name": "WARFRAME Wiki",
+      "url": "https://wiki.warframe.com"
     },
     {
       "name": "Digital Extremes",

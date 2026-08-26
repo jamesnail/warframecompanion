@@ -204,6 +204,30 @@ export const Manifest = z.object({
 export type Manifest = z.infer<typeof Manifest>
 
 /**
+ * One star-chart node, keyed by Digital Extremes' internal id.
+ *
+ * The live world state feed identifies everything by internal id — "SolNode232",
+ * "CrewBattleNode518" — so without this map a fissure reads as a string nobody recognises.
+ * Sourced from the Warframe wiki, which is the only place that publishes the mapping, and
+ * which also carries faction, level range and tileset — none of which appear in DE's drop
+ * tables at all.
+ */
+export const SolNode = z.object({
+  /** DE's internal id, e.g. "SolNode232". The join key for anything live. */
+  id: z.string().min(1),
+  name: z.string().min(1),
+  planet: z.string().optional(),
+  /** The wiki's own vocabulary, which is wider than our Faction enum — it includes The
+   *  Murmur, Scaldra, Techrot and "Grineer or Corpus". Kept as written rather than forced
+   *  into an enum that would have to drop the ones that do not fit. */
+  faction: z.string().optional(),
+  missionType: z.string().optional(),
+  tileset: z.string().optional(),
+  levelRange: z.tuple([z.number().int(), z.number().int()]).optional(),
+})
+export type SolNode = z.infer<typeof SolNode>
+
+/**
  * Riven mods.
  *
  * Deliberately modelled as a property of a WEAPON rather than of a roll. Grading an

@@ -19,6 +19,7 @@ import {
   REFINEMENT_TABLE,
   RelicDetail,
   RivenFamily,
+  SolNode,
   Source,
   refinementRowTotal,
 } from '@provenance/core'
@@ -37,6 +38,7 @@ import {
   aggregateEdges,
   buildItems,
   fetchJson,
+  fetchText,
   mergeParsed,
   parseBounties,
   parseEnemyTables,
@@ -54,6 +56,7 @@ import {
   RawMarketItems,
   buildMarketIndex,
   linkMarketSlugs,
+  parseSolNodes,
   parseRelics,
   parseRewardName,
   parseSorties,
@@ -100,6 +103,22 @@ const RIVENS_API = 'https://api.warframestat.us/pc/rivens'
  */
 const MARKET_API = 'https://api.warframe.market/v2/items'
 
+/**
+ * The star chart keyed by DE's internal node id, from the Warframe wiki.
+ *
+ * The only published mapping from "SolNode232" to a place a player recognises, which the
+ * live world state feed needs because it identifies everything that way. Also the only
+ * source for per-node faction, level range and tileset.
+ *
+ * A Lua page rather than an API — that instance has no Cargo — so it is fetched raw and
+ * parsed field-wise. Brittle by comparison with everything else here, hence the floor below.
+ */
+const WIKI_NODES = 'https://wiki.warframe.com/index.php?title=Module%3AMissions%2Fdata&action=raw'
+
+/** 354 nodes parse today. A collapse means the wiki restructured the module, and the world
+ *  state page would degrade to raw internal ids rather than place names. */
+const NODE_FLOOR = 250
+
 /** 2,699 of 2,713 tradable items resolve today, plus 486 more their catalogue sells that
  *  ours marks untradable. A collapse means they restructured, not that trading stopped. */
 const MARKET_FLOOR = 2500
@@ -114,6 +133,7 @@ const ATTRIBUTIONS = [
   { name: '@wfcd/items', url: 'https://github.com/WFCD/warframe-items' },
   { name: 'WFCD / warframe-status-api', url: 'https://docs.warframestat.us' },
   { name: 'warframe.market', url: 'https://warframe.market' },
+  { name: 'WARFRAME Wiki', url: 'https://wiki.warframe.com' },
   { name: 'Digital Extremes', url: 'https://www.warframe.com' },
 ]
 
@@ -492,6 +512,27 @@ async function main(): Promise<void> {
   }
 
   /**
+   * The star chart. Fetched as raw wikitext, not JSON, so it is parsed rather than validated
+   * — see packages/sources/src/nodes.ts for why evaluating the Lua would be worse.
+   */
+  const nodeSource = await fetchText(WIKI_NODES)
+  const parsedNodes = parseSolNodes(nodeSource)
+  const nodes = parsedNodes.nodes
+
+  console.log(
+    `  nodes   ${String(nodes.length)} star-chart nodes ` +
+      `(${String(nodes.filter((n) => n.faction !== undefined).length)} with a faction, ` +
+      `${String(nodes.filter((n) => n.levelRange !== undefined).length)} with levels, ` +
+      `${String(parsedNodes.skipped)} skipped)`,
+  )
+  if (nodes.length < NODE_FLOOR) {
+    fail(
+      `only ${String(nodes.length)} star-chart nodes parsed (floor ${String(NODE_FLOOR)}). ` +
+        `The wiki likely restructured Module:Missions/data.`,
+    )
+  }
+
+  /**
    * Rivens. Disposition from the same WFCD files the enrichment already read, price from
    * DE's weekly trade statistics. Both are per-WEAPON facts; individual roll grading is
    * deliberately absent because no upstream source publishes the stat ranges it would need,
@@ -632,6 +673,7 @@ async function main(): Promise<void> {
     ['edges', DropEdge, edges],
     ['relics', RelicDetail, relics],
     ['rivens', RivenFamily, rivens],
+    ['nodes', SolNode, nodes],
   ]
   for (const [name, schema, rows] of shapes) {
     const result = z.array(schema).safeParse(rows)
@@ -649,7 +691,7 @@ async function main(): Promise<void> {
   console.log('  gates   all passed')
 
   // ---- emit -------------------------------------------------------------------
-  const chunks: Record<string, unknown> = { items, sources, edges, relics, rivens }
+  const chunks: Record<string, unknown> = { items, sources, edges, relics, rivens, nodes }
   const payload = JSON.stringify(chunks)
   const hash = createHash('sha256').update(payload).digest('hex').slice(0, 12)
 

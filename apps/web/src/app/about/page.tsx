@@ -91,8 +91,10 @@ export default async function AboutPage() {
           <strong className="text-text">One page is live.</strong> World state — open fissures,
           invasions, Baro — cannot be committed: a fissure expires in about an hour, so a daily
           build would publish a page that is wrong most of the time. That page alone talks to a
-          third party, it says so, and if the connection fails the rest of the site is
-          unaffected.
+          third party — Digital Extremes’ own world state, mirrored by browse.wf — it says so,
+          and if the connection fails the rest of the site is unaffected. Node names come from
+          the Warframe wiki, which publishes the only mapping from Digital Extremes’ internal
+          ids to the places players recognise.
         </p>
         <p>
           <strong className="text-text">Trade prices are a link, not a number.</strong> Items

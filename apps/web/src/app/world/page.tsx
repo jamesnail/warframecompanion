@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 
 import { SearchTrigger } from '@/components/CommandPalette'
 import { WorldStateView } from '@/components/WorldStateView'
+import type { NodeIndex } from '@/lib/world'
 import { getDataset } from '@/lib/data'
 
 export const metadata: Metadata = {
@@ -33,10 +34,37 @@ export const metadata: Metadata = {
  * a player actually has.
  */
 export default async function WorldPage() {
-  const { sources } = await getDataset()
-  // Which nodes this site actually has a page for. A build-time fact, so it ships in the
-  // HTML rather than being guessed in the browser.
-  const missionIds = sources.filter((source) => source.kind === 'mission').map((source) => source.id)
+  const { sources, nodes } = await getDataset()
+
+  /**
+   * The star chart, keyed by DE's internal node id, with a source link attached ONLY where
+   * this site actually has a page for that node.
+   *
+   * Both halves are build-time facts and ship in the HTML: the live feed identifies
+   * everything as "SolNode232", and deriving the link in the browser instead would 404 on the
+   * ~15% of nodes that have no unique drops and so never reach the drop tables.
+   */
+  const missionIds = new Set(
+    sources.filter((source) => source.kind === 'mission').map((source) => source.id),
+  )
+  const slug = (input: string): string =>
+    input
+      .normalize('NFKD')
+      .toLowerCase()
+      .replace(/&/g, ' and ')
+      .replace(/['’]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+
+  const index: NodeIndex = {}
+  for (const node of nodes) {
+    const candidate =
+      node.planet === undefined ? undefined : `mission:${slug(node.planet)}/${slug(node.name)}`
+    index[node.id] = {
+      ...node,
+      ...(candidate !== undefined && missionIds.has(candidate) ? { sourceId: candidate } : {}),
+    }
+  }
 
   return (
     <div className="mx-auto max-w-4xl px-5 py-12 sm:px-6 sm:py-16">
@@ -55,7 +83,7 @@ export default async function WorldPage() {
 
       <h1 className="font-display text-xl font-bold text-orokin sm:text-2xl">World state</h1>
 
-      <WorldStateView missionIds={missionIds} />
+      <WorldStateView nodes={index} />
     </div>
   )
 }
