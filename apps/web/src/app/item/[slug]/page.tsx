@@ -179,6 +179,10 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
       // it may also have. A resource's is the mission it drops from.
       relicCount: relics.length,
       bestRelic,
+      // Whether this piece can be obtained AT ALL right now. A set whose blueprint is
+      // vaulted cannot be built this week however many of the other parts you have, and
+      // that is the first thing the recipe has to admit to.
+      vaulted: relics.length > 0 && !relics.some((relic) => !relic.vaulted) && direct === undefined,
       directName:
         direct === undefined ? undefined : (sourcesById.get(direct.edge.sourceId)?.name ?? undefined),
       directChance: direct?.p,

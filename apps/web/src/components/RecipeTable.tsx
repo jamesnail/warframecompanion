@@ -22,11 +22,17 @@ export interface RecipeRow {
   bestRelic: number | undefined
   directName: string | undefined
   directChance: number | undefined
+  /** No live source at all right now: every relic holding it is out of rotation. */
+  vaulted: boolean
 }
 
 export function RecipeTable({ rows, itemName }: { rows: RecipeRow[]; itemName: string }) {
   const { owned, ready, toggle } = useCollection()
   const progress = progressOf(rows, owned)
+
+  // Counted over what you still NEED. Once a vaulted part is ticked off it stops being an
+  // obstacle, and warning about it anyway would be nagging about a solved problem.
+  const blocked = rows.filter((row) => row.vaulted && !(ready && owned.has(row.itemId)))
 
   return (
     <Panel className="mt-10">
@@ -41,10 +47,21 @@ export function RecipeTable({ rows, itemName }: { rows: RecipeRow[]; itemName: s
         }
       />
 
-      {ready && progress.complete && (
+      {ready && progress.complete ? (
         <p className="border-b border-hairline px-3 py-2.5 text-sm text-orokin sm:px-5">
           Every component owned. Ready to build.
         </p>
+      ) : (
+        blocked.length > 0 && (
+          <p className="border-b border-hairline px-3 py-2.5 text-sm text-text-dim sm:px-5">
+            <span className="text-r-legendary">
+              {blocked.length === 1 ? "One part you still need is vaulted" : `${String(blocked.length)} parts you still need are vaulted`}
+            </span>
+            {" — "}
+            this set cannot be finished by farming until{" "}
+            {blocked.length === 1 ? "it returns" : "they return"}. Trading is the only route.
+          </p>
+        )
       )}
 
       <div className="overflow-x-auto">
@@ -105,7 +122,15 @@ export function RecipeTable({ rows, itemName }: { rows: RecipeRow[]; itemName: s
                   <td className="px-3 py-3 text-right text-xs text-text-faint sm:px-5 sm:py-2.5">
                     {/* Stacked, not inline: "Corrupted Vor 75.00%" wrapped mid-phrase at
                         360px and split the source name from its own number. */}
-                    {row.relicCount > 0 ? (
+                    {row.vaulted ? (
+                      <>
+                        <span className="block text-r-legendary">Vaulted</span>
+                        <span className="block">
+                          {row.relicCount.toLocaleString()}{" "}
+                          {row.relicCount === 1 ? "relic" : "relics"}, none live
+                        </span>
+                      </>
+                    ) : row.relicCount > 0 ? (
                       <>
                         <span className="block text-text-dim">
                           {row.relicCount.toLocaleString()}{' '}

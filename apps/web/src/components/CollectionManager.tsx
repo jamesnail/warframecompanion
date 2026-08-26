@@ -21,6 +21,8 @@ export interface SetSummary {
   name: string
   category: string
   components: { itemId: string; count: number }[]
+  /** Component ids with no live source right now. */
+  vaultedComponents: string[]
 }
 
 type Notice = { tone: 'ok' | 'bad'; text: string } | undefined
@@ -36,6 +38,10 @@ export function CollectionManager({ sets, names }: { sets: SetSummary[]; names: 
     .sort(byClosest)
 
   const complete = tracked.filter((set) => set.progress.complete).length
+  // Blocked only counts parts you still NEED: a vaulted part already in hand is not a
+  // problem, and saying otherwise would nag about something already solved.
+  const blockedOf = (set: SetSummary): number =>
+    set.vaultedComponents.filter((id) => !owned.has(id)).length
 
   function download(): void {
     const file = toExport(owned, new Date().toISOString())
@@ -181,6 +187,13 @@ export function CollectionManager({ sets, names }: { sets: SetSummary[]; names: 
                       style={{ width: `${String(Math.round(set.progress.fraction * 100))}%` }}
                     />
                   </div>
+                  {!set.progress.complete && blockedOf(set) > 0 && (
+                    <p className="mt-1.5 text-xs text-r-legendary">
+                      {blockedOf(set) === 1
+                        ? 'One part still needed is vaulted — not farmable until it returns'
+                        : `${String(blockedOf(set))} parts still needed are vaulted — not farmable until they return`}
+                    </p>
+                  )}
                   {!set.progress.complete && (
                     <p className="mt-1.5 text-xs text-text-faint">
                       Needs{' '}

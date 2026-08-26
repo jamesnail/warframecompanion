@@ -21,7 +21,19 @@ export const metadata: Metadata = {
  * a page that is mostly a progress list.
  */
 export default async function CollectionPage() {
-  const { items, itemsById } = await getDataset()
+  const { items, itemsById, edgesByItem, relicsByReward } = await getDataset()
+
+  /**
+   * Which components have no live source at all. Computed here, at build time, because it
+   * is a fact about the drop tables rather than about the viewer — the client only decides
+   * whether a blocked part still matters, which depends on what they already own.
+   */
+  const isVaulted = (itemId: string): boolean => {
+    const relics = relicsByReward.get(itemId) ?? []
+    if (relics.length === 0) return false
+    if (relics.some((relic) => !relic.vaulted)) return false
+    return !(edgesByItem.get(itemId) ?? []).some((edge) => !edge.sourceId.startsWith('relic:'))
+  }
 
   const sets: SetSummary[] = items
     .filter((item) => item.components !== undefined && item.components.length > 0)
@@ -30,6 +42,9 @@ export default async function CollectionPage() {
       name: item.name,
       category: item.category,
       components: item.components ?? [],
+      vaultedComponents: (item.components ?? [])
+        .map((component) => component.itemId)
+        .filter(isVaulted),
     }))
     .sort((a, b) => a.name.localeCompare(b.name))
 
