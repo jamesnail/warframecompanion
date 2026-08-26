@@ -69,6 +69,33 @@ a backend. There is no database, no session, no server-held state.
 
 ---
 
+### 2.1 The one live exception
+
+Everything about the drop graph is committed static JSON. **World state is the single
+exception, and it is exempt for a reason that does not generalise:** it cannot be committed.
+Fissures expire in one to three hours and Baro is present two days in fourteen, so a daily
+build would publish a page that is wrong most of the time — actively wrong, not merely stale.
+
+It is fetched in the browser from WFCD's status API, and each part of constraint 2's rationale
+was checked rather than assumed:
+
+| Constraint 2's reason | Why it does not apply |
+|---|---|
+| No CORS guarantees | Sends `access-control-allow-origin: *`. Also why no server route is needed, leaving constraint 3's single escape hatch unspent. |
+| LZMA-compressed manifests | Parsed JSON. |
+| Multi-megabyte HTML | 184 KB. |
+| DE's "for reference only" note | This is WFCD's public API, built for third-party clients — the same project the drop data and riven prices already come from. |
+
+The page is a prerendered shell with a client island, so constraint 4 holds. It degrades to a
+stated message with a retry, and says plainly that the rest of the site still works — which it
+does, because nothing else depends on this call.
+
+**Do not treat this as a precedent.** The test is not "is it convenient to fetch live", it is
+"is this datum meaningless unless it is live". Drop rates are not. Prices are not — the weekly
+riven file proves it. Fissure timers are.
+
+---
+
 ## 3. Data sources
 
 Fetched **in CI only**. CORS is irrelevant here, so hit canonical sources directly.
@@ -339,6 +366,7 @@ Never store a filter in React state alone. If it changes what's displayed, it be
 | `/relics` | Relic browser with vaulted filtering and refinement comparison. |
 | `/collection` | What you own and which sets it completes, closest to finished first. Prerendered like everything else; only the owned ids come from IndexedDB, inside a client island. Carries the export/import backup story. |
 | `/rivens` | Disposition and weekly trade price per weapon, sortable and filterable. Prerendered shell, client table, 132 KB chunk. Weapons link to their item page only where the drop data knows one — 243 of 687; the rest are bought, never dropped. |
+| `/world` | **The one live surface.** Open fissures by relic tier, invasions, sortie, archon hunt, Baro, and open-world cycles. Prerendered shell, client island, fetched from WFCD's status API — see § 2.1. This is also where the Factions tile ended up. |
 | `/about` | Data sources, update cadence, attribution, methodology — including honest notes on where the numbers are estimates. |
 
 `generateStaticParams` over every item and source produces roughly 6,500 static pages. That is well
@@ -674,6 +702,25 @@ Write these into code comments as you hit them.
     deleted page could have audited clean. The manifest is the list of routes that actually ship;
     a clean `rm -rf .next` build confirms the two agree.
 
+26. **Upstream returns fissures that have already expired, and its payload can be half an hour
+    old.** In one live sample 13 of 32 fissures were past their own `expiry`, some by 27
+    minutes, while the payload's own `timestamp` was 32 minutes behind the wall clock. Rendering
+    the raw list under a heading that says "32 open" states something false. Filter on the
+    READER's clock — the expiry is absolute UTC — and surface the payload age when it exceeds
+    five minutes. Countdowns are likewise recomputed locally rather than using the `timeLeft`
+    string upstream supplies, which is calculated when the API responds and is wrong by however
+    long the payload sat in a cache.
+
+27. **Parsing a label is not the same as knowing the page exists.** `nodeToSourceId` happily
+    turns "Eurasia (Earth)" into `mission:earth/eurasia`, and an early version linked on that
+    alone — producing 404s for the ~15% of star-chart nodes that have no unique drops and so
+    never appear in the drop tables. The fix is to ship the real id set from the server (435
+    mission ids, ~12 KB) and check membership before linking. Runtime values that CANNOT be
+    checked that way — invasion and Baro reward names, which include items like Dera Vandal
+    parts that drop nowhere else — render as plain text instead. An end-to-end check that
+    actually fetches the links a page renders is what caught this; reading the markup would not
+    have.
+
 ---
 
 ## 11. Phases
@@ -694,6 +741,7 @@ Each phase ends deployable. Don't start the next until the current one ships.
 | 7c | Expected-time ranking, mission duration table | Paths ranked by minutes |
 | 8 | **Rivens — dispositions and weekly trade prices** | Shipped 2026-08-26: 687 weapons, 416 with an observed price. Roll logging and grading deliberately NOT built — see § 9. |
 | 9 | Market proxy + live listings | Degrades cleanly when the proxy is unavailable |
+| 9.5 | **World state** — live fissures, invasions, factions, Baro | Shipped 2026-08-26. Absorbed the Factions and Vendors tiles, both of which were blocked on data that turned out to be live rather than static. |
 | 10 | Polish — wiki supplement join, perf pass, a11y audit (`/about` shipped 2026-08-26) | Lighthouse ≥ 95 across the board |
 
 Phase 5 is the one that matters. Everything before it is table stakes that other sites already

@@ -22,7 +22,6 @@ export type SurfaceCount =
   | 'arcanes'
   | 'resources'
   | 'missions'
-  | 'factions'
   | 'enemies'
   | 'bounties'
   | 'syndicates'
@@ -79,7 +78,11 @@ export const surfaceGroups: SurfaceGroup[] = [
     title: 'By source',
     surfaces: [
       { name: 'Missions', blurb: 'Nodes by planet', href: '/source/mission', count: 'missions' },
-      { name: 'Factions', blurb: 'Grineer, Corpus, Infested', count: 'factions' },
+      {
+        name: 'World state',
+        blurb: 'Fissures, invasions, factions, Baro',
+        href: '/world',
+      },
       { name: 'Enemies', blurb: 'Individual drop tables', href: '/source/enemy', count: 'enemies' },
       {
         name: 'Bounties',
@@ -99,7 +102,7 @@ export const surfaceGroups: SurfaceGroup[] = [
         href: '/source/sortie',
         count: 'sorties',
       },
-      { name: 'Vendors', blurb: 'Baro, Darvo, and the rest' },
+
     ],
   },
   {

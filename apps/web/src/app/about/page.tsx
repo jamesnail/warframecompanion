@@ -87,6 +87,13 @@ export default async function AboutPage() {
           statistics — there is no live market call, so the numbers are as fresh as the last
           build and no fresher.
         </p>
+        <p>
+          <strong className="text-text">One page is live.</strong> World state — open fissures,
+          invasions, Baro — cannot be committed: a fissure expires in about an hour, so a daily
+          build would publish a page that is wrong most of the time. That page alone talks to a
+          third party, it says so, and if the connection fails the rest of the site is
+          unaffected.
+        </p>
         <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1">
           {manifest.attributions.map((attribution) => (
             <li key={attribution.url}>

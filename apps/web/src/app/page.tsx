@@ -26,10 +26,8 @@ export default async function HomePage() {
   for (const item of items) byCategory.set(item.category, (byCategory.get(item.category) ?? 0) + 1)
 
   const byKind = new Map<string, number>()
-  const factions = new Set<string>()
   for (const source of sources) {
     byKind.set(source.kind, (byKind.get(source.kind) ?? 0) + 1)
-    if (source.faction !== undefined) factions.add(source.faction)
   }
 
   const counts: Record<SurfaceCount, number> = {
@@ -39,7 +37,6 @@ export default async function HomePage() {
     arcanes: byCategory.get('Arcane') ?? 0,
     resources: byCategory.get('Resource') ?? 0,
     missions: byKind.get('mission') ?? 0,
-    factions: factions.size,
     enemies: byKind.get('enemy') ?? 0,
     bounties: byKind.get('bounty') ?? 0,
     syndicates: byKind.get('syndicate') ?? 0,
