@@ -23,6 +23,10 @@ import { sourceHref } from '@/lib/source-route'
 const RELIC_LIMIT = 12
 const SOURCE_LIMIT = 20
 
+/** A shared ingredient builds into almost everything — Orokin Cell is a component of 177
+ *  sets — so the backlink names a few and counts the rest. */
+const PART_OF_LIMIT = 6
+
 /**
  * Three-letter column heads for the narrow side-by-side relic table. Slicing the words
  * instead produced "INTA EXCE FLAW RADI", which is not any shorter to read and is not what
@@ -143,6 +147,47 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
 
   const bestDirect = directEdges[0]
 
+  /**
+   * The recipe, if this is an assembled item.
+   *
+   * Each component gets a one-line summary of how it is actually obtained, because the
+   * question "what do I need for Braton Prime" is really "and where does each piece come
+   * from" — sending the reader to five more pages to find that out would be answering half.
+   */
+  const recipe = (item.components ?? []).map((component) => {
+    const part = itemsById.get(component.itemId)
+    const edges = edgesByItem.get(component.itemId) ?? []
+    const direct = edges
+      .filter((edge) => !edge.sourceId.startsWith('relic:'))
+      .map((edge) => ({ edge, p: perRunChance(edge) }))
+      .sort((a, b) => b.p - a.p)[0]
+    const relics = relicsByReward.get(component.itemId) ?? []
+    const bestRelic = relics
+      .map((relic) => {
+        const reward = relic.rewards.find((r) => r.itemId === component.itemId)
+        return reward === undefined ? undefined : bestRefinementFor(reward.rarity).chance
+      })
+      .filter((chance): chance is number => chance !== undefined)
+      .sort((a, b) => b - a)[0]
+
+    return {
+      itemId: component.itemId,
+      name: part?.name ?? component.itemId,
+      count: component.count,
+      // Relics first: a prime part's honest answer is which relic, not the 0.00% direct row
+      // it may also have. A resource's is the mission it drops from.
+      relicCount: relics.length,
+      bestRelic,
+      directName:
+        direct === undefined ? undefined : (sourcesById.get(direct.edge.sourceId)?.name ?? undefined),
+      directChance: direct?.p,
+    }
+  })
+
+  const partOf = (item.buildsInto ?? [])
+    .map((id) => ({ id, name: itemsById.get(id)?.name ?? id }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+
   return (
     <div className="mx-auto max-w-6xl px-5 py-12 sm:px-6 sm:py-16">
       <nav className="label mb-6 flex items-center justify-between gap-4">
@@ -161,7 +206,33 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
 
       <h1 className="font-display text-xl font-bold text-orokin sm:text-2xl">{item.name}</h1>
 
-      {bestDirect !== undefined ? (
+      {/* Where this piece ends up. Capped, because a shared ingredient builds into almost
+          everything — Orokin Cell is a component of 177 sets, and listing them would bury
+          the page under a fact nobody came for. */}
+      {partOf.length > 0 && (
+        <p className="mt-2 text-sm text-text-dim">
+          Part of{' '}
+          {partOf.slice(0, PART_OF_LIMIT).map((set, index) => (
+            <span key={set.id}>
+              {index > 0 && ', '}
+              <Link href={`/item/${set.id}`} className="text-text transition-colors hover:text-orokin">
+                {set.name}
+              </Link>
+            </span>
+          ))}
+          {partOf.length > PART_OF_LIMIT &&
+            ` and ${(partOf.length - PART_OF_LIMIT).toLocaleString()} more`}
+          .
+        </p>
+      )}
+
+      {recipe.length > 0 && bestDirect === undefined && relicPaths.length === 0 ? (
+        // An assembled item is built, not farmed. Saying "no source found" would be wrong,
+        // and the recipe below is the actual answer.
+        <p className="mt-6 max-w-prose text-sm text-text-dim">
+          Built, not dropped. Farm the {recipe.length} components below, then craft it.
+        </p>
+      ) : bestDirect !== undefined ? (
         <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-3">
           {/* Always "runs", never "kills". An enemy drop is still collected by running the
               mission the enemy spawns in — nobody queues "one Corrupted Heavy Gunner" — so
@@ -201,6 +272,83 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
         <p className="mt-6 max-w-prose text-sm text-text-dim">
           No source found. This item may be quest-locked, vaulted, or bought rather than farmed.
         </p>
+      )}
+
+      {recipe.length > 0 && (
+        <Panel className="mt-10">
+          <PanelHeader
+            title="Needs"
+            aside={`${String(recipe.length)} ${recipe.length === 1 ? 'component' : 'components'}`}
+          />
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <caption className="sr-only">
+                Components required to build {item.name}, and where each one comes from
+              </caption>
+              <thead>
+                <tr className="border-b border-hairline text-left">
+                  <th scope="col" className="label px-3 py-2 font-normal sm:px-5">
+                    Component
+                  </th>
+                  <th scope="col" className="label px-3 py-2 text-right font-normal sm:px-5">
+                    Qty
+                  </th>
+                  <th scope="col" className="label px-3 py-2 text-right font-normal sm:px-5">
+                    Best source
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {recipe.map((component) => (
+                  <tr
+                    key={component.itemId}
+                    className="border-b border-hairline/50 last:border-0"
+                  >
+                    <th scope="row" className="px-3 py-3 text-left font-normal sm:px-5 sm:py-2.5">
+                      <Link
+                        href={`/item/${component.itemId}`}
+                        className="text-text transition-colors hover:text-orokin"
+                      >
+                        {component.name}
+                      </Link>
+                    </th>
+                    <td className="data-num px-3 py-3 text-right text-text sm:px-5 sm:py-2.5">
+                      ×{component.count.toLocaleString()}
+                    </td>
+                    <td className="px-3 py-3 text-right text-xs text-text-faint sm:px-5 sm:py-2.5">
+                      {/* Stacked, not inline: "Corrupted Vor 75.00%" wrapped mid-phrase at
+                          360px and split the source name from its own number. */}
+                      {component.relicCount > 0 ? (
+                        <>
+                          <span className="block text-text-dim">
+                            {component.relicCount.toLocaleString()}{' '}
+                            {component.relicCount === 1 ? 'relic' : 'relics'}
+                          </span>
+                          {component.bestRelic !== undefined && (
+                            <span className="data-num block">
+                              {(component.bestRelic * 100).toFixed(2)}%
+                            </span>
+                          )}
+                        </>
+                      ) : component.directName !== undefined ? (
+                        <>
+                          <span className="block text-text-dim">{component.directName}</span>
+                          {component.directChance !== undefined && (
+                            <span className="data-num block">
+                              {(component.directChance * 100).toFixed(2)}%
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        'No source recorded'
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
       )}
 
       {/* Direct sources and relics answer the same question two ways, so they are read

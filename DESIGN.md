@@ -332,7 +332,7 @@ Never store a filter in React state alone. If it changes what's displayed, it be
 | Route | Job |
 |---|---|
 | `/` | Search-first. The palette *is* the home page. Below it: a directory of the browsable surfaces — not corpus statistics, which describe the dataset rather than offering a way in. Unbuilt surfaces are listed and marked, never linked. |
-| `/item/[slug]` | The main event. Direct sources and relic sources side by side, each ranked by drop rate. Statically generated for every item — this is what gets indexed by search engines. **2026-08-24:** the effort model (expected time, relics needed, solo-vs-share) came off this page on owner feedback; the page answers *where*, and time-ranking belongs on a surface that compares unlike missions. `rotationCycleCost()` and `mission-durations.ts` stay in core, tested, for that surface. |
+| `/item/[slug]` | The main event. Also serves assembled sets (hazard 17): an item with `components` shows a Needs table with each part's best source, and an item with `buildsInto` gets a "Part of" backlink, capped because Orokin Cell builds into 177 of them. Direct sources and relic sources side by side, each ranked by drop rate. Statically generated for every item — this is what gets indexed by search engines. **2026-08-24:** the effort model (expected time, relics needed, solo-vs-share) came off this page on owner feedback; the page answers *where*, and time-ranking belongs on a surface that compares unlike missions. `rotationCycleCost()` and `mission-durations.ts` stay in core, tested, for that surface. |
 | `/source/[kind]/[...slug]` | Forward view: what a mission, enemy, bounty or syndicate drops, by rotation. Statically generated; catch-all because a source id carries slashes (`mission:earth/cambria`). **Shipped 2026-08-25.** Relics are excluded deliberately — a relic is an item too, and `/item/<relic>` already shows its contents at every refinement level, so a second page would split one object across two URLs that each know half of it. Tables here are uncapped: on `/item` the source list is context, here it IS the page. |
 | `/source/[kind]` | Index of one kind, grouped by planet where the kind has one. Exists for reachability, not decoration — see hazard 15. |
 | `/browse` | The filterable table. Virtualized, dense, sortable, URL-driven. |
@@ -561,6 +561,36 @@ Write these into code comments as you hit them.
     confirmed fixed: a grid item defaults to `min-width: auto` and will not shrink below its
     content, so the longest name in a 1,055-row list sized the column wider than its own panel.
 
+17. **The catalogue is built from drop tables, so it holds parts and not the things they build.**
+    Braton Prime never drops; its four pieces do. That left the tool unable to answer the
+    question players actually ask. Sets are therefore SYNTHESISED from WFCD recipes rather
+    than read from any table, which makes two rules load-bearing:
+
+    - A component's id depends on whether it is a part or an ingredient. WFCD nests a
+      component called simply "Barrel" under "Braton Prime" and the drop table says "Braton
+      Prime Barrel"; but "Orokin Cell" is its own item, and prefixing it would invent
+      "Braton Prime Orokin Cell". `uniqueName` containing `/Recipes/` is the discriminator,
+      same as in enrich.ts.
+    - QUIRK — Warframe parts drop as BLUEPRINTS while weapon parts drop as the part itself.
+      WFCD calls the component "Chassis"; the drop table says "Ash Prime Chassis Blueprint".
+      Without a suffix fallback all 77 frame sets lost three components each and were
+      discarded as incomplete. This one rule took fully-resolved sets from 206 to 309.
+
+    A set ships only when EVERY component resolves. A page listing four of five required
+    pieces reads as a complete answer and is not one; 673 incomplete recipes are counted and
+    reported instead. Non-prime frames are the bulk of them and cannot ever resolve — their
+    own blueprint is bought or quest-locked, not dropped — so excluding them is correct
+    rather than a coverage failure to chase.
+
+18. **An id reference is an id reference, whether or not it is an edge.** `buildEnrichmentIndex`
+    minted `components` ids from WFCD's recipe nesting without checking any existed, so only
+    5.3% of them resolved — a component named "Blueprint" became `advanced-nosam-cutter-blueprint`,
+    which nothing drops. Those broken references had been shipping for weeks and were harmless
+    only because no surface rendered them. Extending the orphan gate to cover `components` and
+    `buildsInto` caught 72 of them on its first run. Hazard 14's argument does not stop applying
+    because the reference is not an edge; `applySets` now prunes what cannot resolve, and the
+    gate proves it.
+
 ---
 
 ## 11. Phases
@@ -576,7 +606,8 @@ Each phase ends deployable. Don't start the next until the current one ships.
 | 5 | **Relic chain expansion** — derived edges, refinement comparison, radshare math, the chain trace | Hand-verified against three known prime parts |
 | 6 | `/browse` — virtualized table, full filter set, URL state | 40k rows scroll at 60fps; every filter is shareable |
 | 6.5 | `/source/[kind]` and `/source/[kind]/[...slug]` — the forward view, and the graph finally navigating both ways | Every source name on the site is a link; zero broken links and zero orphaned pages across all 6,223 |
-| 7 | Expected-time ranking, mission duration table, multi-component set tracking | Paths ranked by minutes; owned-parts state persists |
+| 7a | **Assembled sets** — synthesised set items, recipes, `buildsInto` backlinks | Shipped 2026-08-25: 309 sets, 161 of 163 primes; component refs resolve 100% (was 5.3%) |
+| 7b | Expected-time ranking, mission duration table, owned-parts tracking | Paths ranked by minutes; owned-parts state persists |
 | 8 | Riven tracker — dispositions, weekly trade data, local storage, export/import, grading | A roll can be logged, graded, and shared by URL |
 | 9 | Market proxy + live listings | Degrades cleanly when the proxy is unavailable |
 | 10 | Polish — wiki supplement join, `/about` methodology page, perf pass, a11y audit | Lighthouse ≥ 95 across the board |

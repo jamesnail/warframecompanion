@@ -37,6 +37,8 @@ import {
   WFCD_FILES,
   buildEnrichmentIndex,
   enrichItems,
+  applySets,
+  buildSets,
   parseRelics,
   parseRewardName,
   parseSorties,
@@ -52,6 +54,14 @@ const DIFF_ONLY = process.argv.includes('--diff')
 /** Floor for the WFCD metadata join. Written once: a threshold repeated in its own error
  *  message is a threshold that will eventually contradict itself. */
 const COVERAGE_FLOOR = 0.85
+
+/**
+ * Assembled items are the only thing in the catalogue that is SYNTHESISED rather than read,
+ * so a WFCD restructure could silently drop every one of them and still look like a healthy
+ * build. 309 resolve fully today, 161 of the 163 prime sets among them. The floor sits well
+ * below that so ordinary churn passes and a structural break does not.
+ */
+const SET_FLOOR = 250
 
 /** Explicit human override for the +/-15% count gates. Never set in CI. */
 const ACCEPT_DRIFT = process.argv.includes('--accept-drift')
@@ -359,7 +369,8 @@ async function main(): Promise<void> {
   })
 
   const enriched = enrichItems(bare, buildEnrichmentIndex(wfcdFiles))
-  const items: Item[] = enriched.items
+  const enrichedItems: Item[] = enriched.items
+  const enrichedIds = new Set(enrichedItems.map((item) => item.id))
 
   /**
    * Coverage is a gate, not a statistic. A rename upstream, or a change to how components
@@ -379,6 +390,28 @@ async function main(): Promise<void> {
         `(floor ${(COVERAGE_FLOOR * 100).toFixed(0)}%). ` +
         `WFCD likely renamed or restructured something. ` +
         `First few unmatched: ${enriched.unmatched.slice(0, 8).join(', ')}`,
+    )
+  }
+
+  /**
+   * Assembled sets — "Braton Prime", built from parts that each drop somewhere.
+   *
+   * Runs after enrichment because it resolves component names against the FINAL item table,
+   * and enrichment is what puts parts in it. Emits only recipes whose every component
+   * resolves; see packages/sources/src/sets.ts for why a partial recipe is worse than none.
+   */
+  const setResult = buildSets(wfcdFiles, (id) => enrichedIds.has(id))
+  const items: Item[] = applySets(enrichedItems, setResult)
+
+  console.log(
+    `  sets    ${String(setResult.sets.length)} assembled items ` +
+      `(${String(setResult.partial.length)} recipes incomplete, not shipped)`,
+  )
+  if (setResult.sets.length < SET_FLOOR) {
+    fail(
+      `only ${String(setResult.sets.length)} set recipes resolved (floor ${String(SET_FLOOR)}). ` +
+        `WFCD likely renamed components or restructured its recipe nesting. ` +
+        `First few incomplete: ${setResult.partial.slice(0, 5).join(' | ')}`,
     )
   }
 
@@ -454,6 +487,31 @@ async function main(): Promise<void> {
       .map((o) => `${o.itemId} <- ${o.sourceId}`)
       .join(', ')
     fail(`${String(orphans.length)} orphaned edges. First few: ${sample}`)
+  }
+
+  /**
+   * The same gate, for the two reference types sets introduced. An edge is not the only way
+   * one row can point at another any more: a set's `components` and a part's `buildsInto`
+   * are both item ids, and a dangling one renders as a link to a page that does not exist.
+   * Hazard 14 is that every id must be minted the same way and the orphan gate is what
+   * proves it — that argument does not stop applying because the reference is not an edge.
+   */
+  const danglingRefs: string[] = []
+  for (const item of items) {
+    for (const component of item.components ?? []) {
+      if (!itemIds.has(component.itemId)) {
+        danglingRefs.push(`${item.id}.components -> ${component.itemId}`)
+      }
+    }
+    for (const target of item.buildsInto ?? []) {
+      if (!itemIds.has(target)) danglingRefs.push(`${item.id}.buildsInto -> ${target}`)
+    }
+  }
+  if (danglingRefs.length > 0) {
+    fail(
+      `${String(danglingRefs.length)} dangling item references. ` +
+        `First few: ${danglingRefs.slice(0, 5).join(', ')}`,
+    )
   }
 
   // Re-parse what we are about to WRITE, not just what we read.
