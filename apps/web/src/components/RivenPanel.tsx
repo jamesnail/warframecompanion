@@ -101,12 +101,21 @@ export function RivenPanel({
           {others.map((weapon, index) => (
             <span key={weapon.id}>
               {index > 0 && (index === others.length - 1 ? ' and ' : ', ')}
+              {/* Underlined where a page exists, plain where it does not — several variants
+                  are bought rather than dropped, so the drop tables never mention them and
+                  this site has nothing to link to. Drawing the difference stops the plain
+                  ones reading as broken links. */}
               {weapon.itemId === undefined ? (
-                <span className="text-text">{weapon.name}</span>
+                <span
+                  className="text-text"
+                  title={`${weapon.name} is not in the drop tables — no page here`}
+                >
+                  {weapon.name}
+                </span>
               ) : (
                 <Link
                   href={`/item/${weapon.itemId}`}
-                  className="text-text transition-colors hover:text-orokin"
+                  className="text-text underline decoration-hairline-strong underline-offset-2 transition-colors hover:text-orokin"
                 >
                   {weapon.name}
                 </Link>

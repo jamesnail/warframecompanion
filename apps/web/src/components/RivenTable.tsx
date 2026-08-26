@@ -279,7 +279,15 @@ function FamilyRow({ family, query }: { family: RivenFamily; query: string }) {
   )
 }
 
-/** Linked only where the drop data knows the weapon; most are bought, never dropped. */
+/**
+ * Linked only where this site has a page for the weapon — 71 of the 180 multi-weapon families
+ * end on one it does not, because that variant is bought rather than dropped and so never
+ * appears in the drop tables.
+ *
+ * The distinction is drawn visually rather than left implicit. Before, a linked and an
+ * unlinked name looked identical, so the ones without a page read as broken links; underlining
+ * the real ones makes "no page here" legible instead of looking like a defect.
+ */
 function WeaponName({ weapon }: { weapon: RivenFamily['weapons'][number] }) {
   const label = (
     <>
@@ -289,9 +297,16 @@ function WeaponName({ weapon }: { weapon: RivenFamily['weapons'][number] }) {
       )}
     </>
   )
-  if (weapon.itemId === undefined) return <span>{label}</span>
+  if (weapon.itemId === undefined) {
+    return (
+      <span title={`${weapon.name} is not in the drop tables — no page here`}>{label}</span>
+    )
+  }
   return (
-    <Link href={`/item/${weapon.itemId}`} className="transition-colors hover:text-orokin">
+    <Link
+      href={`/item/${weapon.itemId}`}
+      className="underline decoration-hairline-strong underline-offset-2 transition-colors hover:text-orokin"
+    >
       {label}
     </Link>
   )

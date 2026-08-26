@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   factionActivity,
   groupFissuresByTier,
+  isStale,
   nodeToSourceId,
   parseWorldState,
   openFissures,
@@ -212,5 +213,23 @@ describe('payloadAgeMinutes', () => {
   it('returns nothing when upstream did not say', () => {
     expect(payloadAgeMinutes(undefined, NOW)).toBeUndefined()
     expect(payloadAgeMinutes('rubbish', NOW)).toBeUndefined()
+  })
+})
+
+describe('isStale', () => {
+  // The upstream mirror froze for six hours with its timestamp stuck; every fissure, the
+  // sortie and every cycle had expired, and the page read entirely as "expired".
+  it('calls a feed that has stopped moving stale', () => {
+    expect(isStale(at(-400), NOW)).toBe(true)
+  })
+
+  it('tolerates ordinary lag', () => {
+    expect(isStale(at(-5), NOW)).toBe(false)
+    expect(isStale(at(-29), NOW)).toBe(false)
+  })
+
+  it('does not treat a missing timestamp as stale', () => {
+    expect(isStale(undefined, NOW)).toBe(false)
+    expect(isStale('not a date', NOW)).toBe(false)
   })
 })

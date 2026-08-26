@@ -204,6 +204,25 @@ export function openFissures(fissures: Fissure[], now: number): Fissure[] {
   })
 }
 
+/**
+ * How old a payload may be before nothing in it can be trusted.
+ *
+ * Open-world cycles turn over in about 50 minutes and fissures in one to three hours, so a
+ * feed that has not moved in half an hour is not merely behind — it has stopped. Observed:
+ * the upstream mirror froze with its own `timestamp` stuck at one value for over six hours,
+ * by which point every fissure, the sortie and every cycle had expired. Rendering that is a
+ * page that reads entirely as "expired", which looks like our bug and tells the reader
+ * nothing true.
+ */
+export const STALE_AFTER_MINUTES = 30
+
+/** Whether the feed has stopped moving, rather than merely lagging. */
+export function isStale(timestamp: string | undefined, now: number): boolean {
+  const age = payloadAgeMinutes(timestamp, now)
+  // No timestamp at all is not evidence of staleness; upstream simply did not say.
+  return age !== undefined && age > STALE_AFTER_MINUTES
+}
+
 /** How stale the payload is, in whole minutes, or undefined if it did not say. */
 export function payloadAgeMinutes(timestamp: string | undefined, now: number): number | undefined {
   if (timestamp === undefined) return undefined

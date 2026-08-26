@@ -8,6 +8,7 @@ import { fetchWorldState } from '@/lib/client/world-state'
 import {
   factionActivity,
   groupFissuresByTier,
+  isStale,
   nodeToSourceId,
   openFissures,
   payloadAgeMinutes,
@@ -103,6 +104,27 @@ export function WorldStateView({ missionIds }: { missionIds: string[] }) {
   }
 
   const clock = now ?? Date.now()
+
+  /**
+   * A frozen feed is not the same as a quiet one.
+   *
+   * Upstream stopped publishing for six hours with its own timestamp stuck at a single value.
+   * By then every fissure, the sortie and every open-world cycle had expired, so the page
+   * rendered as a wall of "expired" — which reads as this site's bug and tells the reader
+   * nothing true. Say what actually happened instead of presenting dead timers as current.
+   */
+  if (isStale(state.timestamp, clock)) {
+    return (
+      <Stale
+        timestamp={state.timestamp}
+        now={clock}
+        onRetry={() => {
+          void load()
+        }}
+      />
+    )
+  }
+
   const live = openFissures(state.fissures, clock)
   const factions = factionActivity({ ...state, fissures: live })
   const tiers = groupFissuresByTier(live)
@@ -328,6 +350,55 @@ export function WorldStateView({ missionIds }: { missionIds: string[] }) {
           : `Live from the Warframe world state, generated ${new Date(state.timestamp).toLocaleTimeString()}${age !== undefined && age >= 5 ? ` — ${String(age)} minutes ago` : ''}. Refreshes every minute. Expired fissures are hidden.`}
       </p>
     </div>
+  )
+}
+
+/**
+ * What the page says when the feed has stopped rather than gone quiet.
+ *
+ * Deliberately shows nothing else. Every section on this page is time-sensitive, so there is
+ * no honest half-measure: a stale fissure list is not "mostly right", it is a list of things
+ * that are over.
+ */
+function Stale({
+  timestamp,
+  now,
+  onRetry,
+}: {
+  timestamp: string | undefined
+  now: number
+  onRetry: () => void
+}) {
+  const age = payloadAgeMinutes(timestamp, now)
+  const hours = age === undefined ? undefined : Math.floor(age / 60)
+  const label =
+    age === undefined
+      ? 'some time ago'
+      : hours !== undefined && hours >= 1
+        ? `${String(hours)} hour${hours === 1 ? '' : 's'} ago`
+        : `${String(age)} minutes ago`
+
+  return (
+    <Panel className="mt-8">
+      <PanelHeader title="World state is not updating" aside="upstream" />
+      <div className="px-3 py-4 sm:px-5">
+        <p className="max-w-prose text-sm text-text-dim">
+          The Warframe world state feed last published <span className="text-text">{label}</span>,
+          so everything in it — fissures, the sortie, open-world cycles — has already expired.
+        </p>
+        <p className="mt-2 max-w-prose text-sm text-text-dim">
+          Nothing else here depends on it. Drop tables, relics and rivens are served from this
+          site and are unaffected.
+        </p>
+        <button
+          type="button"
+          onClick={onRetry}
+          className="chamfer-sm mt-3 border border-hairline px-3 py-1.5 text-sm text-text-dim transition-colors hover:border-hairline-strong hover:text-text"
+        >
+          Check again
+        </button>
+      </div>
+    </Panel>
   )
 }
 

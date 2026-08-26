@@ -72,6 +72,12 @@ export const surfaceGroups: SurfaceGroup[] = [
         href: '/browse?category=Resource',
         count: 'resources',
       },
+      {
+        name: 'Rivens',
+        blurb: 'Dispositions and trade prices',
+        href: '/rivens',
+        count: 'rivens',
+      },
     ],
   },
   {
@@ -112,12 +118,6 @@ export const surfaceGroups: SurfaceGroup[] = [
         name: 'Collection',
         blurb: 'Parts you own, sets in progress',
         href: '/collection',
-      },
-      {
-        name: 'Rivens',
-        blurb: 'Dispositions and trade prices',
-        href: '/rivens',
-        count: 'rivens',
       },
     ],
   },

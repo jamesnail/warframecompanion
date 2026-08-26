@@ -39,10 +39,6 @@ export default function BrowsePage() {
       </nav>
 
       <h1 className="font-display text-xl font-bold text-orokin sm:text-2xl">Browse</h1>
-      <p className="mt-2 max-w-prose text-sm text-text-dim">
-        Every drop in the game, one row per item per source. Filters live in the URL, so any
-        view of this table is a link.
-      </p>
 
       <div className="mt-8">
         <Suspense fallback={<p className="label">Loading…</p>}>

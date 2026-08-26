@@ -54,14 +54,6 @@ export default async function WorldPage() {
       </nav>
 
       <h1 className="font-display text-xl font-bold text-orokin sm:text-2xl">World state</h1>
-      <p className="mt-2 max-w-prose text-sm text-text-dim">
-        What is running right now: open fissures by relic tier, who is invading whom, the daily
-        sortie and archon hunt, whether Baro is here, and where each open world is in its cycle.
-      </p>
-      <p className="mt-2 max-w-prose text-xs text-text-faint">
-        The only page here that needs a live connection. Everything else is served from this
-        site and keeps working if this does not.
-      </p>
 
       <WorldStateView missionIds={missionIds} />
     </div>

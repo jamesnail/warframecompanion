@@ -820,6 +820,24 @@ Write these into code comments as you hit them.
     class from the family's traded entry, which is authoritative, and fall back to weapon type
     only when the trade file is silent.
 
+34. **A frozen feed is not a quiet one, and must not be rendered as data.** The world state
+    mirror stopped publishing with its own `timestamp` stuck at a single value for over six
+    hours. Every fissure, the sortie and every open-world cycle had expired, so the page
+    rendered as a wall of "expired" — which reads as this site's defect and tells the reader
+    nothing true. Filtering expired rows was not enough: when the feed stops, there are no
+    unexpired rows left to show. Compare the payload age against how fast the content actually
+    turns over — cycles roughly 50 minutes, fissures one to three hours — and treat anything
+    past 30 minutes as stopped: say so, name the age, and render none of the time-sensitive
+    sections. There is no honest half-measure, because a stale fissure list is not "mostly
+    right", it is a list of things that are over.
+
+35. **A list where some entries link and some do not reads as broken.** 71 of the 180
+    multi-weapon riven families end on a variant this site has no page for, because that
+    weapon is bought rather than dropped and so never appears in the drop tables. Rendering
+    those as plain text that looked identical to a link made them read as dead links rather
+    than as "there is nothing here to open". Draw the difference — underline the ones that go
+    somewhere — rather than inventing a destination for the rest.
+
 ---
 
 ## 11. Phases

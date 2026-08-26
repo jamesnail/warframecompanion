@@ -46,15 +46,6 @@ export default function RivensPage() {
       </nav>
 
       <h1 className="font-display text-xl font-bold text-orokin sm:text-2xl">Rivens</h1>
-      <p className="mt-2 max-w-prose text-sm text-text-dim">
-        Disposition and last week&rsquo;s observed trade prices, per weapon. Higher disposition
-        means stronger rolls. Prices are medians in platinum from Digital Extremes&rsquo; own
-        weekly trade statistics, covering the most recently published week.
-      </p>
-      <p className="mt-2 max-w-prose text-xs text-text-faint">
-        A median is only as good as its sample. Several of the highest prices here come from a
-        single trade — those are marked, and &ldquo;min trades&rdquo; hides them.
-      </p>
 
       <div className="mt-8">
         {/* Required, not decorative: a component that reads search params cannot be
