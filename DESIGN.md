@@ -754,6 +754,11 @@ Write these into code comments as you hit them.
     `gameRef` is the `/Lotus/...` uniqueName both sides already have — and the match rate is
     99.5% of tradable items with zero guesses. A link that exists is then a link that resolves.
 
+29. **Our `tradable` flag is not the authority on what a market sells.** 486 items it marks
+    untradable have warframe.market pages, assembled Prime sets among them. Gating the link on
+    our own flag would have silently dropped every one. Their catalogue answers the question
+    "do they sell this"; ours does not.
+
 30. **A pooled haystack is wrong when one row holds several distinct things.** `/browse`
     matches every search term anywhere in a row's combined text, which is right there because
     a row is one item from one source. A relic holds six different rewards, so the same rule
@@ -771,11 +776,6 @@ Write these into code comments as you hit them.
     both visible spans `aria-hidden` instead. Same root cause as hazard 16 — and note the fix
     is to stop emitting an absolutely positioned element inside a scroll container, not to
     widen the container.
-
-29. **Our `tradable` flag is not the authority on what a market sells.** 486 items it marks
-    untradable have warframe.market pages, assembled Prime sets among them. Gating the link on
-    our own flag would have silently dropped every one. Their catalogue answers the question
-    "do they sell this"; ours does not.
 
 ---
 
