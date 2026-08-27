@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 
 import { WorldStateView } from '@/components/WorldStateView'
-import type { NodeIndex } from '@/lib/world'
+import { buildNodeIndex } from '@/lib/node-index'
 import { getDataset } from '@/lib/data'
 import { socialImage } from '@/config/site'
 import { PAGE, PageHeader } from '@/components/Primitives'
@@ -37,35 +37,8 @@ export const metadata: Metadata = {
 export default async function WorldPage() {
   const { sources, nodes } = await getDataset()
 
-  /**
-   * The star chart, keyed by DE's internal node id, with a source link attached ONLY where
-   * this site actually has a page for that node.
-   *
-   * Both halves are build-time facts and ship in the HTML: the live feed identifies
-   * everything as "SolNode232", and deriving the link in the browser instead would 404 on the
-   * ~15% of nodes that have no unique drops and so never reach the drop tables.
-   */
-  const missionIds = new Set(
-    sources.filter((source) => source.kind === 'mission').map((source) => source.id),
-  )
-  const slug = (input: string): string =>
-    input
-      .normalize('NFKD')
-      .toLowerCase()
-      .replace(/&/g, ' and ')
-      .replace(/['’]/g, '')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-
-  const index: NodeIndex = {}
-  for (const node of nodes) {
-    const candidate =
-      node.planet === undefined ? undefined : `mission:${slug(node.planet)}/${slug(node.name)}`
-    index[node.id] = {
-      ...node,
-      ...(candidate !== undefined && missionIds.has(candidate) ? { sourceId: candidate } : {}),
-    }
-  }
+  // Shared with /farm, which needs the same mapping to link a fissure to its node page.
+  const index = buildNodeIndex(nodes, sources)
 
   return (
     <div className={PAGE}>

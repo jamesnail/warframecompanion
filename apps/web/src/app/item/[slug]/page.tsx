@@ -26,6 +26,8 @@ import { OwnedToggle, RecipeTable } from '@/components/RecipeTable'
 import { RivenPanel } from '@/components/RivenPanel'
 import { getDataset } from '@/lib/data'
 import { kindLabel } from '@/lib/effort'
+import { buildBestChain } from '@/lib/chain-build'
+import { DropChainTrace } from '@/components/DropChainTrace'
 import { sourceHref } from '@/lib/source-route'
 import { socialImage } from '@/config/site'
 
@@ -203,6 +205,17 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
     }
   })
 
+  /**
+   * The whole route, end to end — DESIGN.md § 8's signature element.
+   *
+   * Built from the same helper /farm uses, so the plan that page produces can never
+   * disagree with the page it links to.
+   */
+  const chain = buildBestChain(
+    { itemsById, sourcesById, edgesByItem, relicsByReward, relicsById },
+    item.id,
+  )
+
   const riven = rivensByItem.get(item.id)
 
   const partOf = (item.buildsInto ?? [])
@@ -349,6 +362,10 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
           No source found. This item may be quest-locked, vaulted, or bought rather than farmed.
         </p>
       )}
+
+      {/* The signature element leads: it answers "what do I queue" in one object, and the
+          tables below it are the detail behind that answer. */}
+      <DropChainTrace chain={chain} />
 
       {recipe.length > 0 && <RecipeTable rows={recipe} itemName={item.name} />}
 

@@ -42,7 +42,12 @@ export const navGroups: NavGroup[] = [
   },
   {
     title: 'Yours',
-    items: [{ name: 'Collection', href: '/collection' }],
+    items: [
+      // The plan comes before the inventory: the collection is what you have, this is what
+      // to do about it, and the second is the reason to keep the first up to date.
+      { name: 'Farm now', href: '/farm' },
+      { name: 'Collection', href: '/collection' },
+    ],
   },
 ]
 

@@ -380,6 +380,7 @@ Never store a filter in React state alone. If it changes what's displayed, it be
 | `/relics` | **Shipped 2026-08-26.** 771 relics, tier and vault filtering, and the refinement ladder stated once. Distinct from `/browse?category=Relic`, where a row is one EDGE and a relic appears once per place it drops; here a row is one RELIC and the question is what is inside it. Search matches CONTENTS, because you look for the part, not the relic. |
 | `/collection` | What you own and which sets it completes, closest to finished first. Prerendered like everything else; only the owned ids come from IndexedDB, inside a client island. Carries the export/import backup story. |
 | `/rivens` | Disposition and weekly trade price per riven FAMILY (see § 9.2), sortable and filterable. Prerendered shell, client table, 132 KB chunk. Weapons link to their item page only where the drop data knows one — 243 of 687; the rest are bought, never dropped. |
+| `/farm` | **The plan.** What to run next, ranked. Intersects the IndexedDB collection with the drop chains and the live fissure list, then groups by the ACTION that advances the most parts — one Neo fissure run counts toward every part behind a Neo relic. Chains come from the same `buildBestChain` the item pages use, so the plan can never contradict the page it links to. `noindex`: it is whatever the viewer has ticked. |
 | `/world` | **The one live surface.** Open fissures by relic tier, invasions, sortie, archon hunt and Baro, fetched from a mirror of DE's own `worldState` (§ 2.1) into a client island under a prerendered shell. Open-world cycles sit above all of it and are *computed*, not fetched — see hazards 37 and 38 — so they survive the feed being down. This is also where the Factions tile ended up. |
 | `/about` | Data sources, update cadence, attribution, methodology — including honest notes on where the numbers are estimates. |
 
@@ -1010,7 +1011,7 @@ Each phase ends deployable. Don't start the next until the current one ships.
 | 2 | Pipeline v1 — items + sources + direct edges, Zod-validated, sanity gates, hashed output | `pnpm data:build` emits committed JSON; the daily workflow runs |
 | 3 | Client cache + Worker indices + ⌘K search palette | Cold load < 2s, warm < 300ms, search feels instant |
 | 4 | Item pages with direct drops, statically generated, design system implemented | 6k+ pages build; visual system fully tokenized |
-| 5 | **Relic chain expansion** — derived edges, refinement comparison, radshare math, the chain trace | Hand-verified against three known prime parts |
+| 5 | **Relic chain expansion** — derived edges, refinement comparison, radshare math, the chain trace | Math shipped with the phase; the **trace itself shipped 2026-08-27**, a month later. Until then `composeThroughRelic`, `runsForRelicPath`, `shareChance` and `atLeastOnce` had zero callers in `apps/web` — the engine for the signature element was dead code behind a page that stopped at "here are the relics". |
 | 6 | `/browse` — virtualized table, full filter set, URL state | 40k rows scroll at 60fps; every filter is shareable |
 | 6.5 | `/source/[kind]` and `/source/[kind]/[...slug]` — the forward view, and the graph finally navigating both ways | Every source name on the site is a link; zero broken links and zero orphaned pages across all 6,223 |
 | 7a | **Assembled sets** — synthesised set items, recipes, `buildsInto` backlinks | Shipped 2026-08-25: 309 sets, 161 of 163 primes; component refs resolve 100% (was 5.3%) |
@@ -1020,6 +1021,7 @@ Each phase ends deployable. Don't start the next until the current one ships.
 | ~~9~~ | ~~Market proxy + live listings~~ | **Replaced 2026-08-26 by a link.** See § 9.1. No server route was built; constraint 3’s escape hatch remains unspent. |
 | 9.5 | **World state** — live fissures, invasions, factions, Baro | Shipped 2026-08-26. Absorbed the Factions and Vendors tiles, both of which were blocked on data that turned out to be live rather than static. |
 | 10 | Polish — wiki supplement join, perf pass, a11y audit (`/about` shipped 2026-08-26) | Lighthouse ≥ 95 across the board |
+| 11 | **`/farm` — the plan: collection × chains × live fissures, grouped by action** | Shipped 2026-08-27. Verified end to end over CDP: parts ticked through the real UI, then the plan read back with open fissures attached. |
 
 Phase 5 is the one that matters. Everything before it is table stakes that other sites already
 have; everything after it is refinement. If the schedule slips, protect phase 5.

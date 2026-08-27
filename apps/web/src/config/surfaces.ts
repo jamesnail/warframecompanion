@@ -115,6 +115,11 @@ export const surfaceGroups: SurfaceGroup[] = [
     title: 'Yours',
     surfaces: [
       {
+        name: 'Farm now',
+        blurb: 'What to run next, ranked',
+        href: '/farm',
+      },
+      {
         name: 'Collection',
         blurb: 'Parts you own, sets in progress',
         href: '/collection',
