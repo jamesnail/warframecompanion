@@ -661,14 +661,6 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
         </Panel>
       )}
 
-      {/* Only explain the relic table on pages that actually show one. */}
-      {(relicPaths.length > 0 || relicContents.length > 0) && (
-        <p className="mt-8 max-w-prose text-xs text-text-faint">
-          Relic odds are per opened relic, per reward slot. Refining trades common odds for rare
-          ones, so the best level is not always Radiant — for a common reward Intact pays the
-          most. The highlighted column is the best one for that reward.
-        </p>
-      )}
     </div>
   )
 }

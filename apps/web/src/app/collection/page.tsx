@@ -62,11 +62,6 @@ export default async function CollectionPage() {
   return (
     <div className={PAGE}>
       <PageHeader kicker="Yours" title="Your collection" />
-      <p className="mt-2 max-w-prose text-sm text-text-dim">
-        Tick off the parts you own on any set page and they show up here, closest to finished
-        first.
-      </p>
-
       <CollectionManager sets={sets} names={names} />
     </div>
   )

@@ -58,22 +58,9 @@ export default async function RelicsPage() {
     }
   }
 
-  const farmable = relics.filter((relic) => !relic.vaulted).length
-
   return (
     <div className={PAGE}>
-      <PageHeader
-        kicker="Relics"
-        title="Void Relics"
-        lede={
-          <>
-            {relics.length.toLocaleString()} relics, of which{' '}
-            <strong className="text-text">{farmable.toLocaleString()}</strong> are still dropped
-            by something. Search matches what is inside a relic as well as its name — look for
-            the part, not the relic.
-          </>
-        }
-      />
+      <PageHeader kicker="Relics" title="Void Relics" />
 
       {/* The refinement comparison, stated once. It is a property of the SYSTEM, not of any
           individual relic: every common sits at the same odds as every other common. Putting
@@ -144,12 +131,6 @@ export default async function RelicsPage() {
             </tbody>
           </table>
         </div>
-        {/* The part people get wrong: refining is not a straight upgrade. */}
-        <p className="border-t border-hairline px-3 py-2.5 text-xs text-text-faint sm:px-5">
-          Refining is a trade, not an upgrade. It moves odds from the common slots to the rare
-          one, so if you are farming a common reward an Intact relic is your best chance and
-          Radiant is your worst.
-        </p>
       </Panel>
 
       <div className="mt-8">
