@@ -51,10 +51,7 @@ export default async function HomePage() {
 
   return (
     <div className={PAGE}>
-      <PageHeader
-        title={site.name}
-        lede="Given an item, every way to get it — including the ones gated behind a relic, where the path is a chain rather than a single row."
-      />
+      <PageHeader title={site.name} />
 
       {surfaceGroups.map((group) => (
         <section key={group.title} className="mt-8">
