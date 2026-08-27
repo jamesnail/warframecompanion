@@ -75,7 +75,7 @@ export default async function CollectionPage() {
         <SearchTrigger compact />
       </nav>
 
-      <h1 className="font-display text-xl font-bold text-orokin sm:text-2xl">Your collection</h1>
+      <h1 className="font-display text-xl font-bold text-energy sm:text-2xl">Your collection</h1>
       <p className="mt-2 max-w-prose text-sm text-text-dim">
         Tick off the parts you own on any set page and they show up here, closest to finished
         first.

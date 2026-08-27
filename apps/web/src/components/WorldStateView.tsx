@@ -162,7 +162,7 @@ export function WorldStateView({ nodes }: { nodes: NodeIndex }) {
                 {/* The tier is the point: an open Lith fissure is how you crack Lith relics. */}
                 <Link
                   href={`/relics?q=${encodeURIComponent(group.tier)}&farmable=true`}
-                  className="font-display text-sm font-semibold text-text transition-colors hover:text-orokin"
+                  className="font-display text-sm font-semibold text-text transition-colors hover:text-energy"
                 >
                   {group.tier}
                 </Link>
@@ -375,7 +375,7 @@ function NodeLink({
   return (
     <Link
       href={`/source/${kind}/${rest.split('/').map(encodeURIComponent).join('/')}`}
-      className="text-text underline decoration-hairline-strong underline-offset-2 transition-colors hover:text-orokin"
+      className="text-text underline decoration-hairline-strong underline-offset-2 transition-colors hover:text-energy"
     >
       {label}
     </Link>

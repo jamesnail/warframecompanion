@@ -143,7 +143,7 @@ export function CollectionManager({ sets, names }: { sets: SetSummary[]; names: 
           {notice !== undefined && (
             <p
               role="status"
-              className={`mt-3 text-sm ${notice.tone === 'ok' ? 'text-orokin' : 'text-text'}`}
+              className={`mt-3 text-sm ${notice.tone === 'ok' ? 'text-energy' : 'text-text'}`}
             >
               {notice.text}
             </p>
@@ -172,7 +172,7 @@ export function CollectionManager({ sets, names }: { sets: SetSummary[]; names: 
                     </Link>
                     <span
                       className={`data-num text-xs ${
-                        set.progress.complete ? 'text-orokin' : 'text-text-faint'
+                        set.progress.complete ? 'text-energy' : 'text-text-faint'
                       }`}
                     >
                       {set.progress.owned}/{set.progress.total}
@@ -183,7 +183,7 @@ export function CollectionManager({ sets, names }: { sets: SetSummary[]; names: 
                       numbers beside it already say the same thing. */}
                   <div className="mt-2 h-0.5 w-full bg-void-700" aria-hidden="true">
                     <div
-                      className={set.progress.complete ? 'h-full bg-orokin' : 'h-full bg-hairline-strong'}
+                      className={set.progress.complete ? 'h-full bg-energy' : 'h-full bg-hairline-strong'}
                       style={{ width: `${String(Math.round(set.progress.fraction * 100))}%` }}
                     />
                   </div>
@@ -218,7 +218,7 @@ export function CollectionManager({ sets, names }: { sets: SetSummary[]; names: 
                           }}
                           className={`chamfer-sm border px-2 py-0.5 text-xs transition-colors ${
                             have
-                              ? 'border-orokin bg-void-700 text-orokin'
+                              ? 'border-energy bg-void-700 text-energy'
                               : 'border-hairline text-text-faint hover:border-hairline-strong hover:text-text'
                           }`}
                         >
@@ -239,7 +239,7 @@ export function CollectionManager({ sets, names }: { sets: SetSummary[]; names: 
 
 const BUTTON =
   'chamfer-sm border border-hairline px-3 py-1.5 text-sm text-text-dim transition-colors hover:border-hairline-strong hover:text-text disabled:opacity-40'
-const LINK = 'text-text transition-colors hover:text-orokin'
+const LINK = 'text-text transition-colors hover:text-energy'
 
 /** Local copy rather than the shared Stat: this one shows an em dash before hydration, and
  *  the shared component takes a plain string value. */
@@ -248,7 +248,7 @@ function Stat({ label, value, accent = false }: { label: string; value: string; 
     <div>
       <div className="label">{label}</div>
       <div className="mt-1">
-        <span className={`data-num text-lg ${accent ? 'text-orokin' : 'text-text'}`}>{value}</span>
+        <span className={`data-num text-lg ${accent ? 'text-energy' : 'text-text'}`}>{value}</span>
       </div>
     </div>
   )

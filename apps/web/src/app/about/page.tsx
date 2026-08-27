@@ -51,7 +51,7 @@ export default async function AboutPage() {
         <SearchTrigger compact />
       </nav>
 
-      <h1 className="font-display text-xl font-bold text-orokin sm:text-2xl">About the data</h1>
+      <h1 className="font-display text-xl font-bold text-energy sm:text-2xl">About the data</h1>
       <p className="mt-2 max-w-prose text-sm text-text-dim">
         {site.description}
       </p>
@@ -205,7 +205,7 @@ export default async function AboutPage() {
           Anything you mark as owned lives in this browser&rsquo;s local storage and nowhere
           else. There is no account, no server-side profile, and nothing is uploaded — the
           site has no database to put it in. Clearing site data deletes it, so{' '}
-          <Link href="/collection" className="text-text underline underline-offset-4 hover:text-orokin">
+          <Link href="/collection" className="text-text underline underline-offset-4 hover:text-energy">
             export a backup
           </Link>{' '}
           if you want to keep it.
@@ -219,7 +219,7 @@ export default async function AboutPage() {
           are readable in the{' '}
           <a
             href={site.repository}
-            className="text-text underline underline-offset-4 hover:text-orokin"
+            className="text-text underline underline-offset-4 hover:text-energy"
           >
             source
           </a>

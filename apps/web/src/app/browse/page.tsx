@@ -38,7 +38,7 @@ export default function BrowsePage() {
         <SearchTrigger compact />
       </nav>
 
-      <h1 className="font-display text-xl font-bold text-orokin sm:text-2xl">Browse</h1>
+      <h1 className="font-display text-xl font-bold text-energy sm:text-2xl">Browse</h1>
 
       <div className="mt-8">
         <Suspense fallback={<p className="label">Loading…</p>}>

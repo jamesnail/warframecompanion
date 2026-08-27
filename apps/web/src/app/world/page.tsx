@@ -83,7 +83,7 @@ export default async function WorldPage() {
         <SearchTrigger compact />
       </nav>
 
-      <h1 className="font-display text-xl font-bold text-orokin sm:text-2xl">World state</h1>
+      <h1 className="font-display text-xl font-bold text-energy sm:text-2xl">World state</h1>
 
       <WorldStateView nodes={index} />
     </div>

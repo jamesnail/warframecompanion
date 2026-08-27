@@ -122,7 +122,7 @@ export default async function SourceIndexPage({ params }: { params: Promise<{ ki
         <SearchTrigger compact />
       </nav>
 
-      <h1 className="font-display text-xl font-bold text-orokin sm:text-2xl">{plural}</h1>
+      <h1 className="font-display text-xl font-bold text-energy sm:text-2xl">{plural}</h1>
       <p className="mt-2 max-w-prose text-sm text-text-dim">
         {listed.length.toLocaleString()} {(listed.length === 1 ? label : plural).toLowerCase()}.{' '}
         <Link
@@ -152,7 +152,7 @@ export default async function SourceIndexPage({ params }: { params: Promise<{ ki
               >
                 <Link
                   href={href}
-                  className="min-w-0 truncate text-sm text-text transition-colors hover:text-orokin"
+                  className="min-w-0 truncate text-sm text-text transition-colors hover:text-energy"
                 >
                   {source.name}
                 </Link>

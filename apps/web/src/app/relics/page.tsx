@@ -77,7 +77,7 @@ export default async function RelicsPage() {
         <SearchTrigger compact />
       </nav>
 
-      <h1 className="font-display text-xl font-bold text-orokin sm:text-2xl">Void Relics</h1>
+      <h1 className="font-display text-xl font-bold text-energy sm:text-2xl">Void Relics</h1>
       <p className="mt-2 max-w-prose text-sm text-text-dim">
         {relics.length.toLocaleString()} relics, of which{' '}
         <strong className="text-text">{farmable.toLocaleString()}</strong> are still dropped by

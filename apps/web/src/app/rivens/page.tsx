@@ -47,7 +47,7 @@ export default function RivensPage() {
         <SearchTrigger compact />
       </nav>
 
-      <h1 className="font-display text-xl font-bold text-orokin sm:text-2xl">Rivens</h1>
+      <h1 className="font-display text-xl font-bold text-energy sm:text-2xl">Rivens</h1>
 
       <div className="mt-8">
         {/* Required, not decorative: a component that reads search params cannot be

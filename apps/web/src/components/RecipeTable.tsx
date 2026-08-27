@@ -48,7 +48,7 @@ export function RecipeTable({ rows, itemName }: { rows: RecipeRow[]; itemName: s
       />
 
       {ready && progress.complete ? (
-        <p className="border-b border-hairline px-3 py-2.5 text-sm text-orokin sm:px-5">
+        <p className="border-b border-hairline px-3 py-2.5 text-sm text-energy sm:px-5">
           Every component owned. Ready to build.
         </p>
       ) : (
@@ -103,13 +103,13 @@ export function RecipeTable({ rows, itemName }: { rows: RecipeRow[]; itemName: s
                       // The name is in the row already, but a bare checkbox is announced as
                       // "checkbox, unchecked" with no indication of what it governs.
                       aria-label={`Owned: ${row.name}`}
-                      className="size-4 accent-orokin disabled:opacity-40"
+                      className="size-4 accent-energy disabled:opacity-40"
                     />
                   </td>
                   <th scope="row" className="px-1 py-3 text-left font-normal sm:py-2.5">
                     <Link
                       href={`/item/${row.itemId}`}
-                      className={`transition-colors hover:text-orokin ${
+                      className={`transition-colors hover:text-energy ${
                         have ? 'text-text-faint line-through' : 'text-text'
                       }`}
                     >
@@ -185,7 +185,7 @@ export function OwnedToggle({ itemId, itemName }: { itemId: string; itemName: st
       }}
       className={`chamfer-sm border px-3 py-1.5 text-xs transition-colors disabled:opacity-40 ${
         have
-          ? 'border-orokin bg-void-700 text-orokin'
+          ? 'border-energy bg-void-700 text-energy'
           : 'border-hairline text-text-dim hover:border-hairline-strong hover:text-text'
       }`}
     >

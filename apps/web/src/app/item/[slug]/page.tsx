@@ -218,7 +218,7 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
         <SearchTrigger compact />
       </nav>
 
-      <h1 className="font-display text-xl font-bold text-orokin sm:text-2xl">{item.name}</h1>
+      <h1 className="font-display text-xl font-bold text-energy sm:text-2xl">{item.name}</h1>
 
       {/* Where this piece ends up. Capped, because a shared ingredient builds into almost
           everything — Orokin Cell is a component of 177 sets, and listing them would bury
@@ -229,7 +229,7 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
           {partOf.slice(0, PART_OF_LIMIT).map((set, index) => (
             <span key={set.id}>
               {index > 0 && ', '}
-              <Link href={`/item/${set.id}`} className="text-text transition-colors hover:text-orokin">
+              <Link href={`/item/${set.id}`} className="text-text transition-colors hover:text-energy">
                 {set.name}
               </Link>
             </span>
@@ -397,7 +397,7 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
                           <th scope="row" className="px-3 py-3 sm:px-5 sm:py-2.5 text-left font-normal">
                             <Link
                               href={sourceHref(edge.sourceId, hasItem)}
-                              className="text-text transition-colors hover:text-orokin"
+                              className="text-text transition-colors hover:text-energy"
                             >
                               {source?.name ?? edge.sourceId}
                             </Link>
@@ -476,7 +476,7 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
                         <th scope="row" className="px-3 py-3 sm:px-5 sm:py-2.5 text-left font-normal">
                           <Link
                             href={`/item/${path.relicId}`}
-                            className="text-text transition-colors hover:text-orokin"
+                            className="text-text transition-colors hover:text-energy"
                           >
                             {path.relicName}
                           </Link>
@@ -525,7 +525,7 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
               >
                 <Link
                   href={sourceHref(edge.sourceId, hasItem)}
-                  className="text-text transition-colors hover:text-orokin"
+                  className="text-text transition-colors hover:text-energy"
                 >
                   {source?.name ?? edge.sourceId}
                 </Link>
@@ -597,7 +597,7 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
                     <th scope="row" className="px-3 py-3 sm:px-5 sm:py-2.5 text-left font-normal">
                       <Link
                         href={`/item/${reward.itemId}`}
-                        className="text-text transition-colors hover:text-orokin"
+                        className="text-text transition-colors hover:text-energy"
                       >
                         {reward.name}
                       </Link>

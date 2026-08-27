@@ -128,7 +128,7 @@ export default async function SourcePage({
         <SearchTrigger compact />
       </nav>
 
-      <h1 className="font-display text-xl font-bold text-orokin sm:text-2xl">{source.name}</h1>
+      <h1 className="font-display text-xl font-bold text-energy sm:text-2xl">{source.name}</h1>
       {meta.length > 0 && <p className="mt-1.5 text-sm text-text-dim">{meta.join(' · ')}</p>}
 
       {edges.length === 0 ? (
@@ -227,7 +227,7 @@ function DropTable({
                 <th scope="row" className="px-3 py-3 text-left font-normal sm:px-5 sm:py-2.5">
                   <Link
                     href={`/item/${row.itemId}`}
-                    className="text-text transition-colors hover:text-orokin"
+                    className="text-text transition-colors hover:text-energy"
                   >
                     {row.itemName}
                   </Link>

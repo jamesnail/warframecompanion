@@ -48,7 +48,7 @@ export default async function HomePage() {
 
   return (
     <div className="mx-auto max-w-4xl px-5 py-12 sm:px-6 sm:py-24">
-      <h1 className="font-display text-xl font-bold tracking-tight text-orokin sm:text-2xl">{site.name}</h1>
+      <h1 className="font-display text-xl font-bold tracking-tight text-energy sm:text-2xl">{site.name}</h1>
 
       <div className="mt-8 max-w-xl">
         <SearchTrigger />

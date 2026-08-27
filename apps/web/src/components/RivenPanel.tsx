@@ -53,7 +53,7 @@ export function RivenPanel({
               <span className="text-sm text-text-faint">Not published</span>
             ) : (
               <>
-                <span className="data-num text-lg text-orokin">{self.disposition.toFixed(2)}</span>
+                <span className="data-num text-lg text-energy">{self.disposition.toFixed(2)}</span>
                 {self.dispositionStars !== undefined && (
                   <>
                     <span className="text-xs text-text-faint" aria-hidden="true">
@@ -115,7 +115,7 @@ export function RivenPanel({
               ) : (
                 <Link
                   href={`/item/${weapon.itemId}`}
-                  className="text-text underline decoration-hairline-strong underline-offset-2 transition-colors hover:text-orokin"
+                  className="text-text underline decoration-hairline-strong underline-offset-2 transition-colors hover:text-energy"
                 >
                   {weapon.name}
                 </Link>

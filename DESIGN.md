@@ -405,15 +405,31 @@ line — and it lifts the SSO gate too, since Vercel exempts custom domains from
 
 ### Direction
 
-The subject's world offers two obvious visual routes and both are traps. Orokin gold-on-black is
-what every Warframe fan site already does; the generic "dark dashboard with an acid accent" is what
-every AI-generated data tool does. The framing that avoids both: **this is an instrument, not a
-shrine.** A precision readout for someone deciding where to spend the next two hours.
+**Tenno HUD.** The instrument the game would ship if the game shipped one — blue-black plating,
+cyan energy, framed panels. Still an instrument and not a shrine: the discipline below is
+unchanged, and what the theme adds is a vocabulary, not ornament.
 
-So: an industrial signage aesthetic borrowed from Corpus interface panelling rather than Orokin
-ornament — wide engineered type, generous negative space, hairline structure — with gold used
-exactly once per view, on the thing you searched for. Restraint is the point. The gold reads as
-gold *because* nothing else is competing with it.
+This replaced a deliberately un-Warframe direction on 2026-08-26, at the owner's request. The
+argument it replaced is worth keeping, because it still constrains what the theme is allowed to
+do. It ran: Orokin gold-on-black is what every Warframe fan site already does, the generic "dark
+dashboard with an acid accent" is what every AI-generated data tool does, and the way to avoid
+both is to look like a precision readout rather than a tribute.
+
+Two of those three claims survive intact. The theme leans on the *game's own interface* — its
+menus, its mission HUD, its arsenal screens — rather than on Orokin gold ornament, so it lands
+somewhere neither fan-site pastiche nor default dark mode occupies. What it gives up is the
+insistence that the palette be neutral about its subject, and that was always the weakest part
+of the argument: a tool used exclusively with Warframe running in the other window has nothing
+to gain from pretending otherwise.
+
+What the direction still forbids, unchanged:
+
+- The accent appears **once per view**, on the thing you searched for. Cyan is not a decorative
+  wash. If a screen has two things glowing, one of them is wrong.
+- No ambient motion, no glow pulses, no scanlines, no chrome. The motion budget below is the
+  entire list and the theme did not extend it.
+- Density and legibility outrank flavour, always. Every colour below is contrast-measured
+  (§ Palette), and the one that failed was changed rather than kept for looks.
 
 ### Logo and icons
 
@@ -437,25 +453,48 @@ be quiet enough to let it be the memorable thing.
 
 ### Palette
 
-Cold void base rather than neutral black — a blue-violet cast that reads as Void rather than as
-default dark mode. Defined in OKLCH so the rarity ramp can hold constant chroma and lightness
-across hues; those four colors then read as one measurement scale instead of four unrelated tags.
+Blue-black plating, cyan energy. Defined in OKLCH so the rarity ramp can hold constant chroma
+and lightness across hues; those four colours then read as one measurement scale instead of
+four unrelated tags. `globals.css` is authoritative — the block below is the summary.
 
 ```css
---void-900:  oklch(0.14 0.018 275);   /* page */
---void-800:  oklch(0.18 0.020 275);   /* panel */
---void-700:  oklch(0.24 0.022 275);   /* raised */
---hairline:  oklch(0.32 0.020 275);   /* 1px structure */
---text:      oklch(0.93 0.008 275);
---text-dim:  oklch(0.68 0.012 275);
---orokin:    oklch(0.78 0.14  85);    /* the one accent. use once per view. */
+--void-950:        oklch(0.10  0.022 252);  /* wells, inset, code */
+--void-900:        oklch(0.145 0.028 252);  /* page */
+--void-800:        oklch(0.19  0.034 250);  /* panel */
+--void-700:        oklch(0.245 0.040 248);  /* raised / table header */
+--void-600:        oklch(0.31  0.045 246);  /* hover */
+--hairline:        oklch(0.36  0.055 225);  /* 1px structure, cyan-cast */
+--hairline-strong: oklch(0.50  0.075 215);  /* corner braces, header rules */
+--text:            oklch(0.95  0.012 230);
+--text-dim:        oklch(0.75  0.025 225);
+--text-faint:      oklch(0.69  0.030 222);
+--energy:          oklch(0.84  0.135 205);  /* the one accent. use once per view. */
 
 /* rarity ramp — constant C and L, hue only varies */
---r-common:    oklch(0.72 0.10 250);
+--r-common:    oklch(0.72 0.10 300);
 --r-uncommon:  oklch(0.72 0.10 150);
 --r-rare:      oklch(0.72 0.10  85);
 --r-legendary: oklch(0.72 0.10  20);
 ```
+
+Three decisions in there are load-bearing:
+
+**The accent is no longer named `orokin`.** It was gold at 85°, which is exactly where the rarity
+ramp puts *rare*. One colour meaning both "this is a rare drop" and "this is the thing you looked
+up" is one job too many, and on an item page the two uses sat inches apart. Gold now belongs to
+the ramp alone; the accent moved to energy cyan and the token moved with it, since a token called
+`orokin` holding a cyan is a comment that lies. 75 references across 24 files were renamed.
+
+**Common moved off blue.** At hue 250 it sat 45° from the cyan accent, and at the 6px the rarity
+dot actually renders, 45° of hue separation is not separation — the two read as one family. Violet
+at 300 is unambiguous and keeps the four ramp hues roughly evenly spread.
+
+**`text-faint` sits at L 0.69, not the 0.67 the palette was drafted with.** At 0.67 it measured
+4.42:1 against `void-600`, the row-hover surface — a fail, and one a screenshot review would
+never have caught, because it only exists under the cursor. Every foreground/surface pairing in
+the theme is machine-measured against WCAG AA; the tightest surviving pairing is that same one at
+4.77:1. Flavour does not get to override this, which is why the number moved and the colour did
+not.
 
 ### Type
 
@@ -470,8 +509,17 @@ Scale: 12 / 14 / 16 / 20 / 28 / 40. Six sizes, no more.
 ### Structure
 
 - Panels chamfer their top-left and bottom-right corners at 10px via a shared `clip-path` utility.
-  One asymmetric cut, applied consistently — this is the only Orokin geometry the design borrows,
-  and one is enough.
+  One asymmetric cut, applied consistently.
+- **Corner braces.** The chamfer cuts two corners; the other two get a short right-angle tick in
+  `hairline-strong`. That is the HUD-framing motif and the whole of it — the theme is carried by
+  framing and palette, not by added ornament. Drawn as four background gradient layers on the
+  `panel` utility rather than pseudo-elements, so it costs no DOM, cannot be displaced by panel
+  content, and survives the `clip-path` that would slice a real border off.
+- **Panel headers carry a 2px tick** before the title, in the same `hairline-strong` as the
+  braces, and sit on a brighter rule. It was drawn in the accent for one revision, which put a
+  cyan mark on every header — four on /world — and quietly broke the once-per-view rule the
+  Direction section above insists on. Framing colour, not accent. Decorative and therefore
+  `aria-hidden`, with the heading text doing the actual labelling.
 - ~~Probability bars are typographic objects: a hairline track, a filled segment, the number set
   in mono immediately adjacent.~~ **Removed 2026-08-24** on owner feedback. Inside one item's
   source list the bar re-encoded a numeric column that is now sorted, and its per-page `max`

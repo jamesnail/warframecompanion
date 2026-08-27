@@ -11,35 +11,43 @@
  * four unrelated tags.
  *
  * Contrast is verified, not assumed. Every foreground below clears WCAG AA (4.5:1) against
- * every surface it is allowed to sit on; the tightest pairing is text-faint on void-700 at
- * 4.76:1. Two choices serve long reading sessions specifically: the page is never pure black
- * (#0b0d15) and body text is never pure white (#dcdee5), which takes the edge off a dense
+ * every surface it is allowed to sit on; the tightest pairing is text-faint on void-600 —
+ * the hover surface — at 4.77:1. That pairing is what sets text-faint's lightness: at the
+ * 0.67 the palette was drafted with it measured 4.42:1 and failed, so it sits at 0.69.
+ * Two choices serve long reading sessions specifically: the page is never pure black
+ * (#030b15) and body text is never pure white (#e7f0f5), which takes the edge off a dense
  * table without giving up legibility.
  */
 @theme {
-  /* ---- surfaces: a cold void base, blue-violet rather than neutral grey ---------- */
-  --color-void-950: oklch(0.12 0.016 275); /* wells, inset, code */
-  --color-void-900: oklch(0.16 0.018 275); /* page */
-  --color-void-800: oklch(0.2 0.02 275); /* panel */
-  --color-void-700: oklch(0.25 0.022 275); /* raised / table header */
-  --color-void-600: oklch(0.31 0.022 275); /* hover */
+  /* ---- surfaces: Tenno HUD. Blue-black, the colour of the game's own menus -------- */
+  --color-void-950: oklch(0.1 0.022 252); /* wells, inset, code */
+  --color-void-900: oklch(0.145 0.028 252); /* page */
+  --color-void-800: oklch(0.19 0.034 250); /* panel */
+  --color-void-700: oklch(0.245 0.04 248); /* raised / table header */
+  --color-void-600: oklch(0.31 0.045 246); /* hover */
 
-  /* ---- structure: hairlines do the work that borders and shadows would ----------- */
-  --color-hairline: oklch(0.3 0.018 275);
-  --color-hairline-strong: oklch(0.4 0.02 275);
+  /* ---- structure: hairlines carry a cyan cast, the way HUD framing does ---------- */
+  --color-hairline: oklch(0.36 0.055 225);
+  --color-hairline-strong: oklch(0.5 0.075 215);
 
   /* ---- text --------------------------------------------------------------------- */
-  --color-text: oklch(0.9 0.01 275); /* 14.4:1 on page */
-  --color-text-dim: oklch(0.7 0.014 275); /* 7.3:1  — secondary */
-  --color-text-faint: oklch(0.64 0.014 275); /* 5.8:1  — labels, units */
+  --color-text: oklch(0.95 0.012 230); /* 17.2:1 on page */
+  --color-text-dim: oklch(0.75 0.025 225); /* 9.0:1  — secondary */
+  --color-text-faint: oklch(0.69 0.03 222); /* 7.2:1  — labels, units */
 
   /* ---- the one accent ------------------------------------------------------------
-   * Used once per view, on the thing you searched for. It reads as gold precisely
-   * because nothing else competes with it. */
-  --color-orokin: oklch(0.82 0.13 85);
+   * Warframe energy cyan, used once per view on the thing you searched for.
+   *
+   * It was gold until 2026-08-26. Gold now belongs to the rarity ramp alone, where it
+   * means "rare" — having it mean both "rare" and "you are here" was one job too many
+   * for one colour. */
+  --color-energy: oklch(0.84 0.135 205);
 
-  /* ---- rarity ramp: constant L and C, hue only ----------------------------------- */
-  --color-r-common: oklch(0.72 0.1 250);
+  /* ---- rarity ramp: constant L and C, hue only -----------------------------------
+   * Common moved off blue when the accent became cyan: at 250 it sat 45° from the
+   * accent and the two read as the same family on a 6px dot. Violet is unambiguous
+   * and keeps the ramp evenly spread. */
+  --color-r-common: oklch(0.72 0.1 300);
   --color-r-uncommon: oklch(0.72 0.1 150);
   --color-r-rare: oklch(0.72 0.1 85);
   --color-r-legendary: oklch(0.72 0.1 20);
@@ -84,9 +92,23 @@
 /**
  * Panel: the standard content container. The 1px outline is drawn with a background
  * gradient underneath the clip, because a real border would be sliced off by the chamfer.
+ *
+ * Corner braces: the chamfer cuts two corners, and the other two get a short right-angle
+ * tick in the brighter hairline. That is the HUD-framing motif, and it is drawn as four
+ * more background layers rather than pseudo-elements so it costs no DOM and cannot be
+ * knocked out of place by whatever the panel contains. Layer order matters — the ticks
+ * are listed first because the first layer paints on top, and the fill would hide them.
  */
 @utility panel {
   background:
+    linear-gradient(var(--color-hairline-strong), var(--color-hairline-strong)) no-repeat 100% 0 /
+      14px 1px padding-box,
+    linear-gradient(var(--color-hairline-strong), var(--color-hairline-strong)) no-repeat 100% 0 /
+      1px 14px padding-box,
+    linear-gradient(var(--color-hairline-strong), var(--color-hairline-strong)) no-repeat 0 100% /
+      14px 1px padding-box,
+    linear-gradient(var(--color-hairline-strong), var(--color-hairline-strong)) no-repeat 0 100% /
+      1px 14px padding-box,
     linear-gradient(var(--color-void-800), var(--color-void-800)) padding-box,
     linear-gradient(var(--color-hairline), var(--color-hairline)) border-box;
   border: 1px solid transparent;
@@ -122,7 +144,8 @@
  * The opacity is contrast-constrained, not taste. It composites the text toward the panel
  * behind it, and the floor is text-faint on void-800: at 0.75 that pairing measured
  * 3.43:1, below the 4.5:1 body-text minimum, on the MAJORITY of relic rows (366 of 380 on
- * some pages). 0.92 measures 4.68:1. Do not lower it without recomputing.
+ * some pages). 0.92 measures 5.85:1 under the Tenno palette. Do not lower it without
+ * recomputing.
  */
 @utility vaulted {
   filter: saturate(0.35);
@@ -173,12 +196,12 @@ button,
 }
 
 ::selection {
-  background: var(--color-orokin);
+  background: var(--color-energy);
   color: var(--color-void-950);
 }
 
 :focus-visible {
-  outline: 2px solid var(--color-orokin);
+  outline: 2px solid var(--color-energy);
   outline-offset: 2px;
 }
 
@@ -192,7 +215,7 @@ button,
 .chamfer-sm:focus-visible,
 .panel:focus-visible {
   outline: none;
-  box-shadow: inset 0 0 0 2px var(--color-orokin);
+  box-shadow: inset 0 0 0 2px var(--color-energy);
 }
 
 /* The scrollbar is part of a dense reference tool's surface; leaving it default light

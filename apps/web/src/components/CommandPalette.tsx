@@ -220,7 +220,7 @@ export function CommandPalette() {
           spellCheck={false}
           // text-base is load-bearing on iOS: Safari zooms the page when a focused input is
           // under 16px, and the zoom is not undone on blur. Do not drop this to text-sm.
-          className="w-full shrink-0 border-b border-hairline bg-transparent px-4 py-4 text-base text-text outline-none transition-colors focus:border-orokin placeholder:text-text-faint sm:px-5"
+          className="w-full shrink-0 border-b border-hairline bg-transparent px-4 py-4 text-base text-text outline-none transition-colors focus:border-energy placeholder:text-text-faint sm:px-5"
         />
 
         <ul
