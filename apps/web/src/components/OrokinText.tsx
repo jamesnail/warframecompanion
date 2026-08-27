@@ -6,10 +6,17 @@ import { useEffect, useState } from 'react'
  * Orokin decode.
  *
  * Text arrives as unreadable Orokin-ish glyphs and resolves character by character into the
- * real word, which is how the game's own interfaces introduce a readout. It is the one
- * decorative animation in the app, it plays once on mount, and it never blocks reading:
- * the final string is in the DOM from the first render, so a crawler, a screen reader and a
- * reader with `prefers-reduced-motion` all get the finished word immediately.
+ * real word, which is how the game's own interfaces introduce a readout. It then holds, folds
+ * back into glyphs, and decodes again — a slow idle cycle, not a shimmer.
+ *
+ * It never blocks reading: the final string is in the DOM from the first render, so a crawler,
+ * a screen reader and a reader with `prefers-reduced-motion` all get the finished word
+ * immediately, and the glyph layer is `aria-hidden` decoration on top of it. The readable
+ * state is also the state the cycle spends most of its time in — the hold is longer than the
+ * decode and the encode put together.
+ *
+ * This is the one looping animation in the app, and it is confined to the home title card,
+ * where there is no data to read behind it (CLAUDE.md § Motion budget).
  *
  * The glyphs are geometric Unicode rather than a font: the Orokin alphabet is DE's art, and
  * mirroring it beyond the icons WFCD already publishes is not something this project does
@@ -17,8 +24,12 @@ import { useEffect, useState } from 'react'
  */
 
 const GLYPHS = '◇◆△▽◁▷○●□■◈⬡⬢⌬⏣⎔'
-/** Per-character reveal step. Fast enough that the whole word settles in well under a second. */
+/** Per-character step. Fast enough that the whole word settles in well under a second. */
 const STEP_MS = 55
+/** How long the word stays readable before it folds back up. */
+const HOLD_MS = 5200
+/** How long it stays scrambled at the bottom of the cycle. A beat, not a pause. */
+const SCRAMBLED_MS = 420
 
 export function OrokinText({
   text,
@@ -36,20 +47,38 @@ export function OrokinText({
     if (reduced) return
 
     setRevealed(0)
-    let index = 0
-    let interval: ReturnType<typeof setInterval> | undefined
 
-    const start = setTimeout(() => {
-      interval = setInterval(() => {
+    // One self-rescheduling timer rather than an interval per phase: the cycle has four
+    // phases with different cadences, and a single handle is the only thing that has to be
+    // cleared on unmount or when the text changes.
+    let timer: ReturnType<typeof setTimeout>
+    let index = 0
+    let decoding = true
+
+    const tick = (): void => {
+      if (decoding) {
         index += 1
         setRevealed(index)
-        if (index >= text.length && interval !== undefined) clearInterval(interval)
-      }, STEP_MS)
-    }, delayMs)
+        if (index >= text.length) {
+          decoding = false
+          timer = setTimeout(tick, HOLD_MS)
+          return
+        }
+      } else {
+        index -= 1
+        setRevealed(index)
+        if (index <= 0) {
+          decoding = true
+          timer = setTimeout(tick, SCRAMBLED_MS)
+          return
+        }
+      }
+      timer = setTimeout(tick, STEP_MS)
+    }
 
+    timer = setTimeout(tick, delayMs)
     return () => {
-      clearTimeout(start)
-      if (interval !== undefined) clearInterval(interval)
+      clearTimeout(timer)
     }
   }, [text, delayMs])
 

@@ -41,7 +41,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   }, [open])
 
   return (
-    <div className="lg:flex">
+    <div className="flex flex-1 flex-col lg:flex-row">
       {/* ---- mobile top bar -------------------------------------------------------- */}
       <div className="sticky top-0 z-30 flex items-center gap-3 border-b border-hairline bg-void-900/95 px-4 py-3 backdrop-blur lg:hidden">
         <button
@@ -94,7 +94,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       </nav>
 
       {/* ---- content --------------------------------------------------------------- */}
-      <div className="min-w-0 flex-1">
+      <div className="flex min-w-0 flex-1 flex-col">
         {/* The palette is the fastest route to a named item, so on desktop it sits at the
             top of the content column rather than inside the nav, where it would be
             competing with the route list for the same glance. */}

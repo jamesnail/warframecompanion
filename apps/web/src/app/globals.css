@@ -193,15 +193,44 @@
 /**
  * A gold sweep that travels once along a rule, the way a HUD element powers on.
  *
- * Purely decorative and purely compositor work: it animates a gradient's position via
- * transform on a pseudo-element, never the width of anything.
+ * Purely decorative and purely compositor work: it animates a gradient's position and its
+ * opacity on a pseudo-element, never the width of anything.
+ *
+ * The band dissolves over the last third of its travel rather than sliding out of an
+ * overflow clip. Both endings are gradual, but a band that is still at full strength when
+ * it reaches the edge reads as a cut.
  */
 @keyframes sweep {
   from {
+    opacity: 1;
     transform: translateX(-100%);
   }
+  65% {
+    opacity: 1;
+  }
   to {
+    opacity: 0;
     transform: translateX(100%);
+  }
+}
+
+/**
+ * The flash itself: the rule brightens from gold-dim to gold and then fades back down.
+ *
+ * This is the half that was missing. The sweep alone brightened the rule for as long as the
+ * band sat over it and then dropped it back to the base gradient the instant the animation
+ * ended — a snap, at the darkest point of the cycle. The ease-out tail is deliberately much
+ * longer than the ramp: the eye forgives a fast brighten and notices a fast dim.
+ */
+@keyframes flare {
+  from {
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
   }
 }
 
@@ -228,6 +257,17 @@
   overflow: hidden;
   background: linear-gradient(to right, var(--color-gold-dim), transparent);
 
+  /* The rule's own colour, at full gold, faded in over the base and back out again. Same
+     gradient geometry as the base so the two are the same object at two brightnesses. */
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to right, var(--color-gold), transparent);
+    animation: flare 1900ms ease-out 200ms 1 backwards;
+  }
+
+  /* The travelling band, on top of the flare. */
   &::after {
     content: '';
     position: absolute;
@@ -252,6 +292,12 @@
 
 html {
   color-scheme: dark;
+  /* One knob for the whole interface. Every size in the app — the type scale, Tailwind's
+     spacing, the max-w-5xl content column — is expressed in rem, so the root font size is
+     the scale factor for all of it. 17px reads at arm's length on a desktop monitor without
+     reflowing anything, because nothing anywhere is sized in px. Change this, not the
+     individual tokens. */
+  font-size: 106.25%;
   /* iOS inflates text in landscape unless this is pinned, which silently breaks the type
      scale and the column widths that depend on it. */
   -webkit-text-size-adjust: 100%;
@@ -375,6 +421,7 @@ button,
     animation: none !important;
   }
 
+  .rule-gold::before,
   .rule-gold::after {
     display: none;
   }

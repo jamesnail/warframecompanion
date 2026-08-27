@@ -73,7 +73,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* One line where it fits. The attribution is a legal requirement and the links are
             the sources, so neither can go — but they are a footnote, not a section, and the
             old block reserved a tenth of the page to say so. */}
-        <footer className="mt-10 border-t border-hairline px-5 py-4 text-xs text-text-faint sm:px-6">
+        <footer className="mt-8 border-t border-hairline px-5 py-3 text-xs text-text-faint sm:px-6">
           <ul className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
             <li className="text-text-faint/80">
               Unofficial fan tool. Warframe and all game data are property of Digital Extremes.
