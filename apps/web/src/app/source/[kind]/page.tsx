@@ -4,8 +4,7 @@ import type { Metadata } from 'next'
 
 import { SourceKind } from '@provenance/core'
 
-import { SearchTrigger } from '@/components/CommandPalette'
-import { Panel, PanelHeader } from '@/components/Primitives'
+import { PAGE, PageHeader, Panel, PanelHeader } from '@/components/Primitives'
 import { getDataset } from '@/lib/data'
 import { socialImage } from '@/config/site'
 import {
@@ -108,21 +107,8 @@ export default async function SourceIndexPage({ params }: { params: Promise<{ ki
   const ordered = [...groups.entries()].sort(([a], [b]) => a.localeCompare(b))
 
   return (
-    <div className="mx-auto max-w-4xl px-5 py-12 sm:px-6 sm:py-16">
-      <nav className="label mb-6 flex items-center justify-between gap-4">
-        <span>
-          <Link href="/" className="transition-colors hover:text-text">
-            Provenance
-          </Link>
-          <span className="mx-2 text-hairline-strong" aria-hidden="true">
-            /
-          </span>
-          <span>{label}</span>
-        </span>
-        <SearchTrigger compact />
-      </nav>
-
-      <h1 className="font-display text-xl font-bold text-energy sm:text-2xl">{plural}</h1>
+    <div className={PAGE}>
+      <PageHeader kicker="Sources" title={plural} />
       <p className="mt-2 max-w-prose text-sm text-text-dim">
         {listed.length.toLocaleString()} {(listed.length === 1 ? label : plural).toLowerCase()}.{' '}
         <Link
@@ -148,11 +134,11 @@ export default async function SourceIndexPage({ params }: { params: Promise<{ ki
             {entries.map(({ source, href, drops }) => (
               <li
                 key={source.id}
-                className="flex min-w-0 items-baseline justify-between gap-3 border-b border-hairline/50 py-2.5 last:border-0 sm:py-2"
+                className="flex min-w-0 items-baseline justify-between gap-3 border-b border-hairline/50 py-2.5 pl-3 last:border-0 sm:py-2 hover-edge hover:bg-void-800"
               >
                 <Link
                   href={href}
-                  className="min-w-0 truncate text-sm text-text transition-colors hover:text-energy"
+                  className="min-w-0 truncate text-sm text-text transition-colors hover:text-gold"
                 >
                   {source.name}
                 </Link>

@@ -405,31 +405,30 @@ line — and it lifts the SSO gate too, since Vercel exempts custom domains from
 
 ### Direction
 
-**Tenno HUD.** The instrument the game would ship if the game shipped one — blue-black plating,
-cyan energy, framed panels. Still an instrument and not a shrine: the discipline below is
-unchanged, and what the theme adds is a vocabulary, not ornament.
+**Orokin.** Warm near-black plating, gold ornament, chamfered framing, a faint hex lattice behind
+everything. The tool as an Orokin instrument rather than a web page about one.
 
-This replaced a deliberately un-Warframe direction on 2026-08-26, at the owner's request. The
-argument it replaced is worth keeping, because it still constrains what the theme is allowed to
-do. It ran: Orokin gold-on-black is what every Warframe fan site already does, the generic "dark
-dashboard with an acid accent" is what every AI-generated data tool does, and the way to avoid
-both is to look like a precision readout rather than a tribute.
+This is the third direction, and the history matters because it is the argument that keeps
+getting tested. The original was deliberately *un*-Warframe: it held that Orokin gold-on-black is
+what every fan site already does, that the generic "dark dashboard with an acid accent" is what
+every AI-generated data tool does, and that the way to avoid both was to look like a precision
+readout rather than a tribute. On 2026-08-26 that gave way to a Tenno HUD palette; later the same
+day the owner asked for the full Orokin treatment — new palette, new layout, hover motion, a
+background — which is what this section now describes.
 
-Two of those three claims survive intact. The theme leans on the *game's own interface* — its
-menus, its mission HUD, its arsenal screens — rather than on Orokin gold ornament, so it lands
-somewhere neither fan-site pastiche nor default dark mode occupies. What it gives up is the
-insistence that the palette be neutral about its subject, and that was always the weakest part
-of the argument: a tool used exclusively with Warframe running in the other window has nothing
-to gain from pretending otherwise.
+The part of the original argument that was wrong: that committing to the subject costs
+seriousness. It does not. A tool used exclusively with Warframe running in the other window has
+nothing to gain from pretending otherwise, and "looks like nothing in particular" was never
+actually a goal anyone had.
 
-What the direction still forbids, unchanged:
+The part that was right, and still governs every decision below:
 
-- The accent appears **once per view**, on the thing you searched for. Cyan is not a decorative
-  wash. If a screen has two things glowing, one of them is wrong.
-- No ambient motion, no glow pulses, no scanlines, no chrome. The motion budget below is the
-  entire list and the theme did not extend it.
-- Density and legibility outrank flavour, always. Every colour below is contrast-measured
-  (§ Palette), and the one that failed was changed rather than kept for looks.
+- The accent appears **once per view**, on the thing you searched for. That is why gold has two
+  weights (§ Palette): the moment ornament and accent share a value, "important" stops meaning
+  anything. If a screen has two things glowing, one of them is wrong.
+- Density and legibility outrank flavour, always. Every colour is contrast-measured before it
+  ships, and the ones that fail get changed rather than kept for looks.
+- Nothing moves unless the reader moved it. Hover responds; the page does not perform.
 
 ### Logo and icons
 
@@ -443,6 +442,24 @@ owner, not something to decide in a build script.
 16px, which is the size that actually matters for a favicon; `opengraph-image.png` uses the
 whole lockup because 1200×630 can carry it. Regeneration is documented in `assets/README.md`.
 
+### Layout
+
+A persistent sidebar on `lg` and up, a top bar and drawer below it. The sidebar carries routes
+only — never a filtered view of one, never a surface that has not shipped — because navigation is
+used dozens of times a session and every extra row costs the reader something. The home page keeps
+the opposite job: it is the full directory, including the pre-filtered `/browse` views and the
+surfaces still to come.
+
+Every route opens with the same hero: kicker, title in accent gold, optional lede, actions, and a
+gold rule that fades out to the right. Below it, where a page has a number worth leading with, come
+summary cards — and only then the dense table. That ordering is the point of the restructure: the
+question people arrive with is "can I farm this right now", and the old layout made them read a
+39-row table to find out that 2 rows mattered.
+
+The breadcrumb and the per-page search trigger both went away with this. The shell carries the
+palette on every route, and the sidebar makes the breadcrumb's parent link redundant on all but
+the source detail pages, which keep theirs as the kicker.
+
 ### Signature element
 
 **The drop-chain trace.** A rendered path from item back to the mission you actually queue, drawn
@@ -453,48 +470,66 @@ be quiet enough to let it be the memorable thing.
 
 ### Palette
 
-Blue-black plating, cyan energy. Defined in OKLCH so the rarity ramp can hold constant chroma
-and lightness across hues; those four colours then read as one measurement scale instead of
-four unrelated tags. `globals.css` is authoritative — the block below is the summary.
+Warm near-black plating, gold ornament. Defined in OKLCH so the rarity ramp can hold constant
+chroma and lightness across hues; those four colours then read as one measurement scale instead
+of four unrelated tags. `globals.css` is authoritative — the block below is the summary.
 
 ```css
---void-950:        oklch(0.10  0.022 252);  /* wells, inset, code */
---void-900:        oklch(0.145 0.028 252);  /* page */
---void-800:        oklch(0.19  0.034 250);  /* panel */
---void-700:        oklch(0.245 0.040 248);  /* raised / table header */
---void-600:        oklch(0.31  0.045 246);  /* hover */
---hairline:        oklch(0.36  0.055 225);  /* 1px structure, cyan-cast */
---hairline-strong: oklch(0.50  0.075 215);  /* corner braces, header rules */
---text:            oklch(0.95  0.012 230);
---text-dim:        oklch(0.75  0.025 225);
---text-faint:      oklch(0.69  0.030 222);
---energy:          oklch(0.84  0.135 205);  /* the one accent. use once per view. */
+--void-950:        oklch(0.09  0.012 70);  /* wells, inset, code */
+--void-900:        oklch(0.135 0.014 72);  /* page */
+--void-800:        oklch(0.18  0.017 74);  /* panel */
+--void-700:        oklch(0.235 0.020 76);  /* raised / table header */
+--void-600:        oklch(0.30  0.024 78);  /* hover */
+--hairline:        oklch(0.35  0.030 80);  /* 1px structure */
+--hairline-strong: oklch(0.50  0.055 82);
+--text:            oklch(0.95  0.014 85);
+--text-dim:        oklch(0.76  0.022 82);
+--text-faint:      oklch(0.70  0.026 80);
+--gold:            oklch(0.84  0.140 88);  /* accent. once per view. */
+--gold-dim:        oklch(0.62  0.075 86);  /* ornament. never text. */
 
 /* rarity ramp — constant C and L, hue only varies */
---r-common:    oklch(0.72 0.10 300);
+--r-common:    oklch(0.72 0.10 250);
 --r-uncommon:  oklch(0.72 0.10 150);
---r-rare:      oklch(0.72 0.10  85);
+--r-rare:      oklch(0.72 0.11 320);
 --r-legendary: oklch(0.72 0.10  20);
 ```
 
 Three decisions in there are load-bearing:
 
-**The accent is no longer named `orokin`.** It was gold at 85°, which is exactly where the rarity
-ramp puts *rare*. One colour meaning both "this is a rare drop" and "this is the thing you looked
-up" is one job too many, and on an item page the two uses sat inches apart. Gold now belongs to
-the ramp alone; the accent moved to energy cyan and the token moved with it, since a token called
-`orokin` holding a cyan is a comment that lies. 75 references across 24 files were renamed.
+**Gold has two weights.** This is what makes an all-gold theme survive the once-per-view rule.
+`gold` is the accent and appears on one thing per screen; `gold-dim` is ornament — frames, corner
+braces, rules, the panel-header diamond — and is deliberately too low in contrast to be usable as
+text, so it cannot quietly become one. A single gold value was tried first and made every panel
+header shout as loudly as the page title.
 
-**Common moved off blue.** At hue 250 it sat 45° from the cyan accent, and at the 6px the rarity
-dot actually renders, 45° of hue separation is not separation — the two read as one family. Violet
-at 300 is unambiguous and keeps the four ramp hues roughly evenly spread.
+**"Rare" gave up gold rather than the theme keeping it.** Rare sat at hue 85, which is exactly
+where Orokin gold lives. A page where everything is gold cannot also use gold to mean "rare", so
+rare moved to magenta at 320 and the other three ramp hues stayed put. The ramp lost a hue it had
+a claim to; the alternative was an accent that meant two things at once, which is the failure this
+project has now made twice and does not intend to make again.
 
-**`text-faint` sits at L 0.69, not the 0.67 the palette was drafted with.** At 0.67 it measured
-4.42:1 against `void-600`, the row-hover surface — a fail, and one a screenshot review would
-never have caught, because it only exists under the cursor. Every foreground/surface pairing in
-the theme is machine-measured against WCAG AA; the tightest surviving pairing is that same one at
-4.77:1. Flavour does not get to override this, which is why the number moved and the colour did
-not.
+**The surfaces are warm, not neutral.** Gold on a neutral or cool black reads as brass. The void
+ramp carries a low warm chroma (hue 70–78) specifically so the ornament reads as gold, and that is
+also what keeps a near-black page from looking like default dark mode.
+
+Contrast is machine-measured before anything ships, not eyeballed. Under this palette the tightest
+text pairing is `text-faint` on `void-600` — the row-hover surface — at **5.11:1**, and `vaulted`
+content composites to 6.12:1 on a panel. `gold-dim` is the sole exemption and is ornament-only,
+which is why it is a separate token rather than an opacity applied to `gold`: a token you cannot
+put text on should not look like one you can.
+
+### Background
+
+A hex lattice — chamfered hexagons with radial spurs — drawn once as an inline SVG and tiled at
+120px on `body::before`, at **0.055 opacity**. Fixed rather than scrolling, so it never repaints,
+and `pointer-events: none` so it never hit-tests. About 400 bytes, no network request, no decode.
+
+The opacity is the entire design decision. It is deliberately at the edge of perceptible: this is
+a reference tool read for long stretches with the game running, and a background that competes
+with a drop-rate column is a defect no matter how good it looks in a screenshot. It survives
+`prefers-reduced-motion` because it is texture, not motion — a reader who asked for less movement
+did not ask for less texture.
 
 ### Type
 
@@ -530,9 +565,22 @@ Scale: 12 / 14 / 16 / 20 / 28 / 40. Six sizes, no more.
 
 ### Motion
 
-Three moments, total: page transitions via the View Transitions API, filter result reflow, and the
-drop-chain trace drawing in on item pages (~400ms, once). Nothing ambient. Everything disabled
-under `prefers-reduced-motion`.
+Page transitions via the View Transitions API, filter result reflow, the drop-chain trace drawing
+in on item pages (~400ms, once), and hover feedback. Nothing ambient. Everything disabled under
+`prefers-reduced-motion`.
+
+Hover is one duration and one curve for the whole app — `--duration-hover` (150ms) and
+`--ease-orokin` — because feedback that varies in speed between components reads as jitter rather
+than as one interface. Two treatments:
+
+- **`hover-lift`** on tiles and controls: a 2px rise plus a warmer frame.
+- **`hover-edge`** on block rows: a gold bar wipes in from the top of the row's leading edge, via
+  `scaleY` on a pre-placed element so the animation is compositor-only.
+
+Table rows and virtualised rows get the background change only, not the edge. `::before` on a
+`<tr>` is unreliable across engines, and `hover-edge` sets `position: relative` — which on rows
+absolutely positioned by TanStack Virtual would collapse the entire list to the top of its
+container. Both are the kind of thing that looks fine in a screenshot and is broken in use.
 
 ---
 

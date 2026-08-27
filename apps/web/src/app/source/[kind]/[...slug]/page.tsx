@@ -5,8 +5,7 @@ import type { Metadata } from 'next'
 import { expectedRuns, perRunChance, stageLabel } from '@provenance/core'
 import type { Source } from '@provenance/core'
 
-import { SearchTrigger } from '@/components/CommandPalette'
-import { Panel, PanelHeader, Stat } from '@/components/Primitives'
+import { PAGE, PageHeader, Panel, PanelHeader, Stat } from '@/components/Primitives'
 import { getDataset } from '@/lib/data'
 import { groupDrops, type DropGroup } from '@/lib/source-drops'
 import { socialImage } from '@/config/site'
@@ -110,26 +109,18 @@ export default async function SourcePage({
   const best = edges.reduce((top, edge) => Math.max(top, perRunChance(edge)), 0)
 
   return (
-    <div className="mx-auto max-w-4xl px-5 py-12 sm:px-6 sm:py-16">
-      <nav className="label mb-6 flex items-center justify-between gap-4">
-        <span>
-          <Link href="/" className="transition-colors hover:text-text">
-            Provenance
-          </Link>
-          <span className="mx-2 text-hairline-strong" aria-hidden="true">
-            /
-          </span>
-          {/* The index, not /browse?kind= — this one is prerendered, so it is a link a
-              crawler can follow back up. */}
+    <div className={PAGE}>
+      <PageHeader
+        kicker={
+          /* The index, not /browse?kind= — this one is prerendered, so it is a link a
+             crawler can follow back up. */
           <Link href={`/source/${source.kind}`} className="transition-colors hover:text-text">
             {SOURCE_KIND_LABEL[source.kind]}
           </Link>
-        </span>
-        <SearchTrigger compact />
-      </nav>
-
-      <h1 className="font-display text-xl font-bold text-energy sm:text-2xl">{source.name}</h1>
-      {meta.length > 0 && <p className="mt-1.5 text-sm text-text-dim">{meta.join(' · ')}</p>}
+        }
+        title={source.name}
+        {...(meta.length > 0 ? { lede: <p>{meta.join(' · ')}</p> } : {})}
+      />
 
       {edges.length === 0 ? (
         <p className="mt-6 max-w-prose text-sm text-text-dim">No drops recorded for this source.</p>
@@ -222,12 +213,12 @@ function DropTable({
             {group.rows.map((row, index) => (
               <tr
                 key={`${row.itemId}-${String(index)}`}
-                className="border-b border-hairline/50 last:border-0"
+                className="border-b border-hairline/50 last:border-0 transition-colors hover:bg-void-800"
               >
                 <th scope="row" className="px-3 py-3 text-left font-normal sm:px-5 sm:py-2.5">
                   <Link
                     href={`/item/${row.itemId}`}
-                    className="text-text transition-colors hover:text-energy"
+                    className="text-text transition-colors hover:text-gold"
                   >
                     {row.itemName}
                   </Link>

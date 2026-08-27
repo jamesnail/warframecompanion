@@ -4,6 +4,7 @@ import { Archivo, IBM_Plex_Mono, Inter_Tight } from 'next/font/google'
 import { NuqsAdapter } from 'nuqs/adapters/next/app'
 
 import { CommandPalette } from '@/components/CommandPalette'
+import { Shell } from '@/components/Shell'
 import { attributions, site, socialImage } from '@/config/site'
 import './globals.css'
 
@@ -65,6 +66,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* CLAUDE.md constraint 5: the URL is the source of truth for every filter. nuqs
             needs its adapter above anything that reads or writes a search param. */}
         <NuqsAdapter>
+        <Shell>
         <main className="flex-1">{children}</main>
         {/* Mounted once, globally, so the shortcut works on every page. */}
         <CommandPalette />
@@ -76,19 +78,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1">
             {/* First, because it is the page that explains the rest of this footer. */}
             <li>
-              <Link className="underline underline-offset-4 transition-colors hover:text-text" href="/about">
+              <Link className="underline underline-offset-4 transition-colors hover:text-gold" href="/about">
                 About the data
               </Link>
             </li>
             {attributions.map((a) => (
               <li key={a.url}>
-                <a className="underline underline-offset-4 transition-colors hover:text-text" href={a.url}>
+                <a className="underline underline-offset-4 transition-colors hover:text-gold" href={a.url}>
                   {a.name}
                 </a>
               </li>
             ))}
           </ul>
         </footer>
+        </Shell>
         </NuqsAdapter>
       </body>
     </html>

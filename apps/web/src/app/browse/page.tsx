@@ -1,9 +1,8 @@
 import { Suspense } from 'react'
-import Link from 'next/link'
 import type { Metadata } from 'next'
 
-import { SearchTrigger } from '@/components/CommandPalette'
 import { BrowseTable } from '@/components/BrowseTable'
+import { PAGE, PageHeader } from '@/components/Primitives'
 
 export const metadata: Metadata = {
   title: 'Browse every drop',
@@ -24,21 +23,8 @@ export const metadata: Metadata = {
  */
 export default function BrowsePage() {
   return (
-    <div className="mx-auto max-w-6xl px-5 py-12 sm:px-6 sm:py-16">
-      <nav className="label mb-6 flex items-center justify-between gap-4">
-        <span>
-          <Link href="/" className="transition-colors hover:text-text">
-            Provenance
-          </Link>
-          <span className="mx-2 text-hairline-strong" aria-hidden="true">
-            /
-          </span>
-          <span>Browse</span>
-        </span>
-        <SearchTrigger compact />
-      </nav>
-
-      <h1 className="font-display text-xl font-bold text-energy sm:text-2xl">Browse</h1>
+    <div className={PAGE}>
+      <PageHeader kicker="Items" title="Browse" />
 
       <div className="mt-8">
         <Suspense fallback={<p className="label">Loading…</p>}>

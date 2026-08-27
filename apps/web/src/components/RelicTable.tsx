@@ -120,7 +120,7 @@ export function RelicTable({ names }: { names: Record<string, string> }) {
             onChange={(event) => void setFilters({ q: event.target.value })}
             placeholder="Search a relic, or a part inside one…"
             // text-base: iOS zooms any focused input under 16px and does not zoom back.
-            className="chamfer-sm w-full border border-hairline bg-void-900 px-3 py-2.5 text-base text-text outline-none transition-colors focus:border-energy placeholder:text-text-faint sm:text-sm"
+            className="chamfer-sm w-full border border-hairline bg-void-900 px-3 py-2.5 text-base text-text outline-none transition-colors focus:border-gold placeholder:text-text-faint sm:text-sm"
           />
         </label>
 
@@ -139,7 +139,7 @@ export function RelicTable({ names }: { names: Record<string, string> }) {
                   }}
                   className={`chamfer-sm border px-2.5 py-1 text-xs transition-colors ${
                     on
-                      ? 'border-energy bg-void-700 text-energy'
+                      ? 'border-gold bg-void-700 text-gold'
                       : 'border-hairline text-text-dim hover:border-hairline-strong hover:text-text'
                   }`}
                 >
@@ -158,7 +158,7 @@ export function RelicTable({ names }: { names: Record<string, string> }) {
               type="checkbox"
               checked={filters.farmable}
               onChange={(event) => void setFilters({ farmable: event.target.checked })}
-              className="size-4 accent-energy"
+              className="size-4 accent-gold"
             />
             Farmable now
             {state.status === 'ready' && (
@@ -203,7 +203,7 @@ export function RelicTable({ names }: { names: Record<string, string> }) {
                 return (
                   <div
                     key={virtual.key}
-                    className="absolute inset-x-0 top-0 border-b border-hairline/50 px-3 sm:px-5"
+                    className="absolute inset-x-0 top-0 border-b border-hairline/50 px-3 sm:px-5 transition-colors hover:bg-void-800"
                     style={{
                       height: `${String(ROW_HEIGHT)}px`,
                       transform: `translateY(${String(virtual.start)}px)`,
@@ -231,7 +231,7 @@ function Row({ row, query }: { row: RelicRow; query: string }) {
       <div className="flex flex-wrap items-baseline justify-between gap-x-3">
         <Link
           href={`/item/${row.id}`}
-          className="min-w-0 truncate text-sm text-text transition-colors hover:text-energy"
+          className="min-w-0 truncate text-sm text-text transition-colors hover:text-gold"
         >
           {row.name}
         </Link>
@@ -246,7 +246,7 @@ function Row({ row, query }: { row: RelicRow; query: string }) {
             <RarityTag rarity="rare" />
             <Link
               href={`/item/${row.rare.itemId}`}
-              className="min-w-0 truncate text-text-dim transition-colors hover:text-energy"
+              className="min-w-0 truncate text-text-dim transition-colors hover:text-gold"
             >
               {row.rare.name}
             </Link>
@@ -278,7 +278,7 @@ function SortControl({
           const [sort, dir] = event.target.value.split(':')
           void setFilters({ sort, dir })
         }}
-        className="chamfer-sm border border-hairline bg-void-900 px-2 py-1.5 text-sm text-text outline-none focus:border-energy"
+        className="chamfer-sm border border-hairline bg-void-900 px-2 py-1.5 text-sm text-text outline-none focus:border-gold"
       >
         <option value="name:asc">Name</option>
         <option value="tier:asc">Tier</option>

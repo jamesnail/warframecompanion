@@ -48,7 +48,7 @@ export function RecipeTable({ rows, itemName }: { rows: RecipeRow[]; itemName: s
       />
 
       {ready && progress.complete ? (
-        <p className="border-b border-hairline px-3 py-2.5 text-sm text-energy sm:px-5">
+        <p className="border-b border-hairline px-3 py-2.5 text-sm text-gold sm:px-5">
           Every component owned. Ready to build.
         </p>
       ) : (
@@ -91,7 +91,7 @@ export function RecipeTable({ rows, itemName }: { rows: RecipeRow[]; itemName: s
             {rows.map((row) => {
               const have = ready && owned.has(row.itemId)
               return (
-                <tr key={row.itemId} className="border-b border-hairline/50 last:border-0">
+                <tr key={row.itemId} className="border-b border-hairline/50 last:border-0 transition-colors hover:bg-void-800">
                   <td className="py-3 pl-3 pr-1 sm:py-2.5 sm:pl-5">
                     <input
                       type="checkbox"
@@ -103,13 +103,13 @@ export function RecipeTable({ rows, itemName }: { rows: RecipeRow[]; itemName: s
                       // The name is in the row already, but a bare checkbox is announced as
                       // "checkbox, unchecked" with no indication of what it governs.
                       aria-label={`Owned: ${row.name}`}
-                      className="size-4 accent-energy disabled:opacity-40"
+                      className="size-4 accent-gold disabled:opacity-40"
                     />
                   </td>
                   <th scope="row" className="px-1 py-3 text-left font-normal sm:py-2.5">
                     <Link
                       href={`/item/${row.itemId}`}
-                      className={`transition-colors hover:text-energy ${
+                      className={`transition-colors hover:text-gold ${
                         have ? 'text-text-faint line-through' : 'text-text'
                       }`}
                     >
@@ -185,7 +185,7 @@ export function OwnedToggle({ itemId, itemName }: { itemId: string; itemName: st
       }}
       className={`chamfer-sm border px-3 py-1.5 text-xs transition-colors disabled:opacity-40 ${
         have
-          ? 'border-energy bg-void-700 text-energy'
+          ? 'border-gold bg-void-700 text-gold'
           : 'border-hairline text-text-dim hover:border-hairline-strong hover:text-text'
       }`}
     >

@@ -105,7 +105,7 @@ export function RivenTable() {
             onChange={(event) => void setFilters({ q: event.target.value })}
             placeholder="Search any weapon — variants find their riven…"
             // text-base: iOS zooms any focused input under 16px and does not zoom back.
-            className="chamfer-sm w-full border border-hairline bg-void-900 px-3 py-2.5 text-base text-text outline-none transition-colors focus:border-energy placeholder:text-text-faint sm:text-sm"
+            className="chamfer-sm w-full border border-hairline bg-void-900 px-3 py-2.5 text-base text-text outline-none transition-colors focus:border-gold placeholder:text-text-faint sm:text-sm"
           />
         </label>
 
@@ -128,7 +128,7 @@ export function RivenTable() {
                   }
                   className={`chamfer-sm border px-2.5 py-1 text-xs transition-colors ${
                     on
-                      ? 'border-energy bg-void-700 text-energy'
+                      ? 'border-gold bg-void-700 text-gold'
                       : 'border-hairline text-text-dim hover:border-hairline-strong hover:text-text'
                   }`}
                 >
@@ -145,7 +145,7 @@ export function RivenTable() {
               type="checkbox"
               checked={filters.priced}
               onChange={(event) => void setFilters({ priced: event.target.checked })}
-              className="size-4 accent-energy"
+              className="size-4 accent-gold"
             />
             Traded this week
           </label>
@@ -155,7 +155,7 @@ export function RivenTable() {
               type="checkbox"
               checked={filters.multi}
               onChange={(event) => void setFilters({ multi: event.target.checked })}
-              className="size-4 accent-energy"
+              className="size-4 accent-gold"
             />
             Covers several weapons
           </label>
@@ -166,7 +166,7 @@ export function RivenTable() {
             <select
               value={String(filters.trades)}
               onChange={(event) => void setFilters({ trades: Number(event.target.value) })}
-              className="chamfer-sm border border-hairline bg-void-900 px-2 py-1.5 text-sm text-text outline-none focus:border-energy"
+              className="chamfer-sm border border-hairline bg-void-900 px-2 py-1.5 text-sm text-text outline-none focus:border-gold"
             >
               {[0, 3, 10, 25, 100].map((value) => (
                 <option key={value} value={value}>
@@ -234,7 +234,7 @@ function FamilyRow({ family, query }: { family: RivenFamily; query: string }) {
   const hits = matchedWeapons(family, query).filter((name) => name !== family.name)
 
   return (
-    <tr className="border-b border-hairline/50 last:border-0">
+    <tr className="border-b border-hairline/50 last:border-0 transition-colors hover:bg-void-800">
       <th scope="row" className="px-2 py-3 text-left font-normal sm:px-5 sm:py-2.5">
         <span className="text-text">{family.name}</span>
         <span className="label ml-2">{family.rivenType}</span>
@@ -253,7 +253,7 @@ function FamilyRow({ family, query }: { family: RivenFamily; query: string }) {
         </span>
 
         {hits.length > 0 && (
-          <span className="mt-0.5 block text-xs text-energy">matched {hits.join(', ')}</span>
+          <span className="mt-0.5 block text-xs text-gold">matched {hits.join(', ')}</span>
         )}
       </th>
 
@@ -305,7 +305,7 @@ function WeaponName({ weapon }: { weapon: RivenFamily['weapons'][number] }) {
   return (
     <Link
       href={`/item/${weapon.itemId}`}
-      className="underline decoration-hairline-strong underline-offset-2 transition-colors hover:text-energy"
+      className="underline decoration-hairline-strong underline-offset-2 transition-colors hover:text-gold"
     >
       {label}
     </Link>

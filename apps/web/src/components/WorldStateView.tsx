@@ -162,7 +162,7 @@ export function WorldStateView({ nodes }: { nodes: NodeIndex }) {
                 {/* The tier is the point: an open Lith fissure is how you crack Lith relics. */}
                 <Link
                   href={`/relics?q=${encodeURIComponent(group.tier)}&farmable=true`}
-                  className="font-display text-sm font-semibold text-text transition-colors hover:text-energy"
+                  className="font-display text-sm font-semibold text-text transition-colors hover:text-gold"
                 >
                   {group.tier}
                 </Link>
@@ -203,7 +203,7 @@ export function WorldStateView({ nodes }: { nodes: NodeIndex }) {
             {state.invasions.map((invasion) => (
               <li
                 key={invasion.id}
-                className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-hairline/50 px-3 py-2.5 last:border-0 sm:px-5"
+                className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-hairline/50 px-3 py-2.5 last:border-0 sm:px-5 hover-edge hover:bg-void-800"
               >
                 <NodeLink node={invasion.node} planet={invasion.planet} sourceId={invasion.sourceId} />
                 <span className="text-xs text-text-faint">
@@ -375,7 +375,7 @@ function NodeLink({
   return (
     <Link
       href={`/source/${kind}/${rest.split('/').map(encodeURIComponent).join('/')}`}
-      className="text-text underline decoration-hairline-strong underline-offset-2 transition-colors hover:text-energy"
+      className="text-text underline decoration-hairline-strong underline-offset-2 transition-colors hover:text-gold"
     >
       {label}
     </Link>

@@ -13,8 +13,15 @@ import {
 } from '@provenance/core'
 import type { Refinement, RelicRarity } from '@provenance/core'
 
-import { SearchTrigger } from '@/components/CommandPalette'
-import { Panel, PanelHeader, RarityTag, Stat } from '@/components/Primitives'
+import {
+  CONTROL,
+  PAGE,
+  PageHeader,
+  Panel,
+  PanelHeader,
+  RarityTag,
+  SummaryCard,
+} from '@/components/Primitives'
 import { OwnedToggle, RecipeTable } from '@/components/RecipeTable'
 import { RivenPanel } from '@/components/RivenPanel'
 import { getDataset } from '@/lib/data'
@@ -203,70 +210,62 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
     .sort((a, b) => a.name.localeCompare(b.name))
 
   return (
-    <div className="mx-auto max-w-6xl px-5 py-12 sm:px-6 sm:py-16">
-      <nav className="label mb-6 flex items-center justify-between gap-4">
-        <span>
-          <Link href="/" className="transition-colors hover:text-text">
-            Provenance
-          </Link>
-          <span className="mx-2 text-hairline-strong" aria-hidden="true">
-            /
-          </span>
-          <span>{item.category}</span>
-        </span>
-        {/* A visible affordance: a keyboard shortcut nobody can see is not a feature. */}
-        <SearchTrigger compact />
-      </nav>
+    <div className={PAGE}>
+      <PageHeader
+        kicker={item.category}
+        title={item.name}
+        lede={
+          /* Where this piece ends up. Capped, because a shared ingredient builds into
+             almost everything — Orokin Cell is a component of 177 sets, and listing them
+             would bury the page under a fact nobody came for. */
+          partOf.length > 0 ? (
+            <p>
+              Part of{' '}
+              {partOf.slice(0, PART_OF_LIMIT).map((set, index) => (
+                <span key={set.id}>
+                  {index > 0 && ', '}
+                  <Link
+                    href={`/item/${set.id}`}
+                    className="text-text transition-colors hover:text-gold"
+                  >
+                    {set.name}
+                  </Link>
+                </span>
+              ))}
+              {partOf.length > PART_OF_LIMIT &&
+                ` and ${(partOf.length - PART_OF_LIMIT).toLocaleString()} more`}
+              .
+            </p>
+          ) : undefined
+        }
+        actions={
+          /* The two things you can DO with this item. Owned-tracking only where it means
+             something — ticking a resource you have 40,000 of is not a fact worth storing;
+             on a part that completes a set it is the whole point. */
+          partOf.length > 0 || item.marketSlug !== undefined ? (
+            <>
+              {partOf.length > 0 && <OwnedToggle itemId={item.id} itemName={item.name} />}
 
-      <h1 className="font-display text-xl font-bold text-energy sm:text-2xl">{item.name}</h1>
-
-      {/* Where this piece ends up. Capped, because a shared ingredient builds into almost
-          everything — Orokin Cell is a component of 177 sets, and listing them would bury
-          the page under a fact nobody came for. */}
-      {partOf.length > 0 && (
-        <p className="mt-2 text-sm text-text-dim">
-          Part of{' '}
-          {partOf.slice(0, PART_OF_LIMIT).map((set, index) => (
-            <span key={set.id}>
-              {index > 0 && ', '}
-              <Link href={`/item/${set.id}`} className="text-text transition-colors hover:text-energy">
-                {set.name}
-              </Link>
-            </span>
-          ))}
-          {partOf.length > PART_OF_LIMIT &&
-            ` and ${(partOf.length - PART_OF_LIMIT).toLocaleString()} more`}
-          .
-        </p>
-      )}
-
-      {/* The two things you can DO with this item, grouped. Owned-tracking only where it
-          means something — ticking a resource you have 40,000 of is not a fact worth
-          storing; on a part that completes a set it is the whole point. */}
-      {(partOf.length > 0 || item.marketSlug !== undefined) && (
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          {partOf.length > 0 && <OwnedToggle itemId={item.id} itemName={item.name} />}
-
-          {/* A link, not a price. Live listings would need a proxy — warframe.market sends
-              no CORS headers — and a number that is five minutes stale is worth less than
-              the page showing every open order. The slug is resolved at build time against
-              their own catalogue, so this link is never a guess. */}
-          {item.marketSlug !== undefined && (
-            <a
-              href={`https://warframe.market/items/${item.marketSlug}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="chamfer-sm border border-hairline px-3 py-1.5 text-xs text-text-dim transition-colors hover:border-hairline-strong hover:text-text"
-            >
-              Trade on warframe.market
-              <span aria-hidden="true" className="ml-1">
-                ↗
-              </span>
-              <span className="sr-only"> (opens in a new tab)</span>
-            </a>
-          )}
-        </div>
-      )}
+              {/* A link, not a price. Live listings would need a proxy — warframe.market
+                  sends no CORS headers — and a number that is five minutes stale is worth
+                  less than the page showing every open order. The slug is resolved at build
+                  time against their own catalogue, so this link is never a guess. */}
+              {item.marketSlug !== undefined && (
+                <a
+                  href={`https://warframe.market/items/${item.marketSlug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={CONTROL}
+                >
+                  Trade on warframe.market
+                  <span aria-hidden="true">↗</span>
+                  <span className="sr-only"> (opens in a new tab)</span>
+                </a>
+              )}
+            </>
+          ) : undefined
+        }
+      />
 
       {recipe.length > 0 && bestDirect === undefined && relicPaths.length === 0 ? (
         // An assembled item is built, not farmed. Saying "no source found" would be wrong,
@@ -275,24 +274,40 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
           Built, not dropped. Farm the {recipe.length} components below, then craft it.
         </p>
       ) : bestDirect !== undefined ? (
-        <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-3">
+        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
           {/* Always "runs", never "kills". An enemy drop is still collected by running the
               mission the enemy spawns in — nobody queues "one Corrupted Heavy Gunner" — so
               the run is the unit every source has in common, and switching nouns per source
               kind made the same statistic incomparable between two pages. */}
-          <Stat
+          <SummaryCard
             label="Best chance / run"
-            value={(bestDirect.p * 100).toFixed(2)}
-            unit="%"
-            accent
+            value={`${(bestDirect.p * 100).toFixed(2)}%`}
+            tone="accent"
           />
-          <Stat label="Expected runs" value={expectedRuns(bestDirect.p).toFixed(0)} />
-          <Stat label="95% confident" value={String(runsForConfidence(bestDirect.p))} unit="runs" />
+          <SummaryCard label="Expected runs" value={expectedRuns(bestDirect.p).toFixed(0)} />
+          <SummaryCard
+            label="95% confident"
+            value={String(runsForConfidence(bestDirect.p))}
+            detail="runs"
+          />
         </div>
       ) : relicPaths.length > 0 ? (
-        // Whether it can be farmed TODAY is the first thing a prime part has to answer, and
-        // "found in 39 relics" answers it wrongly when 37 of them are out of rotation.
-        <p className="mt-6 max-w-prose text-sm text-text-dim">
+        <>
+        {/* Whether it can be farmed TODAY is the first thing a prime part has to answer,
+            and "found in 39 relics" answers it wrongly when 37 of them are out of
+            rotation. So the farmable count is its own figure, and it is the one that
+            changes colour. */}
+        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <SummaryCard label="In relics" value={relicPaths.length.toLocaleString()} />
+          <SummaryCard
+            label="Farmable now"
+            value={(relicPaths.length - vaultedCount).toLocaleString()}
+            tone={relicPaths.length - vaultedCount > 0 ? 'accent' : 'warn'}
+            detail={relicPaths.length - vaultedCount > 0 ? 'in rotation' : 'all vaulted'}
+          />
+          <SummaryCard label="Vaulted" value={vaultedCount.toLocaleString()} />
+        </div>
+        <p className="mt-4 max-w-prose text-sm text-text-dim">
           {vaultedCount === relicPaths.length ? (
             <>
               <span className="text-r-legendary">Vaulted.</span> No relic currently in rotation
@@ -313,6 +328,7 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
             </>
           )}
         </p>
+        </>
       ) : vendorOfferings.length > 0 ? (
         // A guaranteed purchase is a source; it just isn't a farm.
         <p className="mt-6 max-w-prose text-sm text-text-dim">
@@ -340,9 +356,17 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
       {riven !== undefined && <RivenPanel family={riven} weaponId={item.id} />}
 
       {/* Direct sources and relics answer the same question two ways, so they are read
-          together rather than one scrolled past to reach the other. */}
+          together rather than one scrolled past to reach the other.
+
+          Two columns only when there are two things to show. Most items have one or the
+          other, and an unconditional two-column grid rendered the single panel at half
+          width with dead space beside it. */}
       {(directEdges.length > 0 || relicPaths.length > 0) && (
-        <div className="mt-10 grid items-start gap-6 lg:grid-cols-2">
+        <div
+          className={`mt-8 grid items-start gap-6 ${
+            directEdges.length > 0 && relicPaths.length > 0 ? 'lg:grid-cols-2' : ''
+          }`}
+        >
           {directEdges.length > 0 && (
             <Panel className="min-w-0">
               <PanelHeader
@@ -392,12 +416,12 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
                       return (
                         <tr
                           key={`${edge.sourceId}-${String(index)}`}
-                          className="border-b border-hairline/50 last:border-0"
+                          className="border-b border-hairline/50 last:border-0 transition-colors hover:bg-void-800"
                         >
                           <th scope="row" className="px-3 py-3 sm:px-5 sm:py-2.5 text-left font-normal">
                             <Link
                               href={sourceHref(edge.sourceId, hasItem)}
-                              className="text-text transition-colors hover:text-energy"
+                              className="text-text transition-colors hover:text-gold"
                             >
                               {source?.name ?? edge.sourceId}
                             </Link>
@@ -476,7 +500,7 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
                         <th scope="row" className="px-3 py-3 sm:px-5 sm:py-2.5 text-left font-normal">
                           <Link
                             href={`/item/${path.relicId}`}
-                            className="text-text transition-colors hover:text-energy"
+                            className="text-text transition-colors hover:text-gold"
                           >
                             {path.relicName}
                           </Link>
@@ -521,11 +545,11 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
             {vendorOfferings.map(({ edge, source }, index) => (
               <li
                 key={`${edge.sourceId}-${String(index)}`}
-                className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-hairline/50 px-3 py-3 sm:px-5 text-sm last:border-0"
+                className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-hairline/50 px-3 py-3 sm:px-5 text-sm last:border-0 hover-edge hover:bg-void-800"
               >
                 <Link
                   href={sourceHref(edge.sourceId, hasItem)}
-                  className="text-text transition-colors hover:text-energy"
+                  className="text-text transition-colors hover:text-gold"
                 >
                   {source?.name ?? edge.sourceId}
                 </Link>
@@ -593,11 +617,11 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
               </thead>
               <tbody>
                 {relicContents.map((reward) => (
-                  <tr key={reward.itemId} className="border-b border-hairline/50 last:border-0">
+                  <tr key={reward.itemId} className="border-b border-hairline/50 last:border-0 transition-colors hover:bg-void-800">
                     <th scope="row" className="px-3 py-3 sm:px-5 sm:py-2.5 text-left font-normal">
                       <Link
                         href={`/item/${reward.itemId}`}
-                        className="text-text transition-colors hover:text-energy"
+                        className="text-text transition-colors hover:text-gold"
                       >
                         {reward.name}
                       </Link>

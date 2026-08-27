@@ -1,12 +1,10 @@
 import { Suspense } from 'react'
-import Link from 'next/link'
 import type { Metadata } from 'next'
 
 import { REFINEMENT_ORDER, REFINEMENT_TABLE, SLOTS_PER_RELIC } from '@provenance/core'
 import type { RelicRarity } from '@provenance/core'
 
-import { SearchTrigger } from '@/components/CommandPalette'
-import { Panel, PanelHeader, RarityTag } from '@/components/Primitives'
+import { PAGE, PageHeader, Panel, PanelHeader, RarityTag } from '@/components/Primitives'
 import { RelicTable } from '@/components/RelicTable'
 import { getDataset } from '@/lib/data'
 import { socialImage } from '@/config/site'
@@ -63,27 +61,19 @@ export default async function RelicsPage() {
   const farmable = relics.filter((relic) => !relic.vaulted).length
 
   return (
-    <div className="mx-auto max-w-4xl px-5 py-12 sm:px-6 sm:py-16">
-      <nav className="label mb-6 flex items-center justify-between gap-4">
-        <span>
-          <Link href="/" className="transition-colors hover:text-text">
-            Provenance
-          </Link>
-          <span className="mx-2 text-hairline-strong" aria-hidden="true">
-            /
-          </span>
-          <span>Relics</span>
-        </span>
-        <SearchTrigger compact />
-      </nav>
-
-      <h1 className="font-display text-xl font-bold text-energy sm:text-2xl">Void Relics</h1>
-      <p className="mt-2 max-w-prose text-sm text-text-dim">
-        {relics.length.toLocaleString()} relics, of which{' '}
-        <strong className="text-text">{farmable.toLocaleString()}</strong> are still dropped by
-        something. Search matches what is inside a relic as well as its name — look for the
-        part, not the relic.
-      </p>
+    <div className={PAGE}>
+      <PageHeader
+        kicker="Relics"
+        title="Void Relics"
+        lede={
+          <>
+            {relics.length.toLocaleString()} relics, of which{' '}
+            <strong className="text-text">{farmable.toLocaleString()}</strong> are still dropped
+            by something. Search matches what is inside a relic as well as its name — look for
+            the part, not the relic.
+          </>
+        }
+      />
 
       {/* The refinement comparison, stated once. It is a property of the SYSTEM, not of any
           individual relic: every common sits at the same odds as every other common. Putting

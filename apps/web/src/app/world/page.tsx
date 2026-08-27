@@ -1,11 +1,10 @@
-import Link from 'next/link'
 import type { Metadata } from 'next'
 
-import { SearchTrigger } from '@/components/CommandPalette'
 import { WorldStateView } from '@/components/WorldStateView'
 import type { NodeIndex } from '@/lib/world'
 import { getDataset } from '@/lib/data'
 import { socialImage } from '@/config/site'
+import { PAGE, PageHeader } from '@/components/Primitives'
 
 export const metadata: Metadata = {
   title: 'World state',
@@ -69,21 +68,8 @@ export default async function WorldPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-5 py-12 sm:px-6 sm:py-16">
-      <nav className="label mb-6 flex items-center justify-between gap-4">
-        <span>
-          <Link href="/" className="transition-colors hover:text-text">
-            Provenance
-          </Link>
-          <span className="mx-2 text-hairline-strong" aria-hidden="true">
-            /
-          </span>
-          <span>World</span>
-        </span>
-        <SearchTrigger compact />
-      </nav>
-
-      <h1 className="font-display text-xl font-bold text-energy sm:text-2xl">World state</h1>
+    <div className={PAGE}>
+      <PageHeader kicker="Sources" title="World state" />
 
       <WorldStateView nodes={index} />
     </div>

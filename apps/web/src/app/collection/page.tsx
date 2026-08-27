@@ -1,9 +1,8 @@
-import Link from 'next/link'
 import type { Metadata } from 'next'
 
-import { SearchTrigger } from '@/components/CommandPalette'
 import { CollectionManager, type SetSummary } from '@/components/CollectionManager'
 import { getDataset } from '@/lib/data'
+import { PAGE, PageHeader } from '@/components/Primitives'
 
 export const metadata: Metadata = {
   title: 'Your collection',
@@ -61,21 +60,8 @@ export default async function CollectionPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-5 py-12 sm:px-6 sm:py-16">
-      <nav className="label mb-6 flex items-center justify-between gap-4">
-        <span>
-          <Link href="/" className="transition-colors hover:text-text">
-            Provenance
-          </Link>
-          <span className="mx-2 text-hairline-strong" aria-hidden="true">
-            /
-          </span>
-          <span>Collection</span>
-        </span>
-        <SearchTrigger compact />
-      </nav>
-
-      <h1 className="font-display text-xl font-bold text-energy sm:text-2xl">Your collection</h1>
+    <div className={PAGE}>
+      <PageHeader kicker="Yours" title="Your collection" />
       <p className="mt-2 max-w-prose text-sm text-text-dim">
         Tick off the parts you own on any set page and they show up here, closest to finished
         first.

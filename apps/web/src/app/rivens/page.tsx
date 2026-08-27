@@ -1,10 +1,9 @@
 import { Suspense } from 'react'
-import Link from 'next/link'
 import type { Metadata } from 'next'
 
-import { SearchTrigger } from '@/components/CommandPalette'
 import { RivenTable } from '@/components/RivenTable'
 import { socialImage } from '@/config/site'
+import { PAGE, PageHeader } from '@/components/Primitives'
 
 export const metadata: Metadata = {
   title: 'Riven dispositions and prices',
@@ -33,21 +32,8 @@ export const metadata: Metadata = {
  */
 export default function RivensPage() {
   return (
-    <div className="mx-auto max-w-4xl px-5 py-12 sm:px-6 sm:py-16">
-      <nav className="label mb-6 flex items-center justify-between gap-4">
-        <span>
-          <Link href="/" className="transition-colors hover:text-text">
-            Provenance
-          </Link>
-          <span className="mx-2 text-hairline-strong" aria-hidden="true">
-            /
-          </span>
-          <span>Rivens</span>
-        </span>
-        <SearchTrigger compact />
-      </nav>
-
-      <h1 className="font-display text-xl font-bold text-energy sm:text-2xl">Rivens</h1>
+    <div className={PAGE}>
+      <PageHeader kicker="Items" title="Rivens" />
 
       <div className="mt-8">
         {/* Required, not decorative: a component that reads search params cannot be

@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
 
-import { SearchTrigger } from '@/components/CommandPalette'
+import { PAGE, PageHeader } from '@/components/Primitives'
 import { getDataset } from '@/lib/data'
 import { site } from '@/config/site'
 import { surfaceGroups } from '@/config/surfaces'
@@ -14,6 +14,9 @@ import type { Surface, SurfaceCount } from '@/config/surfaces'
  * dataset rather than offering a way in, and neither answered a question anyone arrives
  * with. What replaces them is the set of ways to browse, plus the palette — which is still
  * the fastest route to a named item (DESIGN.md § 7).
+ *
+ * The sidebar now carries the routes, so this page keeps the job the sidebar deliberately
+ * does not do: the pre-filtered views, the counts, and the surfaces that have not shipped.
  */
 /** The root is its own canonical. Without this the home page is the only one that does
  *  not declare one, which leaves any tracking parameter appended to it indexable. */
@@ -47,17 +50,16 @@ export default async function HomePage() {
   const built = new Date(manifest.builtAt)
 
   return (
-    <div className="mx-auto max-w-4xl px-5 py-12 sm:px-6 sm:py-24">
-      <h1 className="font-display text-xl font-bold tracking-tight text-energy sm:text-2xl">{site.name}</h1>
-
-      <div className="mt-8 max-w-xl">
-        <SearchTrigger />
-      </div>
+    <div className={PAGE}>
+      <PageHeader
+        title={site.name}
+        lede="Given an item, every way to get it — including the ones gated behind a relic, where the path is a chain rather than a single row."
+      />
 
       {surfaceGroups.map((group) => (
-        <section key={group.title} className="mt-10 sm:mt-12">
-          <h2 className="label border-b border-hairline pb-2">{group.title}</h2>
-          <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <section key={group.title} className="mt-8">
+          <h2 className="label">{group.title}</h2>
+          <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {group.surfaces.map((surface) => (
               <li key={surface.name}>
                 <SurfaceTile surface={surface} counts={counts} />
@@ -107,7 +109,7 @@ function SurfaceTile({
 
   if (surface.href === undefined) {
     return (
-      <div className="chamfer-sm h-full border border-hairline/60 border-dashed px-4 py-3">
+      <div className="chamfer-sm h-full border border-dashed border-hairline/60 px-4 py-3">
         {body}
         <span className="label mt-2 block text-text-faint/80">Soon</span>
       </div>
@@ -117,7 +119,7 @@ function SurfaceTile({
   return (
     <Link
       href={surface.href}
-      className="chamfer-sm block h-full border border-hairline bg-void-800 px-4 py-3 transition-colors hover:border-hairline-strong hover:bg-void-700"
+      className="chamfer-sm hover-lift block h-full border border-hairline bg-void-800 px-4 py-3 hover:border-gold-dim hover:bg-void-700"
     >
       {body}
     </Link>

@@ -173,14 +173,28 @@ Full system in DESIGN.md. The rules Claude Code must not violate:
 
 - **No raw hex or arbitrary Tailwind color values in components.** Every color comes from a
   semantic token defined in OKLCH in `globals.css`. If a needed color doesn't exist, add a token.
+  The single exception is the background lattice's inline SVG in `globals.css`, where the stroke
+  must be a literal hex because a data URI cannot read a custom property. It is commented as such.
 - **All numerals in data contexts use `tabular-nums`.** A drop-rate column that doesn't align
   vertically is a defect, not a nitpick.
 - Rarity colors come from the constant-chroma ramp. Never pick a rarity color ad hoc.
-- Panel chamfers use the shared `clip-path` utility, not `border-radius`. This is the one piece of
-  Orokin geometry the design leans on; it must be consistent.
-- **Motion budget:** page transitions (View Transitions API), filter result reflow, and the drop-chain
-  reveal. That is the entire list. No decorative ambient animation, no scroll-jacking, no
-  glow pulses. `prefers-reduced-motion` disables all of it.
+- Panel chamfers use the shared `clip-path` utility, not `border-radius`. Panels also carry gold
+  corner braces on the two corners the chamfer does not cut, drawn as background layers on the
+  `panel` utility. Chamfer and brace together are the Orokin geometry; do not invent a third.
+- **Gold has two weights and they are not interchangeable.** `gold` is the accent — spend it once
+  per view, on the thing the reader searched for. `gold-dim` is ornament: frames, rules, corner
+  marks, the panel-header diamond. `gold-dim` does not clear 4.5:1 on any surface and must never
+  carry text.
+- The background lattice sits at `opacity: 0.055` on `body::before`. That is the whole budget.
+  Raising it puts texture behind a drop-rate column, which is a defect however good it looks.
+- **Motion budget:** page transitions (View Transitions API), filter result reflow, the drop-chain
+  reveal, and hover feedback on interactive rows, tiles and controls. That is the entire list.
+  Hover uses `--duration-hover` and `--ease-orokin` — one duration and one curve for the whole
+  app, because feedback that varies in speed between components reads as jitter rather than as
+  one interface — and animates transform and colour only, never a property that triggers layout.
+  Still forbidden: scroll-jacking, glow pulses, anything that moves without being asked to.
+  `prefers-reduced-motion` disables all of it. The lattice is texture, not motion, and stays:
+  a reader who asked for less movement did not ask for less texture.
 - Quality floor, unannounced: responsive to 360px, visible keyboard focus rings, real `<th>` scopes
   on data tables, contrast ≥ 4.5:1 for body text.
 

@@ -3,53 +3,51 @@
 /**
  * PROVENANCE — VISUAL SYSTEM
  *
- * Every colour in the app resolves to a token defined here. Components must never carry a
- * raw hex or an arbitrary Tailwind colour value (CLAUDE.md § Visual rules).
+ * Orokin. Warm near-black plating, gold ornament, chamfered framing, a faint hex lattice
+ * behind everything. Every colour in the app resolves to a token defined here; components
+ * must never carry a raw hex or an arbitrary Tailwind colour value.
  *
  * Defined in OKLCH so the rarity ramp holds lightness and chroma constant while only hue
  * varies — that is what makes the four rarities read as one measurement scale rather than
  * four unrelated tags.
  *
- * Contrast is verified, not assumed. Every foreground below clears WCAG AA (4.5:1) against
+ * Contrast is measured, not assumed. Every foreground below clears WCAG AA (4.5:1) against
  * every surface it is allowed to sit on; the tightest pairing is text-faint on void-600 —
- * the hover surface — at 4.77:1. That pairing is what sets text-faint's lightness: at the
- * 0.67 the palette was drafted with it measured 4.42:1 and failed, so it sits at 0.69.
- * Two choices serve long reading sessions specifically: the page is never pure black
- * (#030b15) and body text is never pure white (#e7f0f5), which takes the edge off a dense
- * table without giving up legibility.
+ * the hover surface — at 5.11:1. `gold-dim` is the one exception and is ornament only:
+ * frames, rules and corner marks. It must never carry text.
  */
 @theme {
-  /* ---- surfaces: Tenno HUD. Blue-black, the colour of the game's own menus -------- */
-  --color-void-950: oklch(0.1 0.022 252); /* wells, inset, code */
-  --color-void-900: oklch(0.145 0.028 252); /* page */
-  --color-void-800: oklch(0.19 0.034 250); /* panel */
-  --color-void-700: oklch(0.245 0.04 248); /* raised / table header */
-  --color-void-600: oklch(0.31 0.045 246); /* hover */
+  /* ---- surfaces: warm near-black. Orokin gold needs a warm ground or it reads brass. --- */
+  --color-void-950: oklch(0.09 0.012 70); /* wells, inset, code */
+  --color-void-900: oklch(0.135 0.014 72); /* page */
+  --color-void-800: oklch(0.18 0.017 74); /* panel */
+  --color-void-700: oklch(0.235 0.02 76); /* raised / table header */
+  --color-void-600: oklch(0.3 0.024 78); /* hover */
 
-  /* ---- structure: hairlines carry a cyan cast, the way HUD framing does ---------- */
-  --color-hairline: oklch(0.36 0.055 225);
-  --color-hairline-strong: oklch(0.5 0.075 215);
+  /* ---- structure ----------------------------------------------------------------- */
+  --color-hairline: oklch(0.35 0.03 80);
+  --color-hairline-strong: oklch(0.5 0.055 82);
 
   /* ---- text --------------------------------------------------------------------- */
-  --color-text: oklch(0.95 0.012 230); /* 17.2:1 on page */
-  --color-text-dim: oklch(0.75 0.025 225); /* 9.0:1  — secondary */
-  --color-text-faint: oklch(0.69 0.03 222); /* 7.2:1  — labels, units */
+  --color-text: oklch(0.95 0.014 85); /* 17.3:1 on page */
+  --color-text-dim: oklch(0.76 0.022 82); /* 9.3:1  — secondary */
+  --color-text-faint: oklch(0.7 0.026 80); /* 7.5:1  — labels, units */
 
-  /* ---- the one accent ------------------------------------------------------------
-   * Warframe energy cyan, used once per view on the thing you searched for.
-   *
-   * It was gold until 2026-08-26. Gold now belongs to the rarity ramp alone, where it
-   * means "rare" — having it mean both "rare" and "you are here" was one job too many
-   * for one colour. */
-  --color-energy: oklch(0.84 0.135 205);
+  /* ---- gold ----------------------------------------------------------------------
+   * Two weights, because gold is doing two jobs in this theme and one value cannot do
+   * both. `gold` is the accent: headings, current state, the thing you searched for.
+   * `gold-dim` is ornament — frames, corner marks, rules — and is deliberately too low
+   * in contrast for text so it cannot be misused as a foreground. */
+  --color-gold: oklch(0.84 0.14 88);
+  --color-gold-dim: oklch(0.62 0.075 86);
 
   /* ---- rarity ramp: constant L and C, hue only -----------------------------------
-   * Common moved off blue when the accent became cyan: at 250 it sat 45° from the
-   * accent and the two read as the same family on a 6px dot. Violet is unambiguous
-   * and keeps the ramp evenly spread. */
-  --color-r-common: oklch(0.72 0.1 300);
+   * "Rare" moved off gold (85) to magenta (320) when gold became the theme's ornament.
+   * A page where everything is gold cannot also use gold to mean "rare"; the ramp gave
+   * up the hue rather than the theme. The other three are unchanged. */
+  --color-r-common: oklch(0.72 0.1 250);
   --color-r-uncommon: oklch(0.72 0.1 150);
-  --color-r-rare: oklch(0.72 0.1 85);
+  --color-r-rare: oklch(0.72 0.11 320);
   --color-r-legendary: oklch(0.72 0.1 20);
 
   /* ---- type ---------------------------------------------------------------------- */
@@ -64,66 +62,110 @@
   --text-lg: 1.25rem;
   --text-xl: 1.75rem;
   --text-2xl: 2.5rem;
+
+  /* ---- motion --------------------------------------------------------------------
+   * One duration and one curve for every hover in the app. Hover feedback that varies
+   * in speed between components reads as jitter rather than as one interface. */
+  --ease-orokin: cubic-bezier(0.2, 0, 0, 1);
+  --duration-hover: 150ms;
 }
 
 /**
- * The one piece of Orokin geometry the design borrows: a single asymmetric cut on the
- * top-left and bottom-right. Applied via clip-path, never border-radius, so it stays
- * consistent everywhere.
+ * The Orokin cut: one asymmetric chamfer on the top-left and bottom-right. Applied via
+ * clip-path, never border-radius, so it stays consistent everywhere.
  *
  * clip-path cuts the border off with the corner, so a chamfered panel gets its outline
  * from a background layer rather than a border property.
  */
 @utility chamfer {
   clip-path: polygon(
-    10px 0,
+    14px 0,
     100% 0,
-    100% calc(100% - 10px),
-    calc(100% - 10px) 100%,
+    100% calc(100% - 14px),
+    calc(100% - 14px) 100%,
     0 100%,
-    0 10px
+    0 14px
   );
 }
 
 @utility chamfer-sm {
-  clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
 }
 
 /**
- * Panel: the standard content container. The 1px outline is drawn with a background
- * gradient underneath the clip, because a real border would be sliced off by the chamfer.
+ * Panel: the standard content container.
  *
- * Corner braces: the chamfer cuts two corners, and the other two get a short right-angle
- * tick in the brighter hairline. That is the HUD-framing motif, and it is drawn as four
- * more background layers rather than pseudo-elements so it costs no DOM and cannot be
- * knocked out of place by whatever the panel contains. Layer order matters — the ticks
- * are listed first because the first layer paints on top, and the fill would hide them.
+ * The 1px frame is drawn with a background gradient underneath the clip, because a real
+ * border would be sliced off by the chamfer. The four short right-angle marks brace the
+ * two square corners the chamfer does not cut — that is the Orokin framing motif, and it
+ * is drawn as background layers rather than pseudo-elements so it costs no DOM, cannot be
+ * displaced by panel content, and survives the clip. Layer order matters: the first layer
+ * paints on top, and the fill would hide the marks.
  */
 @utility panel {
+  --brace: var(--color-gold-dim);
   background:
-    linear-gradient(var(--color-hairline-strong), var(--color-hairline-strong)) no-repeat 100% 0 /
-      14px 1px padding-box,
-    linear-gradient(var(--color-hairline-strong), var(--color-hairline-strong)) no-repeat 100% 0 /
-      1px 14px padding-box,
-    linear-gradient(var(--color-hairline-strong), var(--color-hairline-strong)) no-repeat 0 100% /
-      14px 1px padding-box,
-    linear-gradient(var(--color-hairline-strong), var(--color-hairline-strong)) no-repeat 0 100% /
-      1px 14px padding-box,
+    linear-gradient(var(--brace), var(--brace)) no-repeat 100% 0 / 18px 1px padding-box,
+    linear-gradient(var(--brace), var(--brace)) no-repeat 100% 0 / 1px 18px padding-box,
+    linear-gradient(var(--brace), var(--brace)) no-repeat 0 100% / 18px 1px padding-box,
+    linear-gradient(var(--brace), var(--brace)) no-repeat 0 100% / 1px 18px padding-box,
     linear-gradient(var(--color-void-800), var(--color-void-800)) padding-box,
     linear-gradient(var(--color-hairline), var(--color-hairline)) border-box;
   border: 1px solid transparent;
   clip-path: polygon(
-    10px 0,
+    14px 0,
     100% 0,
-    100% calc(100% - 10px),
-    calc(100% - 10px) 100%,
+    100% calc(100% - 14px),
+    calc(100% - 14px) 100%,
     0 100%,
-    0 10px
+    0 14px
   );
 }
 
+/**
+ * Hover: a 1px rise and a warmer frame. Transform and colour only — no width, height,
+ * margin or box-shadow spread, so it never triggers layout and never costs a repaint of
+ * anything but the element itself.
+ */
+@utility hover-lift {
+  transition:
+    transform var(--duration-hover) var(--ease-orokin),
+    border-color var(--duration-hover) var(--ease-orokin),
+    background-color var(--duration-hover) var(--ease-orokin);
+
+  &:hover {
+    transform: translateY(-2px);
+  }
+}
+
+/**
+ * Row hover: a gold edge wipes in from the top of the row's leading border.
+ *
+ * scaleY on a pre-placed bar, so the animation is compositor-only. The row must be
+ * `relative` for the bar to anchor to it.
+ */
+@utility hover-edge {
+  position: relative;
+  transition: background-color var(--duration-hover) var(--ease-orokin);
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 2px;
+    background: var(--color-gold);
+    transform: scaleY(0);
+    transform-origin: top;
+    transition: transform var(--duration-hover) var(--ease-orokin);
+  }
+
+  &:hover::before {
+    transform: scaleY(1);
+  }
+}
+
 /** Every numeral in a data context aligns vertically. A drop-rate column that does not
- *  is a defect, not a nitpick (CLAUDE.md § Visual rules). */
+ *  is a defect, not a nitpick. */
 @utility data-num {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
@@ -138,14 +180,19 @@
   color: var(--color-text-faint);
 }
 
+/** A gold hairline rule that fades out to the right. Section separator, not a border. */
+@utility rule-gold {
+  height: 1px;
+  background: linear-gradient(to right, var(--color-gold-dim), transparent);
+}
+
 /**
  * Vaulted content is desaturated and marked, never hidden by default.
  *
  * The opacity is contrast-constrained, not taste. It composites the text toward the panel
  * behind it, and the floor is text-faint on void-800: at 0.75 that pairing measured
- * 3.43:1, below the 4.5:1 body-text minimum, on the MAJORITY of relic rows (366 of 380 on
- * some pages). 0.92 measures 5.85:1 under the Tenno palette. Do not lower it without
- * recomputing.
+ * 3.43:1, below the 4.5:1 body-text minimum, on the MAJORITY of relic rows. 0.92 measures
+ * 6.12:1 under this palette. Do not lower it without recomputing.
  */
 @utility vaulted {
   filter: saturate(0.35);
@@ -169,6 +216,32 @@ body {
      item slugs, planet-node pairs. Without this one of them eventually pushes the page wider
      than the screen, and the entire layout scrolls sideways over a single row. */
   overflow-wrap: break-word;
+}
+
+/**
+ * The Orokin lattice.
+ *
+ * A hex tile drawn once as an inline SVG and repeated — no network request, no image
+ * decode, about 400 bytes. It sits on a fixed pseudo-element rather than on `body` so it
+ * does not scroll, which keeps it from ever repainting, and `pointer-events: none` keeps
+ * it out of hit-testing entirely.
+ *
+ * 0.055 opacity is the whole budget. It is deliberately at the edge of perceptible: this
+ * is a reference tool read for long stretches, and a background that competes with a
+ * drop-rate column is a defect no matter how pretty it is.
+ */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.055;
+  /* The stroke is a literal hex, the one place in the app that is allowed: a data URI is
+     a separate document and cannot read a custom property. It is --color-gold's sRGB value
+     (#f0c551); if that token changes, change this with it. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%23f0c551' stroke-width='1'%3E%3Cpath d='M60 8 L104 33 L104 87 L60 112 L16 87 L16 33 Z'/%3E%3Cpath d='M60 26 L88 42 L88 78 L60 94 L32 78 L32 42 Z'/%3E%3Ccircle cx='60' cy='60' r='3.5'/%3E%3Cpath d='M60 8 V0 M60 112 V120 M16 33 L0 24 M104 33 L120 24 M16 87 L0 96 M104 87 L120 96'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 120px 120px;
 }
 
 /* The grey flash Safari paints over any tapped element does not belong on a surface this
@@ -196,12 +269,12 @@ button,
 }
 
 ::selection {
-  background: var(--color-energy);
+  background: var(--color-gold);
   color: var(--color-void-950);
 }
 
 :focus-visible {
-  outline: 2px solid var(--color-energy);
+  outline: 2px solid var(--color-gold);
   outline-offset: 2px;
 }
 
@@ -215,7 +288,7 @@ button,
 .chamfer-sm:focus-visible,
 .panel:focus-visible {
   outline: none;
-  box-shadow: inset 0 0 0 2px var(--color-energy);
+  box-shadow: inset 0 0 0 2px var(--color-gold);
 }
 
 /* The scrollbar is part of a dense reference tool's surface; leaving it default light
@@ -225,7 +298,11 @@ button,
   scrollbar-width: thin;
 }
 
-/* The motion budget is three moments, and all of them yield to this. */
+/**
+ * Everything decorative yields to this — the hover motion, and the lattice with it. A
+ * static background is still a background; a user who has asked for less motion has not
+ * asked for less texture, so the lattice stays and only movement stops.
+ */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -234,5 +311,9 @@ button,
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  .hover-lift:hover {
+    transform: none;
   }
 }
