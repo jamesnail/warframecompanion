@@ -7,7 +7,7 @@ import { parseAsInteger, useQueryState } from 'nuqs'
 import { Panel, PanelHeader, SummaryCard } from '@/components/Primitives'
 import { fetchWorldState } from '@/lib/client/world-state'
 import { useCollection } from '@/lib/client/use-collection'
-import { buildNeeds, groupByAction, inProgress, type FarmAction, type Need, type TrackedSet } from '@/lib/farm'
+import { buildNeeds, groupByAction, trackedTargets, type FarmAction, type Need, type TrackedSet } from '@/lib/farm'
 import { sourceHref } from '@/lib/source-route'
 import { openFissures, timeUntil, type Fissure, type NodeIndex } from '@/lib/world'
 import type { DropChain } from '@provenance/core'
@@ -37,7 +37,7 @@ export function FarmPlanner({
   chains: Record<string, DropChain>
   nodes: NodeIndex
 }) {
-  const { owned, ready } = useCollection()
+  const { owned, tracked, ready } = useCollection()
   const [squad, setSquad] = useQueryState('squad', parseAsInteger.withDefault(1))
   const players = SQUAD_SIZES.includes(squad as (typeof SQUAD_SIZES)[number]) ? squad : 1
 
@@ -76,16 +76,16 @@ export function FarmPlanner({
 
   if (!ready) return <p className="label mt-8">Reading your collection…</p>
 
-  const tracked = inProgress(sets, owned)
+  const targets = trackedTargets(sets, tracked)
 
-  if (tracked.length === 0) {
+  if (tracked.size === 0) {
     return (
       <p className="mt-8 max-w-prose text-sm text-text-dim">
-        Nothing in progress. Tick off a part you own on any set page —{' '}
+        Nothing on the farm list. Open a set or a part —{' '}
         <Link href="/item/braton-prime" className="text-text transition-colors hover:text-gold">
           Braton Prime
         </Link>{' '}
-        for instance — and this page will plan the rest.
+        for instance — and add it, and this page will plan the rest.
       </p>
     )
   }
@@ -99,14 +99,14 @@ export function FarmPlanner({
     else list.push(fissure)
   }
 
-  const needs = buildNeeds(sets, owned, chains, openTiers, players)
+  const needs = buildNeeds(sets, tracked, owned, chains, openTiers, players)
   const actions = groupByAction(needs)
   const actionable = needs.filter((need) => need.status !== 'blocked').length
 
   return (
     <>
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <SummaryCard label="Sets in progress" value={tracked.length.toLocaleString()} />
+        <SummaryCard label="On the list" value={tracked.size.toLocaleString()} />
         <SummaryCard label="Parts needed" value={needs.length.toLocaleString()} />
         <SummaryCard
           label="Farmable"
@@ -123,7 +123,9 @@ export function FarmPlanner({
 
       {actions.length === 0 ? (
         <p className="mt-8 max-w-prose text-sm text-text-dim">
-          Every part of every set you have started is already owned or has no known source.
+          {targets.length > 0 || tracked.size > 0
+            ? 'Everything on the farm list is owned, or has no known source.'
+            : 'Nothing to plan.'}
         </p>
       ) : (
         actions.map((action) => (
@@ -265,9 +267,9 @@ function NeedRow({ need, blocked }: { need: Need; blocked: boolean }) {
           : `${chain.source?.name ?? '?'} → ${chain.relic.name} → ${chain.itemName}`}
       </div>
 
-      <div className="mt-1 text-xs text-text-faint/80">
-        Finishes {need.wantedBy.join(', ')}
-      </div>
+      {need.wantedBy.length > 0 && (
+        <div className="mt-1 text-xs text-text-faint/80">Finishes {need.wantedBy.join(', ')}</div>
+      )}
     </li>
   )
 }

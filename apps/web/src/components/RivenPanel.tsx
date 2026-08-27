@@ -129,11 +129,11 @@ export function RivenPanel({
         </p>
       )}
 
-      <p className="border-t border-hairline px-3 py-2.5 text-xs text-text-faint sm:px-5">
-        {traded
-          ? 'Medians from Digital Extremes’ weekly trade statistics. Riven prices are heavily skewed by outliers, so the median is shown rather than the mean.'
-          : 'No riven for this weapon traded in the last published week. Disposition still applies.'}
-      </p>
+      {!traded && (
+        <p className="border-t border-hairline px-3 py-2.5 text-xs text-text-faint sm:px-5">
+          No riven for this weapon traded in the last published week. Disposition still applies.
+        </p>
+      )}
     </Panel>
   )
 }

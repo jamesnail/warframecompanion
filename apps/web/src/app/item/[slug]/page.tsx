@@ -22,7 +22,7 @@ import {
   RarityTag,
   SummaryCard,
 } from '@/components/Primitives'
-import { OwnedToggle, RecipeTable } from '@/components/RecipeTable'
+import { OwnedToggle, RecipeTable, TrackToggle } from '@/components/RecipeTable'
 import { RivenPanel } from '@/components/RivenPanel'
 import { getDataset } from '@/lib/data'
 import { kindLabel } from '@/lib/effort'
@@ -252,12 +252,16 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
           ) : undefined
         }
         actions={
-          /* The two things you can DO with this item. Owned-tracking only where it means
+          /* The three things you can DO with this item. Owned-tracking only where it means
              something — ticking a resource you have 40,000 of is not a fact worth storing;
-             on a part that completes a set it is the whole point. */
-          partOf.length > 0 || item.marketSlug !== undefined ? (
+             on a part that completes a set it is the whole point. The farm list takes either
+             a whole set or a single part, so it is offered on both. */
+          partOf.length > 0 || recipe.length > 0 || item.marketSlug !== undefined ? (
             <>
               {partOf.length > 0 && <OwnedToggle itemId={item.id} itemName={item.name} />}
+              {(partOf.length > 0 || recipe.length > 0) && (
+                <TrackToggle itemId={item.id} itemName={item.name} />
+              )}
 
               {/* A link, not a price. Live listings would need a proxy — warframe.market
                   sends no CORS headers — and a number that is five minutes stale is worth

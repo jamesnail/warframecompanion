@@ -7,7 +7,6 @@ import { CyclesPanel } from '@/components/CyclesPanel'
 import { Panel, PanelHeader } from '@/components/Primitives'
 import { fetchWorldState } from '@/lib/client/world-state'
 import {
-  factionActivity,
   groupFissuresByTier,
   isStale,
   openFissures,
@@ -140,35 +139,12 @@ export function WorldStateView({ nodes }: { nodes: NodeIndex }) {
   }
 
   const live = openFissures(state.fissures, clock)
-  const factions = factionActivity({ ...state, fissures: live })
   const tiers = groupFissuresByTier(live)
   const baroHere = traderIsHere(state.voidTrader, clock)
 
   return (
     <div>
       {cycles}
-      {/* What each faction is doing, which is what replaced a static Factions surface: node
-          ownership is published for about half the star chart, but activity is complete. */}
-      {factions.length > 0 && (
-        <Panel className="mt-8">
-          <PanelHeader title="Faction activity" aside="right now" />
-          <ul className="flex flex-wrap gap-x-8 gap-y-3 px-3 py-4 sm:px-5">
-            {factions.map((entry) => (
-              <li key={entry.faction}>
-                <div className="text-sm text-text">{entry.faction}</div>
-                <div className="data-num mt-0.5 text-xs text-text-faint">
-                  {entry.fissures > 0 &&
-                    `${String(entry.fissures)} ${entry.fissures === 1 ? 'fissure' : 'fissures'}`}
-                  {entry.fissures > 0 && entry.invasions > 0 && ' · '}
-                  {entry.invasions > 0 &&
-                    `${String(entry.invasions)} ${entry.invasions === 1 ? 'invasion' : 'invasions'}`}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </Panel>
-      )}
-
       {tiers.length > 0 && (
         <Panel className="mt-6">
           <PanelHeader title="Void fissures" aside={`${String(live.length)} open · soonest first`} />
@@ -292,10 +268,6 @@ export function WorldStateView({ nodes }: { nodes: NodeIndex }) {
         )}
       </div>
 
-      <p className="mt-6 text-xs text-text-faint" role="status" aria-live="polite">
-        Live from Digital Extremes&rsquo; world state. Refreshes every minute; expired fissures
-        are hidden.
-      </p>
     </div>
   )
 }

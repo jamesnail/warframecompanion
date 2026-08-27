@@ -40,7 +40,7 @@ export function CyclesPanel({ zariman }: { zariman: Zariman | undefined }) {
 
   return (
     <Panel className="mt-8">
-      <PanelHeader title="Open-world cycles" aside="computed, not fetched" />
+      <PanelHeader title="Open-world cycles" />
       {now === undefined ? (
         <p className="label px-3 py-4 sm:px-5">Reading your clock…</p>
       ) : (

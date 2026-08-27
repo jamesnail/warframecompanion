@@ -98,7 +98,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         {/* The palette is the fastest route to a named item, so on desktop it sits at the
             top of the content column rather than inside the nav, where it would be
             competing with the route list for the same glance. */}
-        <div className="hidden px-6 pt-7 lg:block">
+        <div className="mx-auto hidden w-full max-w-5xl px-5 pt-8 sm:px-6 lg:block">
           <div className="max-w-md">
             <SearchTrigger />
           </div>

@@ -43,18 +43,18 @@ export interface FarmAction {
 }
 
 /**
- * Which sets count as "in progress".
+ * What the player has said they are going for, resolved against the catalogue.
  *
- * Owning at least one part and not all of them. A set you have never touched is not a plan,
- * it is the entire game; a finished set is done. This mirrors what /collection tracks, so
- * the two pages never disagree about what you are working on.
+ * Intent is stated, never inferred. An earlier version derived this from owned parts — any
+ * set holding a component you owned — which collapses the moment a shared component is
+ * ticked: Orokin Cell belongs to 177 sets, so owning one put 177 sets on the plan. A tracked
+ * id is either a set (plan its missing components) or a single item (plan just that item).
  */
-export function inProgress(sets: readonly TrackedSet[], owned: ReadonlySet<string>): TrackedSet[] {
-  return sets.filter((set) => {
-    let have = 0
-    for (const component of set.components) if (owned.has(component.itemId)) have++
-    return have > 0 && have < set.components.length
-  })
+export function trackedTargets(
+  sets: readonly TrackedSet[],
+  tracked: ReadonlySet<string>,
+): TrackedSet[] {
+  return sets.filter((set) => tracked.has(set.id))
 }
 
 /**
@@ -66,33 +66,46 @@ export function inProgress(sets: readonly TrackedSet[], owned: ReadonlySet<strin
  */
 export function buildNeeds(
   sets: readonly TrackedSet[],
+  tracked: ReadonlySet<string>,
   owned: ReadonlySet<string>,
   chains: Readonly<Record<string, DropChain>>,
   openTiers: ReadonlySet<string>,
   players = 1,
 ): Need[] {
   const byItem = new Map<string, Need>()
+  const setIds = new Set(sets.map((set) => set.id))
 
-  for (const set of inProgress(sets, owned)) {
-    for (const component of set.components) {
-      if (owned.has(component.itemId)) continue
+  const add = (itemId: string, wantedBy: string | undefined): void => {
+    if (owned.has(itemId)) return
 
-      const existing = byItem.get(component.itemId)
-      if (existing !== undefined) {
-        existing.wantedBy.push(set.name)
-        continue
+    const existing = byItem.get(itemId)
+    if (existing !== undefined) {
+      if (wantedBy !== undefined && !existing.wantedBy.includes(wantedBy)) {
+        existing.wantedBy.push(wantedBy)
       }
-
-      const chain = chains[component.itemId]
-      if (chain === undefined) continue
-
-      byItem.set(component.itemId, {
-        chain,
-        status: chainStatus(chain, openTiers),
-        runs: chainRuns(chain, players),
-        wantedBy: [set.name],
-      })
+      return
     }
+
+    const chain = chains[itemId]
+    if (chain === undefined) return
+
+    byItem.set(itemId, {
+      chain,
+      status: chainStatus(chain, openTiers),
+      runs: chainRuns(chain, players),
+      wantedBy: wantedBy === undefined ? [] : [wantedBy],
+    })
+  }
+
+  for (const set of trackedTargets(sets, tracked)) {
+    for (const component of set.components) add(component.itemId, set.name)
+  }
+
+  // A tracked id that is not a set is a single part the player wants on its own. It carries
+  // no "finishes X" line, because it finishes itself.
+  for (const id of tracked) {
+    if (setIds.has(id)) continue
+    add(id, undefined)
   }
 
   const needs = [...byItem.values()]

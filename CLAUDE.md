@@ -188,12 +188,16 @@ Full system in DESIGN.md. The rules Claude Code must not violate:
 - The background lattice sits at `opacity: 0.055` on `body::before`. That is the whole budget.
   Raising it puts texture behind a drop-rate column, which is a defect however good it looks.
 - **Motion budget:** page transitions (View Transitions API), filter result reflow, the drop-chain
-  reveal, and hover feedback on interactive rows, tiles and controls. That is the entire list.
+  reveal, hover feedback on interactive rows, tiles and controls, a one-shot entrance rise on
+  panels and the home title card, the one-shot gold sweep on `rule-gold`, and the Orokin decode
+  on the home page. That is the entire list. Everything in it plays **once**; nothing loops.
   Hover uses `--duration-hover` and `--ease-orokin` — one duration and one curve for the whole
   app, because feedback that varies in speed between components reads as jitter rather than as
   one interface — and animates transform and colour only, never a property that triggers layout.
-  Still forbidden: scroll-jacking, glow pulses, anything that moves without being asked to.
-  `prefers-reduced-motion` disables all of it. The lattice is texture, not motion, and stays:
+  Still forbidden: scroll-jacking, glow pulses, looping ambient motion, anything still moving
+  a second after the page settles. `prefers-reduced-motion` disables all of it — and for the
+  entrance animations that means `animation: none`, not a zeroed duration: an animation that
+  starts at `opacity: 0` and is merely made instant still paints one frame of nothing. The lattice is texture, not motion, and stays:
   a reader who asked for less movement did not ask for less texture.
 - Quality floor, unannounced: responsive to 360px, visible keyboard focus rings, real `<th>` scopes
   on data tables, contrast ≥ 4.5:1 for body text.

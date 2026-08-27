@@ -4,7 +4,7 @@ import { useRef, useState } from 'react'
 import Link from 'next/link'
 
 import { Panel, PanelHeader } from '@/components/Primitives'
-import { clearAll, mergeIn, normalizeIds, replaceAll, toExport } from '@/lib/client/collection'
+import { clearAll, mergeIn, normalizeImport, replaceAll, toExport } from '@/lib/client/collection'
 import { useCollection } from '@/lib/client/use-collection'
 import { byClosest, progressOf } from '@/lib/collection'
 
@@ -28,23 +28,25 @@ export interface SetSummary {
 type Notice = { tone: 'ok' | 'bad'; text: string } | undefined
 
 export function CollectionManager({ sets, names }: { sets: SetSummary[]; names: Record<string, string> }) {
-  const { owned, ready, toggle } = useCollection()
+  const { owned, tracked, ready, toggle, toggleTracked } = useCollection()
   const [notice, setNotice] = useState<Notice>(undefined)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const tracked = sets
+  const inProgressSets = sets
     .map((set) => ({ ...set, progress: progressOf(set.components, owned) }))
     .filter((set) => set.progress.owned > 0)
     .sort(byClosest)
 
-  const complete = tracked.filter((set) => set.progress.complete).length
+  const complete = inProgressSets.filter((set) => set.progress.complete).length
   // Blocked only counts parts you still NEED: a vaulted part already in hand is not a
   // problem, and saying otherwise would nag about something already solved.
   const blockedOf = (set: SetSummary): number =>
     set.vaultedComponents.filter((id) => !owned.has(id)).length
 
   function download(): void {
-    const file = toExport(owned, new Date().toISOString())
+    // Both lists. The farm list is as much the user's work as the inventory, and a backup
+    // that silently dropped it would restore a collection with no plan attached to it.
+    const file = toExport({ owned: [...owned], tracked: [...tracked] }, new Date().toISOString())
     const blob = new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
@@ -56,16 +58,16 @@ export function CollectionManager({ sets, names }: { sets: SetSummary[]; names: 
 
   async function importFile(file: File, mode: 'replace' | 'merge'): Promise<void> {
     try {
-      const ids = normalizeIds(JSON.parse(await file.text()))
-      if (ids.length === 0) {
+      const data = normalizeImport(JSON.parse(await file.text()))
+      if (data.owned.length === 0 && data.tracked.length === 0) {
         setNotice({ tone: 'bad', text: 'That file has no items in it. Nothing was changed.' })
         return
       }
-      if (mode === 'replace') await replaceAll(ids)
-      else await mergeIn(ids)
+      if (mode === 'replace') await replaceAll(data)
+      else await mergeIn(data)
       setNotice({
         tone: 'ok',
-        text: `${mode === 'replace' ? 'Replaced with' : 'Merged in'} ${ids.length.toLocaleString()} items.`,
+        text: `${mode === 'replace' ? 'Replaced with' : 'Merged in'} ${data.owned.length.toLocaleString()} owned and ${data.tracked.length.toLocaleString()} tracked.`,
       })
     } catch {
       // States what happened and what to do, and does not apologise (CLAUDE.md § Copy).
@@ -77,7 +79,7 @@ export function CollectionManager({ sets, names }: { sets: SetSummary[]; names: 
     <>
       <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-3">
         <Stat label="Items owned" value={ready ? owned.size.toLocaleString() : '—'} />
-        <Stat label="Sets in progress" value={ready ? tracked.length.toLocaleString() : '—'} />
+        <Stat label="Sets in progress" value={ready ? inProgressSets.length.toLocaleString() : '—'} />
         <Stat label="Sets complete" value={ready ? complete.toLocaleString() : '—'} accent />
       </div>
 
@@ -151,7 +153,32 @@ export function CollectionManager({ sets, names }: { sets: SetSummary[]; names: 
         </div>
       </Panel>
 
-      {ready && tracked.length === 0 ? (
+      {ready && tracked.size > 0 && (
+        <Panel className="mt-8">
+          <PanelHeader title="Farm list" aside={`${tracked.size.toLocaleString()} · what /farm plans`} />
+          <ul className="flex flex-wrap gap-2 px-3 py-4 sm:px-5">
+            {[...tracked].sort((a, b) => (names[a] ?? a).localeCompare(names[b] ?? b)).map((id) => (
+              <li key={id}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    toggleTracked(id, false)
+                  }}
+                  className="chamfer-sm border border-gold bg-void-700 px-2.5 py-1 text-xs text-gold transition-colors hover:border-hairline-strong hover:bg-void-800 hover:text-text"
+                >
+                  {names[id] ?? id}
+                  <span aria-hidden="true" className="ml-1.5">
+                    ×
+                  </span>
+                  <span className="sr-only"> — remove from farm list</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      )}
+
+      {ready && inProgressSets.length === 0 ? (
         <p className="mt-8 max-w-prose text-sm text-text-dim">
           Nothing tracked yet. Open a set — <Link href="/item/braton-prime" className={LINK}>Braton Prime</Link>{' '}
           for instance — and tick off the parts you already have.
@@ -161,10 +188,10 @@ export function CollectionManager({ sets, names }: { sets: SetSummary[]; names: 
           <Panel className="mt-8">
             <PanelHeader
               title="In progress"
-              aside={`${tracked.length.toLocaleString()} · closest first`}
+              aside={`${inProgressSets.length.toLocaleString()} · closest first`}
             />
             <ul>
-              {tracked.map((set) => (
+              {inProgressSets.map((set) => (
                 <li key={set.id} className="border-b border-hairline/50 px-3 py-3 last:border-0 sm:px-5 hover-edge hover:bg-void-800">
                   <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                     <Link href={`/item/${set.id}`} className={`text-sm ${LINK}`}>

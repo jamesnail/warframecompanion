@@ -70,12 +70,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <main className="flex-1">{children}</main>
         {/* Mounted once, globally, so the shortcut works on every page. */}
         <CommandPalette />
-        <footer className="mt-16 border-t border-hairline px-5 py-8 text-xs text-text-faint sm:mt-24 sm:px-6 sm:py-10">
-          <p className="max-w-prose">
-            Unofficial fan tool, not affiliated with or endorsed by Digital Extremes. Warframe and
-            all game data are property of Digital Extremes.
-          </p>
-          <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1">
+        {/* One line where it fits. The attribution is a legal requirement and the links are
+            the sources, so neither can go — but they are a footnote, not a section, and the
+            old block reserved a tenth of the page to say so. */}
+        <footer className="mt-10 border-t border-hairline px-5 py-4 text-xs text-text-faint sm:px-6">
+          <ul className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+            <li className="text-text-faint/80">
+              Unofficial fan tool. Warframe and all game data are property of Digital Extremes.
+            </li>
             {/* First, because it is the page that explains the rest of this footer. */}
             <li>
               <Link className="underline underline-offset-4 transition-colors hover:text-gold" href="/about">

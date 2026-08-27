@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { byClosest, progressOf, type RecipeComponent } from './collection'
-import { normalizeIds, toExport } from './client/collection'
+import { normalizeIds, normalizeImport, toExport } from './client/collection'
 
 const BRATON: RecipeComponent[] = [
   { itemId: 'braton-prime-barrel', count: 1 },
@@ -87,9 +87,9 @@ describe('byClosest', () => {
 
 describe('export and import', () => {
   it('round-trips through the export envelope', () => {
-    const ids = new Set(['b', 'a'])
-    const file = toExport(ids, '2026-08-26T00:00:00.000Z')
+    const file = toExport({ owned: ['b', 'a'], tracked: ['z', 'y'] }, '2026-08-26T00:00:00.000Z')
     expect(file.owned).toEqual(['a', 'b'])
+    expect(file.tracked).toEqual(['y', 'z'])
     expect(normalizeIds(file)).toEqual(['a', 'b'])
   })
 
@@ -110,5 +110,29 @@ describe('export and import', () => {
     expect(normalizeIds(null)).toEqual([])
     expect(normalizeIds({ nope: true })).toEqual([])
     expect(normalizeIds('a,b')).toEqual([])
+  })
+})
+
+describe('normalizeImport', () => {
+  it('reads both lists out of a version 2 file', () => {
+    const file = toExport({ owned: ['a'], tracked: ['s'] }, '2026-08-27T00:00:00.000Z')
+    expect(normalizeImport(file)).toEqual({ owned: ['a'], tracked: ['s'] })
+  })
+
+  it('imports a version 1 file, which had no farm list', () => {
+    // The only backup a user made before tracking existed must still restore their items.
+    const v1 = { format: 'provenance-collection', version: 1, owned: ['a', 'b'] }
+    expect(normalizeImport(v1)).toEqual({ owned: ['a', 'b'], tracked: [] })
+  })
+
+  it('imports a bare array as the owned list', () => {
+    expect(normalizeImport(['a'])).toEqual({ owned: ['a'], tracked: [] })
+  })
+
+  it('ignores a malformed tracked list rather than refusing the file', () => {
+    expect(normalizeImport({ owned: ['a'], tracked: 'nonsense' })).toEqual({
+      owned: ['a'],
+      tracked: [],
+    })
   })
 })

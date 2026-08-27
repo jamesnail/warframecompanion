@@ -194,3 +194,35 @@ export function OwnedToggle({ itemId, itemName }: { itemId: string; itemName: st
     </button>
   )
 }
+
+/**
+ * Put a set or a part on the farm list.
+ *
+ * Separate from OwnedToggle because they mean different things and one cannot be derived
+ * from the other: owning is inventory, tracking is intent. /farm used to infer intent from
+ * inventory — every set holding a component you owned — and owning a single Orokin Cell put
+ * 177 sets on the plan.
+ */
+export function TrackToggle({ itemId, itemName }: { itemId: string; itemName: string }) {
+  const { tracked, ready, toggleTracked } = useCollection()
+  const on = ready && tracked.has(itemId)
+
+  return (
+    <button
+      type="button"
+      disabled={!ready}
+      aria-pressed={on}
+      onClick={() => {
+        toggleTracked(itemId, !on)
+      }}
+      className={`chamfer-sm border px-3 py-1.5 text-xs transition-colors disabled:opacity-40 ${
+        on
+          ? 'border-gold bg-void-700 text-gold'
+          : 'border-hairline text-text-dim hover:border-hairline-strong hover:text-text'
+      }`}
+    >
+      {on ? '✓ Farming' : 'Add to farm list'}
+      <span className="sr-only"> — {itemName}</span>
+    </button>
+  )
+}

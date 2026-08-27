@@ -104,6 +104,7 @@
  */
 @utility panel {
   --brace: var(--color-gold-dim);
+  animation: rise 320ms var(--ease-orokin) backwards;
   background:
     linear-gradient(var(--brace), var(--brace)) no-repeat 100% 0 / 18px 1px padding-box,
     linear-gradient(var(--brace), var(--brace)) no-repeat 100% 0 / 1px 18px padding-box,
@@ -164,6 +165,46 @@
   }
 }
 
+/**
+ * Entrance: a short rise and fade, once, on first paint.
+ *
+ * Applied to panels and to the home title card, so a page assembles itself instead of
+ * appearing fully formed. `backwards` fill matters — without it a delayed element paints at
+ * full opacity for its delay and then jumps to the start of its own animation.
+ *
+ * This is the only animation in the app that runs without being asked for, and it runs once.
+ * Nothing here loops.
+ */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@utility animate-rise {
+  animation: rise 320ms var(--ease-orokin) backwards;
+}
+
+/**
+ * A gold sweep that travels once along a rule, the way a HUD element powers on.
+ *
+ * Purely decorative and purely compositor work: it animates a gradient's position via
+ * transform on a pseudo-element, never the width of anything.
+ */
+@keyframes sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
 /** Every numeral in a data context aligns vertically. A drop-rate column that does not
  *  is a defect, not a nitpick. */
 @utility data-num {
@@ -182,8 +223,18 @@
 
 /** A gold hairline rule that fades out to the right. Section separator, not a border. */
 @utility rule-gold {
+  position: relative;
   height: 1px;
+  overflow: hidden;
   background: linear-gradient(to right, var(--color-gold-dim), transparent);
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to right, transparent, var(--color-gold), transparent);
+    animation: sweep 1400ms var(--ease-orokin) 200ms 1 backwards;
+  }
 }
 
 /**
@@ -315,5 +366,16 @@ button,
 
   .hover-lift:hover {
     transform: none;
+  }
+
+  /* Duration alone is not enough: an animation that starts at opacity 0 and is then made
+     instant still paints one frame of nothing. These have to be switched off outright. */
+  .animate-rise,
+  .panel {
+    animation: none !important;
+  }
+
+  .rule-gold::after {
+    display: none;
   }
 }

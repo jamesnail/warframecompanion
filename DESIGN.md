@@ -380,8 +380,8 @@ Never store a filter in React state alone. If it changes what's displayed, it be
 | `/relics` | **Shipped 2026-08-26.** 771 relics, tier and vault filtering, and the refinement ladder stated once. Distinct from `/browse?category=Relic`, where a row is one EDGE and a relic appears once per place it drops; here a row is one RELIC and the question is what is inside it. Search matches CONTENTS, because you look for the part, not the relic. |
 | `/collection` | What you own and which sets it completes, closest to finished first. Prerendered like everything else; only the owned ids come from IndexedDB, inside a client island. Carries the export/import backup story. |
 | `/rivens` | Disposition and weekly trade price per riven FAMILY (see § 9.2), sortable and filterable. Prerendered shell, client table, 132 KB chunk. Weapons link to their item page only where the drop data knows one — 243 of 687; the rest are bought, never dropped. |
-| `/farm` | **The plan.** What to run next, ranked. Intersects the IndexedDB collection with the drop chains and the live fissure list, then groups by the ACTION that advances the most parts — one Neo fissure run counts toward every part behind a Neo relic. Chains come from the same `buildBestChain` the item pages use, so the plan can never contradict the page it links to. `noindex`: it is whatever the viewer has ticked. |
-| `/world` | **The one live surface.** Open fissures by relic tier, invasions, sortie, archon hunt and Baro, fetched from a mirror of DE's own `worldState` (§ 2.1) into a client island under a prerendered shell. Open-world cycles sit above all of it and are *computed*, not fetched — see hazards 37 and 38 — so they survive the feed being down. This is also where the Factions tile ended up. |
+| `/farm` | **The plan.** What to run next, ranked. Intersects the explicit farm list (see hazard 37) with the drop chains and the live fissure list, then groups by the ACTION that advances the most parts — one Neo fissure run counts toward every part behind a Neo relic. Chains come from the same `buildBestChain` the item pages use, so the plan can never contradict the page it links to. `noindex`: it is whatever the viewer has ticked. |
+| `/world` | **The one live surface.** Open fissures by relic tier, invasions, sortie, archon hunt and Baro, fetched from a mirror of DE's own `worldState` (§ 2.1) into a client island under a prerendered shell. Open-world cycles sit above all of it and are *computed*, not fetched — see hazards 38 and 39 — so they survive the feed being down. This is also where the Factions tile ended up. |
 | `/about` | Data sources, update cadence, attribution, methodology — including honest notes on where the numbers are estimates. |
 
 `generateStaticParams` over every item and source produces roughly 6,500 static pages. That is well
@@ -974,7 +974,15 @@ Write these into code comments as you hit them.
     What the wiki genuinely does not provide is *state* — fissures, invasions, Baro's actual
     manifest — which still comes from the mirror.
 
-37. **A deterministic cycle needs no feed, and a long baseline is what makes it checkable.**
+37. **Intent cannot be inferred from inventory.** /farm originally derived "what you are
+    working on" from owned parts: any set in which you held at least one component. That reads
+    as reasonable and collapses on the first shared component — Orokin Cell belongs to 177
+    sets, so owning one put 177 sets on the plan, each "finished" by the same cell. The fix is
+    not a better heuristic, it is a second list: `owned` is inventory, `tracked` is intent, and
+    the user states the second rather than the tool guessing it. Both are exported, because a
+    backup that restored the collection and dropped the plan would lose half the user's work.
+
+38. **A deterministic cycle needs no feed, and a long baseline is what makes it checkable.**
     Cetus day/night, Vallis warm/cold, Cambion Fass/Vome and Duviri's spiral are fixed
     rotations of fixed-length phases, so one known instant locates them forever with no
     network call at all — arithmetic on the reader's own clock. The constants are the Warframe
@@ -986,14 +994,14 @@ Write these into code comments as you hit them.
     rather than a neat 150 minutes: rounded, it would drift ~45 minutes over that span. A unit
     test pins the comparison so nobody "tidies" the constant away.
 
-38. **An epoch that is one phase out is worse than no epoch.** The same wiki template lists a
+39. **An epoch that is one phase out is worse than no epoch.** The same wiki template lists a
     Zariman epoch. It is wrong — on 2026-08-27 it computed Corpus while DE published Grineer,
     inverted, with the period itself correct. The wiki's own gadget does not trust it either
     and fetches the live faction. So the Zariman is the one cycle here that is fetched rather
     than computed, and it simply disappears when the feed does, while the other four keep
     running. Confidently wrong is the failure mode to design against; absent is fine.
 
-39. **`Time` is the one field DE publishes in seconds.** Every other timestamp in `worldState`
+40. **`Time` is the one field DE publishes in seconds.** Every other timestamp in `worldState`
     is milliseconds inside a `{ $date: { $numberLong } }` wrapper. Reading `Time` the same way
     dates the payload to 1970, which makes a perfectly healthy feed look 56 years stale and
     trips the staleness guard on every load. Caught by a unit test asserting a healthy feed is
