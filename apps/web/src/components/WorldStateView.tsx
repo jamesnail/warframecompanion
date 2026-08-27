@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 
+import { CyclesPanel } from '@/components/CyclesPanel'
 import { Panel, PanelHeader } from '@/components/Primitives'
 import { fetchWorldState } from '@/lib/client/world-state'
 import {
@@ -74,10 +75,20 @@ export function WorldStateView({ nodes }: { nodes: NodeIndex }) {
     }
   }, [load])
 
-  if (status === 'loading') return <p className="label mt-8">Loading world state…</p>
+  const cycles = <CyclesPanel zariman={state?.zariman} />
+
+  if (status === 'loading')
+    return (
+      <>
+        {cycles}
+        <p className="label mt-8">Loading world state…</p>
+      </>
+    )
 
   if (status === 'failed' || state === undefined) {
     return (
+      <>
+      {cycles}
       <Notice
         title="World state is unavailable"
         onRetry={() => {
@@ -86,10 +97,11 @@ export function WorldStateView({ nodes }: { nodes: NodeIndex }) {
         }}
       >
         <p className="text-sm text-text-dim">
-          This is the only part of the site that needs a live connection. Everything else — drop
-          tables, relics, rivens — is served from here and still works.
+          The cycles above are computed from your own clock and are unaffected. Everything else
+          — drop tables, relics, rivens — is served from here and still works.
         </p>
       </Notice>
+      </>
     )
   }
 
@@ -105,6 +117,8 @@ export function WorldStateView({ nodes }: { nodes: NodeIndex }) {
   if (isStale(state, clock)) {
     const age = payloadAgeMinutes(state.timestamp, clock)
     return (
+      <>
+      {cycles}
       <Notice
         title="World state is not updating"
         onRetry={() => {
@@ -117,10 +131,11 @@ export function WorldStateView({ nodes }: { nodes: NodeIndex }) {
           in it has already expired.
         </p>
         <p className="mt-2 text-sm text-text-dim">
-          Nothing else here depends on it. Drop tables, relics and rivens are served from this
-          site and are unaffected.
+          Nothing else here depends on it. The cycles above are computed locally, and drop
+          tables, relics and rivens are served from this site.
         </p>
       </Notice>
+      </>
     )
   }
 
@@ -131,6 +146,7 @@ export function WorldStateView({ nodes }: { nodes: NodeIndex }) {
 
   return (
     <div>
+      {cycles}
       {/* What each faction is doing, which is what replaced a static Factions surface: node
           ownership is published for about half the star chart, but activity is complete. */}
       {factions.length > 0 && (

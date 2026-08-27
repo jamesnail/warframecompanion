@@ -149,6 +149,20 @@ export interface VoidTrader {
   inventory: { item: string; ducats: number | undefined; credits: number | undefined }[]
 }
 
+/**
+ * The Zariman's occupying faction.
+ *
+ * This is the one open-world cycle that is NOT computed from an epoch. The wiki publishes
+ * one, and it is a phase out: on 2026-08-27 it said Corpus while DE said Grineer. The
+ * wiki's own clock does not trust it either and fetches this same feed. See the note at
+ * the top of `packages/core/src/cycles.ts`.
+ */
+export interface Zariman {
+  faction: string
+  /** When the current faction's window ends — the bounty rotation boundary. */
+  endsAt: number
+}
+
 export interface WorldState {
   /** When DE generated it, where the feed says so. */
   timestamp: number | undefined
@@ -157,6 +171,7 @@ export interface WorldState {
   sortie: SortieLike | undefined
   archonHunt: SortieLike | undefined
   voidTrader: VoidTrader | undefined
+  zariman: Zariman | undefined
 }
 
 /**
@@ -215,7 +230,27 @@ function many<T>(value: unknown, schema: z.ZodType<T>): T[] {
  * Deliberately never throws. A page that renders four of its panels is useful; one that
  * errors because DE added a field to Conquests is not.
  */
-export function parseWorldState(raw: unknown, invasionsRaw: unknown, index: NodeIndex): WorldState {
+const RawBountyCycle = z.object({
+  expiry: z.number(),
+  zarimanFaction: z.string(),
+})
+
+/** Never throws: a missing or malformed bounty feed hides the Zariman row, nothing more. */
+export function parseZariman(raw: unknown): Zariman | undefined {
+  const parsed = RawBountyCycle.safeParse(raw)
+  if (!parsed.success) return undefined
+  return {
+    faction: factionOf(parsed.data.zarimanFaction) ?? parsed.data.zarimanFaction,
+    endsAt: parsed.data.expiry,
+  }
+}
+
+export function parseWorldState(
+  raw: unknown,
+  invasionsRaw: unknown,
+  index: NodeIndex,
+  bountyRaw?: unknown,
+): WorldState {
   const root = (raw ?? {}) as Record<string, unknown>
 
   const fissures: Fissure[] = []
@@ -306,6 +341,7 @@ export function parseWorldState(raw: unknown, invasionsRaw: unknown, index: Node
     invasions,
     sortie: toSortie(root.Sorties),
     archonHunt: toSortie(root.LiteSorties),
+    zariman: parseZariman(bountyRaw),
     voidTrader:
       trader === undefined
         ? undefined

@@ -20,6 +20,8 @@ import { parseWorldState, type NodeIndex, type WorldState } from '@/lib/world'
  */
 const WORLD_STATE = 'https://oracle.browse.wf/worldState.min.json'
 const INVASIONS = 'https://oracle.browse.wf/invasions'
+/** Carries the Zariman's occupying faction, which no epoch predicts correctly. */
+const BOUNTY_CYCLE = 'https://oracle.browse.wf/bounty-cycle'
 
 /** Long enough that a slow response gives up rather than leaving a spinner forever. */
 const TIMEOUT_MS = 10_000
@@ -28,14 +30,17 @@ export async function fetchWorldState(index: NodeIndex, signal?: AbortSignal): P
   const timeout = AbortSignal.timeout(TIMEOUT_MS)
   const combined = signal === undefined ? timeout : AbortSignal.any([signal, timeout])
 
-  const [state, invasions] = await Promise.all([
+  const [state, invasions, bounty] = await Promise.all([
     fetchJson(WORLD_STATE, combined),
     // Invasions are a nicety, not the page. Losing them must not lose the fissures.
     fetchJson(INVASIONS, combined).catch(() => undefined),
+    // Likewise the Zariman: the four computed cycles need no network at all and render
+    // whatever happens here.
+    fetchJson(BOUNTY_CYCLE, combined).catch(() => undefined),
   ])
 
   // parseWorldState never throws; it discards what it cannot read, section by section.
-  return parseWorldState(state, invasions, index)
+  return parseWorldState(state, invasions, index, bounty)
 }
 
 async function fetchJson(url: string, signal: AbortSignal): Promise<unknown> {
