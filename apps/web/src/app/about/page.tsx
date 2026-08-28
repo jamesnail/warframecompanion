@@ -7,8 +7,9 @@ import { getDataset } from '@/lib/data'
 
 export const metadata: Metadata = {
   title: 'About the data',
-  description:
-    'Where Provenance gets its drop data, how it is validated, and where the numbers are estimates rather than facts.',
+  // Reads the name rather than repeating it: this line survived the 2026-08-28 rename only
+  // because someone grepped for it.
+  description: `Where ${site.name} gets its drop data, how it is validated, and where the numbers are estimates rather than facts.`,
   alternates: { canonical: '/about' },
 }
 

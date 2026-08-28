@@ -1,5 +1,10 @@
 # Assets
 
+> **Stale since the 2026-08-28 rename.** All three derived assets render the wordmark
+> "PROVENANCE", and the monogram is a P. They are the owner's artwork, so they were left
+> untouched rather than regenerated from a name change. Replace `provenance_logo.png` and
+> re-run the command below to bring them in line.
+
 `provenance_logo.png` — the source logo. 1408×768, 95.5% transparent; the artwork itself
 occupies x 455–952, y 88–673 and is dark slate (rgb 48, 64, 64) on transparency.
 

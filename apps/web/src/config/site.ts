@@ -2,9 +2,18 @@
  * The single place the product name lives. The GitHub repo and the Vercel project are both
  * named "warframecompanion" for historical reasons; nothing user-facing should reference that.
  * Renaming the product means editing this file and package.json, nowhere else.
+ *
+ * "Nowhere else" is load-bearing and was not quite true at the 2026-08-28 rename: /about had
+ * the name typed into its metadata description. Read `site.name` rather than typing it, in
+ * metadata as much as in JSX.
+ *
+ * Three things deliberately keep the old name and must NOT be renamed with the product:
+ * the IndexedDB database and the settings mirror key (they are where viewers' data physically
+ * lives — see db.ts), and `DropEdge.provenance`, which is a domain term meaning "where this
+ * claim came from" and has nothing to do with the product's name.
  */
 export const site = {
-  name: 'Provenance',
+  name: 'Cephalon Tel',
   tagline: 'Every way to get it, ranked by effort.',
   description:
     'Warframe drop-source lookup. Given an item, see every source that drops it and every relic that contains it, ranked by drop rate.',

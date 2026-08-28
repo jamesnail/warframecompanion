@@ -7,12 +7,22 @@ The full rationale lives in `DESIGN.md` — this file is the rules; that file is
 
 ## What this is
 
-**Provenance** — a Warframe drop-source lookup tool. The primary question it answers is the
+**Cephalon Tel** — a Warframe drop-source lookup tool. The primary question it answers is the
 *reverse* one: given an item, show every way to get it, ranked by expected effort, including
 items gated behind Void Relics where the path is a chain rather than a single row.
 
-Working name is a placeholder. If the owner renames it, update `package.json`, `apps/web/src/config/site.ts`,
-and this heading — nowhere else should hardcode the name.
+Renamed from "Provenance" on 2026-08-28. The name lives in `apps/web/src/config/site.ts` and
+`package.json` and nowhere else — read `site.name`, including in `metadata` objects.
+
+Three names deliberately did NOT change and must not: the IndexedDB database `provenance` and
+the `provenance:settings` mirror key, because they are where every viewer's collection and
+settings physically live and renaming them would silently open an empty store; and
+`DropEdge.provenance`, which is a domain term for where a claim came from. The `@provenance/*`
+package scope is internal and was left alone — renaming it touches every import to change
+nothing a user can see.
+
+The logo and the three image assets derived from it still carry the old wordmark; see
+`assets/README.md`.
 
 Repo → GitHub → Vercel. Public site, public repo. Assume every commit ships.
 
