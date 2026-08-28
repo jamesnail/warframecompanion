@@ -1,5 +1,15 @@
-import type { DropEdge, Item, ItemCategory, Source, SourceKind } from '@provenance/core'
+import type {
+  CompiledQuery,
+  DropEdge,
+  Item,
+  ItemCategory,
+  QueryItem,
+  QueryPath,
+  Source,
+  SourceKind,
+} from '@provenance/core'
 
+import { isPrimeName, tierFromSourceName } from './query-index'
 import { relicItemIdFor, sourceHref } from './source-route'
 
 /**
@@ -32,30 +42,14 @@ export interface BrowseRow {
    * would hide the one row that still works.
    */
   vaulted: boolean
+  /** Query-language fields. Carried on the row so a predicate is a field read rather than a
+   *  join back to the source table on every keystroke. */
+  planet: string | undefined
+  tier: string | undefined
+  rotation: string | undefined
   /** Lowercased item + source name, precomputed. Filtering runs over ~28k rows on every
    *  keystroke, and lowercasing inside the predicate made that the slow part. */
   haystack: string
-}
-
-export interface BrowseFilters {
-  q: string
-  categories: ItemCategory[]
-  kinds: SourceKind[]
-  /** 0..1. Rows below this are hidden. */
-  minChance: number
-  tradableOnly: boolean
-  /** Hide paths that go through a vaulted relic. 455 of 582 prime parts are reachable only
-   *  that way, so "what can I farm today" is a different question from "where is it from". */
-  farmableOnly: boolean
-}
-
-export const EMPTY_FILTERS: BrowseFilters = {
-  q: '',
-  categories: [],
-  kinds: [],
-  minChance: 0,
-  tradableOnly: false,
-  farmableOnly: false,
 }
 
 export type SortColumn = 'item' | 'source' | 'category' | 'chance'
@@ -113,6 +107,9 @@ export function buildRows(
       chance: edge.chance,
       quantity: edge.quantity,
       vaulted: isVaultedRelic(source.id, itemsById),
+      planet: source.planet,
+      tier: source.kind === 'relic' ? tierFromSourceName(source.name) : undefined,
+      rotation: edge.rotation ?? undefined,
       haystack: `${item.name} ${source.name}`.toLowerCase(),
     })
   }
@@ -120,29 +117,47 @@ export function buildRows(
 }
 
 /**
- * Substring match, deliberately not fuzzy.
+ * The path-grain projection of a row.
  *
- * The palette is fuzzy because you are recalling one name from 4.5k and a typo should still
- * find it. A table filter is the opposite: you are narrowing a set you can see, and fuzzy
- * matching there returns rows you did not ask for and cannot explain. Every term must
- * appear, so terms narrow rather than widen.
+ * The item facts a row does not carry — prime, set, mastery, market — are looked up rather
+ * than duplicated onto the row, so the two grains cannot drift apart on what "prime" means.
+ * The fallback exists only for a row whose item is missing from the index, which the orphan
+ * gate makes impossible and which must still not throw inside a filter.
  */
-export function filterRows(rows: BrowseRow[], filters: BrowseFilters): BrowseRow[] {
-  const terms = filters.q.toLowerCase().split(/\s+/).filter(Boolean)
-  const categories = filters.categories.length === 0 ? undefined : new Set(filters.categories)
-  const kinds = filters.kinds.length === 0 ? undefined : new Set(filters.kinds)
+export function pathOf(row: BrowseRow, item: QueryItem | undefined): QueryPath {
+  return {
+    itemName: row.itemName,
+    haystack: row.haystack,
+    category: row.category,
+    tradable: row.tradable,
+    hasMarket: item?.hasMarket ?? false,
+    isPrime: item?.isPrime ?? isPrimeName(row.itemName),
+    isSet: item?.isSet ?? false,
+    masteryReq: item?.masteryReq,
+    vaulted: row.vaulted,
+    kind: row.sourceKind,
+    planet: row.planet,
+    tier: row.tier,
+    rotation: row.rotation,
+    chance: row.chance,
+  }
+}
 
-  return rows.filter((row) => {
-    if (categories !== undefined && !categories.has(row.category)) return false
-    if (kinds !== undefined && !kinds.has(row.sourceKind)) return false
-    if (filters.tradableOnly && !row.tradable) return false
-    if (filters.farmableOnly && row.vaulted) return false
-    if (row.chance < filters.minChance) return false
-    for (const term of terms) {
-      if (!row.haystack.includes(term)) return false
-    }
-    return true
-  })
+/**
+ * Rows matching a compiled query, at path grain.
+ *
+ * Bare words are substring matches here, deliberately not fuzzy: the palette is fuzzy because
+ * you are recalling one name from 4.9k and a typo should still find it, whereas a table filter
+ * narrows a set you can already see, where a fuzzy hit returns rows you did not ask for and
+ * cannot explain. Terms narrow rather than widen — that is what makes AND the right default.
+ */
+export function filterRows(
+  rows: BrowseRow[],
+  compiled: CompiledQuery,
+  itemsById: ReadonlyMap<string, QueryItem>,
+): BrowseRow[] {
+  if (compiled.size === 0) return rows
+  return rows.filter((row) => compiled.matchPath(pathOf(row, itemsById.get(row.itemId))))
 }
 
 /**

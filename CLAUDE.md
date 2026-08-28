@@ -93,6 +93,14 @@ pnpm data:diff          # show what a fresh pipeline run would change
 
 pnpm only. If you see `npm install` or a `package-lock.json` anywhere, that is a bug.
 
+**Query language (2026-08-28).** The palette and `/browse` share one grammar, defined in
+`packages/core/src/query/`. It is defined over ITEMS with an existential lift to paths, because
+all 50 prime Warframes have zero drop edges of their own and an edge-grain language returns
+nothing for "prime warframes" (DESIGN.md § 11). Adding a key is one entry in `keys.ts` plus a
+test. Do not add a key whose field is not populated — `faction:` is absent for exactly this
+reason, and the check is a measurement against `public/data`, not a look at `types.ts`.
+`/browse` carries its whole filter state in one `q=` param; do not add a second filter param.
+
 **Table note (2026-08-25).** `/browse` ships with TanStack **Virtual** only; TanStack Table v8
 was dropped from the plan. Virtualization is genuinely required — 28k rows — but the table
 itself is four fixed columns with one sort key and a handful of AND-ed predicates, all of which

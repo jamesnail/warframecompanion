@@ -26,6 +26,9 @@ export interface SearchResult {
 
 export interface SearchIndex {
   search(needle: string, limit?: number): SearchResult
+  /** Every entry, in corpus order. A predicate-only query ("is:prime cat:warframe") names
+   *  nothing for uFuzzy to match, so the whole corpus is the candidate set. */
+  all(): SearchHit[]
   size: number
 }
 
@@ -44,6 +47,7 @@ export function createSearchIndex(items: Item[]): SearchIndex {
 
   return {
     size: entries.length,
+    all: () => entries,
     search(needle: string, limit = 20): SearchResult {
       if (entries.length === 0 || needle.trim() === '') return { hits: [], total: 0 }
 

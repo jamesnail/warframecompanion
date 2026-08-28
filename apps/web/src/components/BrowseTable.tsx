@@ -2,12 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { useQueryStates, parseAsArrayOf, parseAsBoolean, parseAsFloat, parseAsString, parseAsStringLiteral } from 'nuqs'
+import { useQueryStates, parseAsString, parseAsStringLiteral } from 'nuqs'
 import { useVirtualizer } from '@tanstack/react-virtual'
 
-import { stageLabel } from '@provenance/core'
-import type { ItemCategory, SourceKind } from '@provenance/core'
+import { compileQuery, parseQuery, stageLabel, type QueryItem } from '@provenance/core'
 
+import { QueryInput } from '@/components/QueryInput'
 import { loadBrowseDataset } from '@/lib/client/dataset'
 import {
   buildRows,
@@ -17,6 +17,9 @@ import {
   type BrowseRow,
   type SortColumn,
 } from '@/lib/browse'
+import { hasLegacyParams, readLegacyParams, toQueryText } from '@/lib/legacy-params'
+import { buildQueryItems, indexById } from '@/lib/query-index'
+import { hasTerm, toggleTerm } from '@/lib/query-text'
 
 /** Fixed, because the virtualizer measures in rows and a variable height would make the
  *  scrollbar lie about how much is below. Also clears the 44px touch-target floor. */
@@ -26,29 +29,49 @@ const SORT_COLUMNS = ['item', 'source', 'category', 'chance'] as const
 const SORT_DIRECTIONS = ['asc', 'desc'] as const
 
 /**
- * Every control is a search param, so any view of this table is a URL someone else can
- * open and see exactly what you saw (CLAUDE.md constraint 5). `clearOnDefault` keeps the
- * common case — no filters — as a clean `/browse` rather than a URL full of empty values.
+ * The whole filter state is one param, holding the literal text someone typed (CLAUDE.md
+ * constraint 5). It replaced six — q, category, kind, min, tradable, farmable — which between
+ * them could not express "prime warframes" and put an encoding between the URL and the
+ * predicate. `clearOnDefault` keeps the common case as a clean `/browse`.
+ *
+ * This also answers DESIGN.md § 12's open question about saved filter presets with "no": once
+ * the URL holds the query text, a bookmark IS the preset.
  */
 const FILTER_PARSERS = {
   q: parseAsString.withDefault(''),
-  category: parseAsArrayOf(parseAsString).withDefault([]),
-  kind: parseAsArrayOf(parseAsString).withDefault([]),
-  min: parseAsFloat.withDefault(0),
-  tradable: parseAsBoolean.withDefault(false),
-  farmable: parseAsBoolean.withDefault(false),
   sort: parseAsStringLiteral(SORT_COLUMNS).withDefault('chance'),
   dir: parseAsStringLiteral(SORT_DIRECTIONS).withDefault('desc'),
 }
 
+/**
+ * Declared only so the one-shot migration can clear them. They are never read as filter
+ * state — `toQueryText` reads the raw URL — and nothing else in the app knows they exist.
+ */
+const LEGACY_PARSERS = {
+  category: parseAsString,
+  kind: parseAsString,
+  min: parseAsString,
+  tradable: parseAsString,
+  farmable: parseAsString,
+}
+
+const EMPTY_INDEX: ReadonlyMap<string, QueryItem> = new Map()
+
+/** Enough to show the answer exists and act on it; not a second table. */
+const ITEM_FALLBACK_CAP = 24
+
 type LoadState =
   | { status: 'loading' }
   | { status: 'failed' }
-  | { status: 'ready'; rows: BrowseRow[] }
+  | { status: 'ready'; rows: BrowseRow[]; itemsById: Map<string, QueryItem> }
 
 export function BrowseTable() {
   const [state, setState] = useState<LoadState>({ status: 'loading' })
   const [filters, setFilters] = useQueryStates(FILTER_PARSERS, {
+    clearOnDefault: true,
+    history: 'replace',
+  })
+  const [, setLegacy] = useQueryStates(LEGACY_PARSERS, {
     clearOnDefault: true,
     history: 'replace',
   })
@@ -59,7 +82,11 @@ export function BrowseTable() {
       try {
         const { items, sources, edges } = await loadBrowseDataset()
         if (cancelled) return
-        setState({ status: 'ready', rows: buildRows(items, sources, edges, stageLabel) })
+        setState({
+          status: 'ready',
+          rows: buildRows(items, sources, edges, stageLabel),
+          itemsById: indexById(buildQueryItems(items, sources, edges)),
+        })
       } catch {
         // A missing dataset must not blank the page (CLAUDE.md § Errors).
         if (!cancelled) setState({ status: 'failed' })
@@ -71,37 +98,62 @@ export function BrowseTable() {
     }
   }, [])
 
+  /**
+   * Old six-param links are shareable by design, so they have to keep resolving to the view
+   * they described. Translate once, replace the URL, and never look again — a permanent
+   * compatibility layer would mean two live ways to express one filter.
+   */
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (!hasLegacyParams(params)) return
+    const { query } = toQueryText(readLegacyParams(params))
+    // Both calls land in one history entry: nuqs batches updates within a tick, so the old
+    // keys clear and the new one appears together rather than as two visible states.
+    void setFilters({ q: query === '' ? null : query })
+    void setLegacy({ category: null, kind: null, min: null, tradable: null, farmable: null })
+  }, [setFilters, setLegacy])
+
   const all = state.status === 'ready' ? state.rows : []
+  const itemsById = state.status === 'ready' ? state.itemsById : EMPTY_INDEX
+
+  /** Facets come from the loaded rows, so a dead option is never offered. */
+  const facets = useMemo(() => facetsOf(all), [all])
+
+  // Parsing is cheap and the errors are needed for the input, so it happens on every render
+  // of the query rather than being threaded through state.
+  const parsed = useMemo(() => parseQuery(filters.q), [filters.q])
+
+  // Filtering ~28k rows runs on every keystroke, so it is memoised on the exact inputs.
+  // Predicates compile once here, not once per row: the closures below are what the row loop
+  // calls. Measured at 0.34–3.37 ms for the full corpus.
+  const compiled = useMemo(() => compileQuery(parsed.query), [parsed])
+
+  const visible = useMemo(
+    () => sortRows(filterRows(all, compiled, itemsById), filters.sort, filters.dir),
+    [all, itemsById, compiled, filters.sort, filters.dir],
+  )
 
   /**
-   * Facets come from the loaded rows so a dead option is never offered — but anything the
-   * URL already selected is unioned in. Without that, arriving at /browse?category=Mod shows
-   * an empty filter panel for as long as the edge list takes to load, and the one filter
-   * that IS applied is the only one you cannot see.
+   * Items that match when the ROWS do not.
+   *
+   * `is:prime cat:warframe` is the case: all 50 prime Warframes match, and every one of them
+   * has zero drop rows, because a set is built from parts rather than dropped. A bare "0 rows"
+   * there is technically true and reads as "there are no prime Warframes", so the answer that
+   * does exist is offered instead of withheld.
    */
-  const facets = useMemo(() => {
-    const found = facetsOf(all)
-    const union = (available: string[], selected: string[]): string[] =>
-      [...new Set([...available, ...selected])].sort((a, b) => a.localeCompare(b))
-    return {
-      categories: union(found.categories, filters.category),
-      kinds: union(found.kinds, filters.kind),
+  const itemMatches = useMemo(() => {
+    if (visible.length > 0 || compiled.size === 0) return []
+    const found: QueryItem[] = []
+    for (const item of itemsById.values()) {
+      if (compiled.matchItem(item)) found.push(item)
+      if (found.length >= ITEM_FALLBACK_CAP) break
     }
-  }, [all, filters.category, filters.kind])
+    return found
+  }, [visible.length, compiled, itemsById])
 
-  // Filtering ~28k rows runs on every keystroke, so it is memoised on the exact inputs
-  // rather than recomputed per render.
-  const visible = useMemo(() => {
-    const filtered = filterRows(all, {
-      q: filters.q,
-      categories: filters.category as ItemCategory[],
-      kinds: filters.kind as SourceKind[],
-      minChance: filters.min,
-      tradableOnly: filters.tradable,
-      farmableOnly: filters.farmable,
-    })
-    return sortRows(filtered, filters.sort, filters.dir)
-  }, [all, filters.q, filters.category, filters.kind, filters.min, filters.tradable, filters.farmable, filters.sort, filters.dir])
+  const setQuery = (next: string): void => {
+    void setFilters({ q: next === '' ? null : next })
+  }
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const virtualizer = useVirtualizer({
@@ -115,91 +167,58 @@ export function BrowseTable() {
   // 4,000 of a 12-row result, which reads as an empty table.
   useEffect(() => {
     virtualizer.scrollToOffset(0)
-  }, [filters.q, filters.category, filters.kind, filters.min, filters.tradable, filters.farmable, virtualizer])
+  }, [filters.q, virtualizer])
 
-  const toggle = (key: 'category' | 'kind', value: string): void => {
-    const current = filters[key]
-    void setFilters({
-      [key]: current.includes(value)
-        ? current.filter((entry) => entry !== value)
-        : [...current, value],
-    })
-  }
-
-  const active =
-    filters.q !== '' ||
-    filters.category.length > 0 ||
-    filters.kind.length > 0 ||
-    filters.min > 0 ||
-    filters.tradable ||
-    filters.farmable
+  const active = filters.q !== ''
 
   return (
     <div>
       <div className="panel p-4 sm:p-5">
-        <label className="block">
-          <span className="sr-only">Filter by item or source name</span>
-          <input
-            type="search"
-            value={filters.q}
-            onChange={(event) => void setFilters({ q: event.target.value })}
-            placeholder="Filter by item or source…"
-            // text-base: iOS zooms any focused input under 16px and does not zoom back.
-            className="chamfer-sm w-full border border-hairline bg-void-900 px-3 py-2.5 text-base text-text outline-none transition-colors focus:border-gold placeholder:text-text-faint sm:text-sm"
-          />
-        </label>
+        <QueryInput
+          label="Search and filter"
+          placeholder="braton, or is:prime from:relic -is:vaulted"
+          value={filters.q}
+          onChange={setQuery}
+          errors={parsed.errors}
+        />
 
-        <FacetRow label="Category" values={facets.categories} selected={filters.category} onToggle={(v) => { toggle('category', v) }} />
-        <FacetRow label="Source" values={facets.kinds} selected={filters.kind} onToggle={(v) => { toggle('kind', v) }} />
+        {/* The chips write query terms rather than holding state of their own, so a chip and
+            the same text typed by hand produce the identical URL. */}
+        <TermRow
+          label="Category"
+          terms={facets.categories.map((value) => ({ label: value, term: `cat:${value.toLowerCase()}` }))}
+          query={filters.q}
+          onToggle={(term) => { setQuery(toggleTerm(filters.q, term)) }}
+        />
+        <TermRow
+          label="Source"
+          terms={facets.kinds.map((value) => ({ label: value, term: `from:${value}` }))}
+          query={filters.q}
+          onToggle={(term) => { setQuery(toggleTerm(filters.q, term)) }}
+        />
+        <TermRow
+          label="Filters"
+          terms={[
+            { label: 'Prime', term: 'is:prime' },
+            { label: 'Tradable', term: 'is:tradable' },
+            // 455 of 582 prime parts are reachable only through a vaulted relic, so this is
+            // the difference between "where is it from" and "what can I farm tonight".
+            { label: 'Farmable now', term: '-is:vaulted' },
+            { label: 'Over 5%', term: 'chance:>5' },
+          ]}
+          query={filters.q}
+          onToggle={(term) => { setQuery(toggleTerm(filters.q, term)) }}
+        />
 
-        <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-3">
-          <label className="flex items-center gap-2 text-sm text-text-dim">
-            <input
-              type="checkbox"
-              checked={filters.tradable}
-              onChange={(event) => void setFilters({ tradable: event.target.checked })}
-              className="size-4 accent-gold"
-            />
-            Tradable only
-          </label>
-
-          {/* 455 of 582 prime parts are reachable only through a vaulted relic, so this is
-              the difference between "where is it from" and "what can I farm tonight". */}
-          <label className="flex items-center gap-2 text-sm text-text-dim">
-            <input
-              type="checkbox"
-              checked={filters.farmable}
-              onChange={(event) => void setFilters({ farmable: event.target.checked })}
-              className="size-4 accent-gold"
-            />
-            Farmable now
-          </label>
-
-          <label className="flex items-center gap-2 text-sm text-text-dim">
-            Min chance
-            <select
-              value={String(filters.min)}
-              onChange={(event) => void setFilters({ min: Number(event.target.value) })}
-              className="chamfer-sm border border-hairline bg-void-900 px-2 py-1.5 text-sm text-text outline-none focus:border-gold"
-            >
-              {[0, 0.01, 0.05, 0.1, 0.25, 0.5].map((value) => (
-                <option key={value} value={value}>
-                  {value === 0 ? 'any' : `${String(value * 100)}%`}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          {active && (
-            <button
-              type="button"
-              onClick={() => void setFilters(null)}
-              className="text-sm text-text-faint underline underline-offset-4 transition-colors hover:text-text"
-            >
-              Clear filters
-            </button>
-          )}
-        </div>
+        {active && (
+          <button
+            type="button"
+            onClick={() => { setQuery('') }}
+            className="mt-4 text-sm text-text-faint underline underline-offset-4 transition-colors hover:text-text"
+          >
+            Clear query
+          </button>
+        )}
       </div>
 
       <p className="label mt-4" role="status" aria-live="polite">
@@ -218,9 +237,30 @@ export function BrowseTable() {
         </div>
 
         {state.status === 'ready' && visible.length === 0 ? (
-          <p className="px-3 py-8 text-sm text-text-faint sm:px-5">
-            No rows match. Try removing a category, or lowering the minimum chance.
-          </p>
+          <div className="px-3 py-6 sm:px-5">
+            <p className="text-sm text-text-faint">{emptyStateHint(filters.q)}</p>
+            {itemMatches.length > 0 && (
+              <div className="mt-5">
+                <p className="text-sm text-text-dim">
+                  {itemMatches.length === ITEM_FALLBACK_CAP ? 'At least ' : ''}
+                  {itemMatches.length} item{itemMatches.length === 1 ? '' : 's'} match, with no
+                  drop row of their own — an assembled set is built from parts, never dropped.
+                </p>
+                <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5">
+                  {itemMatches.map((item) => (
+                    <li key={item.id}>
+                      <Link
+                        href={`/item/${item.id}`}
+                        className="text-sm text-text transition-colors hover:text-gold"
+                      >
+                        {item.name}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
         ) : (
           <div ref={scrollRef} className="h-[60vh] overflow-y-auto overscroll-contain">
             <div className="relative w-full" style={{ height: `${String(virtualizer.getTotalSize())}px` }}>
@@ -277,39 +317,66 @@ export function BrowseTable() {
   )
 }
 
-function FacetRow({
+/**
+ * Empty results are not an error and must not read as one (CLAUDE.md § Copy).
+ *
+ * Naming the likeliest culprit beats a generic "no rows": the last negation is the term most
+ * often responsible, because it is the one that silently removes rows you were looking at.
+ */
+function emptyStateHint(query: string): string {
+  const terms = parseQuery(query).query.terms
+  const negated = [...terms].reverse().find((term) => term.negated)
+  if (negated !== undefined) {
+    const text =
+      negated.type === 'word'
+        ? negated.text
+        : `${negated.key}:${negated.value.kind === 'text' ? negated.value.text : ''}`
+    return `No rows match that query. Try clearing -${text}.`
+  }
+  if (terms.length > 1) return 'No rows match that query. Try removing a term.'
+  return 'No rows match that query.'
+}
+
+/**
+ * A row of chips, each of which toggles one query term.
+ *
+ * Pressed state is read back OUT of the query text rather than held separately, so typing a
+ * term by hand lights its chip and the two can never disagree about what is filtered.
+ */
+function TermRow({
   label,
-  values,
-  selected,
+  terms,
+  query,
   onToggle,
 }: {
   label: string
-  values: string[]
-  selected: string[]
-  onToggle: (value: string) => void
+  terms: { label: string; term: string }[]
+  query: string
+  onToggle: (term: string) => void
 }) {
-  if (values.length === 0) return null
+  if (terms.length === 0) return null
   return (
     <div className="mt-4">
       <span className="label">{label}</span>
       <div className="mt-1.5 flex flex-wrap gap-1.5">
-        {values.map((value) => {
-          const on = selected.includes(value)
+        {terms.map((entry) => {
+          const on = hasTerm(query, entry.term)
           return (
             <button
-              key={value}
+              key={entry.term}
               type="button"
               aria-pressed={on}
               onClick={() => {
-                onToggle(value)
+                onToggle(entry.term)
               }}
+              title={entry.term}
               className={`chamfer-sm border px-2.5 py-1 text-xs capitalize transition-colors ${
                 on
                   ? 'border-gold bg-void-700 text-gold'
                   : 'border-hairline text-text-dim hover:border-hairline-strong hover:text-text'
               }`}
             >
-              {value}
+              {entry.label}
             </button>
           )
         })}

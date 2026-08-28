@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
+import { QUERY_EXAMPLES, activeToken, suggest } from '@provenance/core'
+
 import { useSearch } from '@/lib/client/use-search'
+import { applySuggestion } from '@/lib/query-text'
 
 /**
  * The ⌘K palette. In a later phase it becomes the home page itself (DESIGN.md § 7).
@@ -71,7 +74,13 @@ export function CommandPalette() {
   const restoreFocusTo = useRef<HTMLElement | null>(null)
 
   const router = useRouter()
-  const { status, results, total, search, count } = useSearch()
+  const { status, results, total, search, count, errors, loadingPaths } = useSearch()
+  // Caret position drives completion: which token you are in is not derivable from the
+  // value alone once the query has more than one term.
+  const [caret, setCaret] = useState(0)
+
+  const token = activeToken(query, caret)
+  const suggestions = token.text === '' ? [] : suggest(token.text).slice(0, 5)
 
   useEffect(() => {
     function onOpenRequest(): void {
@@ -208,7 +217,13 @@ export function CommandPalette() {
           onChange={(event) => {
             onChange(event.target.value)
           }}
-          placeholder={status === 'ready' ? `Search ${String(count)} items…` : 'Search items…'}
+          onKeyUp={(event) => {
+            setCaret(event.currentTarget.selectionStart ?? 0)
+          }}
+          onClick={(event) => {
+            setCaret(event.currentTarget.selectionStart ?? 0)
+          }}
+          placeholder={status === 'ready' ? `Search ${String(count)} items, or filter…` : 'Search items…'}
           aria-label="Search items"
           role="combobox"
           aria-expanded={results.length > 0}
@@ -222,6 +237,66 @@ export function CommandPalette() {
           // under 16px, and the zoom is not undone on blur. Do not drop this to text-sm.
           className="w-full shrink-0 border-b border-hairline bg-transparent px-4 py-4 text-base text-text outline-none transition-colors focus:border-gold placeholder:text-text-faint sm:px-5"
         />
+
+        {/* Completion, parse errors and the empty-box examples all sit between the input and
+            the results, so the language is discoverable without being something to learn. */}
+        {suggestions.length > 0 && (
+          <div className="flex shrink-0 flex-wrap gap-1.5 border-b border-hairline px-4 py-2 sm:px-5">
+            {suggestions.map((suggestion) => (
+              <button
+                key={suggestion.insert}
+                type="button"
+                // Mouse-down, not click: the input blurs first and the list would be gone.
+                onMouseDown={(event) => {
+                  event.preventDefault()
+                  const next = applySuggestion(query, token.start, token.text.length, suggestion.insert)
+                  onChange(next)
+                  requestAnimationFrame(() => {
+                    inputRef.current?.focus()
+                    setCaret(next.length)
+                  })
+                }}
+                className="chamfer-sm border border-hairline px-2 py-1 text-xs text-text-dim transition-colors hover:border-gold-dim hover:text-text"
+              >
+                <span className="data-num">{suggestion.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {errors.length > 0 && (
+          <ul className="shrink-0 space-y-1 border-b border-hairline px-4 py-2 text-xs text-r-legendary sm:px-5">
+            {errors.map((error) => (
+              <li key={`${error.kind}-${String(error.start)}`}>
+                {error.message}
+                {error.suggestion !== undefined && ` Did you mean ${error.suggestion}?`}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {query.trim() === '' && status === 'ready' && (
+          <div className="shrink-0 border-b border-hairline px-4 py-3 sm:px-5">
+            <p className="label mb-1.5">Or filter</p>
+            <div className="flex flex-wrap gap-x-3 gap-y-1">
+              {QUERY_EXAMPLES.map((example) => (
+                <button
+                  key={example.query}
+                  type="button"
+                  onMouseDown={(event) => {
+                    event.preventDefault()
+                    onChange(example.query)
+                    inputRef.current?.focus()
+                  }}
+                  className="data-num text-xs text-text-faint underline underline-offset-4 transition-colors hover:text-gold"
+                  title={example.caption}
+                >
+                  {example.query}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <ul
           ref={listRef}
@@ -282,7 +357,12 @@ export function CommandPalette() {
               ? 'Loading items…'
               : status === 'failed'
                 ? 'Search unavailable. Drop data failed to load.'
-                : 'No item matches. Check the spelling, or try a shorter term.'}
+                : loadingPaths
+                  ? // A path query needs the drop-edge chunk, which is fetched on first use.
+                    'Loading drop data…'
+                  : errors.length > 0
+                    ? 'Nothing to search yet — fix the filter above.'
+                    : 'No item matches. Check the spelling, or try a shorter term.'}
           </p>
         )}
       </div>

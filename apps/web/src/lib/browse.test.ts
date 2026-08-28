@@ -1,15 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import type { DropEdge, Item, Source } from '@provenance/core'
+import { compileQuery, parseQuery, type DropEdge, type Item, type Source } from '@provenance/core'
 
-import {
-  EMPTY_FILTERS,
-  buildRows,
-  facetsOf,
-  filterRows,
-  sortRows,
-  type BrowseRow,
-} from './browse'
+import { buildRows, facetsOf, filterRows, sortRows, type BrowseRow } from './browse'
+import { buildQueryItems, indexById } from './query-index'
 
 const items: Item[] = [
   { id: 'braton-prime-barrel', name: 'Braton Prime Barrel', category: 'Component', tradable: true },
@@ -60,6 +54,14 @@ const stage = (_missionType: string | undefined, rotation: DropEdge['rotation'])
   rotation == null ? undefined : `Rotation ${rotation}`
 
 const rows = buildRows(items, sources, edges, stage)
+const index = indexById(buildQueryItems(items, sources, edges))
+
+/** Query text in, matching rows out — the path the component takes, end to end. */
+const run = (
+  query: string,
+  subject: BrowseRow[] = rows,
+  itemIndex = index,
+): BrowseRow[] => filterRows(subject, compileQuery(parseQuery(query).query), itemIndex)
 
 describe('buildRows', () => {
   it('produces one row per edge, not per item', () => {
@@ -94,50 +96,64 @@ describe('buildRows', () => {
 })
 
 describe('filterRows', () => {
-  it('returns everything when no filter is set', () => {
-    expect(filterRows(rows, EMPTY_FILTERS)).toHaveLength(3)
+  it('returns everything for an empty query', () => {
+    expect(run('')).toHaveLength(3)
   })
 
-  it('matches across item AND source names', () => {
-    expect(filterRows(rows, { ...EMPTY_FILTERS, q: 'cambria' })).toHaveLength(1)
-    expect(filterRows(rows, { ...EMPTY_FILTERS, q: 'braton' })).toHaveLength(1)
+  it('matches bare words across item AND source names', () => {
+    expect(run('cambria')).toHaveLength(1)
+    expect(run('braton')).toHaveLength(1)
   })
 
   // Terms narrow, they do not widen. This is the difference from the fuzzy palette: in a
   // table you are cutting down a set you can see, so an extra word must mean "and".
   it('requires every term to match', () => {
-    expect(filterRows(rows, { ...EMPTY_FILTERS, q: 'braton cambria' })).toHaveLength(1)
-    expect(filterRows(rows, { ...EMPTY_FILTERS, q: 'braton lancer' })).toHaveLength(0)
+    expect(run('braton cambria')).toHaveLength(1)
+    expect(run('braton lancer')).toHaveLength(0)
   })
 
   it('is case-insensitive', () => {
-    expect(filterRows(rows, { ...EMPTY_FILTERS, q: 'BRATON' })).toHaveLength(1)
+    expect(run('BRATON')).toHaveLength(1)
   })
 
   it('filters by category and by source kind', () => {
-    expect(filterRows(rows, { ...EMPTY_FILTERS, categories: ['Mod'] })).toHaveLength(1)
-    expect(filterRows(rows, { ...EMPTY_FILTERS, kinds: ['enemy'] })).toHaveLength(2)
+    expect(run('cat:mod')).toHaveLength(1)
+    expect(run('from:enemy')).toHaveLength(2)
   })
 
-  it('treats an empty facet list as "no filter", not "match nothing"', () => {
-    expect(filterRows(rows, { ...EMPTY_FILTERS, categories: [] })).toHaveLength(3)
+  it('combines terms as AND', () => {
+    expect(run('from:enemy cat:mod').map((row) => row.itemId)).toEqual(['vitality'])
   })
 
-  it('combines filters as AND', () => {
-    const out = filterRows(rows, { ...EMPTY_FILTERS, kinds: ['enemy'], categories: ['Mod'] })
-    expect(out.map((row) => row.itemId)).toEqual(['vitality'])
-  })
-
-  it('applies the minimum chance inclusively', () => {
-    expect(filterRows(rows, { ...EMPTY_FILTERS, minChance: 0.1 }).map((r) => r.itemId)).toEqual([
+  it('filters by chance, typed as a percentage', () => {
+    expect(run('chance:>=10').map((row) => row.itemId)).toEqual([
       'braton-prime-barrel',
       'vitality',
     ])
   })
 
   it('filters to tradable only', () => {
-    const out = filterRows(rows, { ...EMPTY_FILTERS, tradableOnly: true })
-    expect(out.map((row) => row.itemId).sort()).toEqual(['braton-prime-barrel', 'vitality'])
+    expect(run('is:tradable').map((row) => row.itemId).sort()).toEqual([
+      'braton-prime-barrel',
+      'vitality',
+    ])
+  })
+
+  it('negates', () => {
+    expect(run('-is:tradable').map((row) => row.itemId)).toEqual(['orokin-cell'])
+    expect(run('-braton')).toHaveLength(2)
+  })
+
+  it('filters by planet and rotation, which live on the source and the edge', () => {
+    expect(run('planet:earth').map((row) => row.itemId)).toEqual(['braton-prime-barrel'])
+    expect(run('rotation:c').map((row) => row.itemId)).toEqual(['braton-prime-barrel'])
+  })
+
+  it('drops a term that cannot be parsed rather than widening to everything', () => {
+    // The failure this guards: an unknown key evaluating to "no constraint" and returning
+    // the whole table, which reads as a successful search.
+    expect(run('colour:gold')).toHaveLength(3)
+    expect(parseQuery('colour:gold').errors).toHaveLength(1)
   })
 })
 
@@ -211,11 +227,21 @@ describe('vaulted paths', () => {
   // The point of the filter: one live relic keeps the item farmable even when four others
   // are vaulted, so this must cut PATHS and not items.
   it('keeps the live path and drops the vaulted one', () => {
-    const out = filterRows(relicRows, { ...EMPTY_FILTERS, farmableOnly: true })
+    const relicIndex = indexById(buildQueryItems(withRelics, relicSources, relicEdges))
+    const out = run('-is:vaulted', relicRows, relicIndex)
     expect(out.map((row) => row.sourceId)).toEqual(['relic:neo-b2'])
   })
 
-  it('leaves everything alone when the filter is off', () => {
-    expect(filterRows(relicRows, EMPTY_FILTERS)).toHaveLength(2)
+  it('leaves everything alone when the query is empty', () => {
+    expect(run('', relicRows)).toHaveLength(2)
+  })
+
+  it('reads the relic tier off the source name', () => {
+    // 771 of 771 relic sources name their tier first, which is why /browse does not load the
+    // 294 KB relic chunk to look up one word.
+    const relicIndex = indexById(buildQueryItems(withRelics, relicSources, relicEdges))
+    expect(run('tier:axi', relicRows, relicIndex).map((row) => row.sourceId)).toEqual([
+      'relic:axi-a1',
+    ])
   })
 })

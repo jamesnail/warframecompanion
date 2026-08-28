@@ -59,6 +59,47 @@ export default async function AboutPage() {
         </p>
       </Panel>
 
+      <Section title="What you can type">
+        <p>
+          The search box and the <code className="text-text">/browse</code> filter take the same
+          query language. Bare words match names; anything with a colon filters. Terms combine
+          with AND, and a leading minus excludes — <code className="text-text">is:prime
+          from:relic -is:vaulted</code> is every prime part you can farm today.
+        </p>
+        <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[8rem_1fr]">
+          {[
+            ['cat:', 'Item category — cat:warframe, cat:mod'],
+            ['from:', 'Kind of source — from:relic, from:bounty'],
+            ['planet:', 'Planet the source is on — planet:deimos'],
+            ['tier:', 'Relic tier — tier:neo'],
+            ['rotation:', 'Reward rotation — rotation:c'],
+            ['mr:', 'Mastery rank — mr:<8, mr:>=14'],
+            ['chance:', 'Drop chance as a percentage — chance:>5'],
+            ['source:', 'Text in the source name — source:"plains of eidolon"'],
+            ['is:', 'is:prime, is:vaulted, is:set, is:tradable'],
+            ['has:', 'has:market — sold on warframe.market'],
+          ].map(([key, hint]) => (
+            <div key={key} className="contents">
+              <dt className="data-num text-text">{key}</dt>
+              <dd className="text-text-dim">{hint}</dd>
+            </div>
+          ))}
+        </dl>
+        <p>
+          Two things it deliberately does not do. There is no <code className="text-text">or</code>
+          {' '}— every term narrows. And there is no{' '}
+          <code className="text-text">faction:</code>, because the drop tables carry no faction
+          on any of their {sources.length.toLocaleString()} sources; the star chart knows it for
+          about a fifth of the drop edges, which is not enough for a filter that would look like
+          it covered everything.
+        </p>
+        <p>
+          A query is the whole URL state, so any view you can reach is a link you can send. That
+          is also why there is no &ldquo;save this filter&rdquo; button — the bookmark is the
+          saved filter.
+        </p>
+      </Section>
+
       <Section title="Where it comes from">
         <p>
           Every number here is derived from Digital Extremes&rsquo; own published drop tables,

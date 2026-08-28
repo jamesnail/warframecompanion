@@ -376,12 +376,12 @@ Never store a filter in React state alone. If it changes what's displayed, it be
 | `/item/[slug]` | The main event. Also serves assembled sets (hazard 17): an item with `components` shows a Needs table with each part's best source, and an item with `buildsInto` gets a "Part of" backlink, capped because Orokin Cell builds into 177 of them. Direct sources and relic sources side by side, each ranked by drop rate. Statically generated for every item — this is what gets indexed by search engines. **2026-08-24:** the effort model (expected time, relics needed, solo-vs-share) came off this page on owner feedback. **2026-08-26:** time ranking was dropped from the project entirely and its code deleted — the page answers *where*, and there is no longer a later surface waiting for a duration model. |
 | `/source/[kind]/[...slug]` | Forward view: what a mission, enemy, bounty or syndicate drops, by rotation. Statically generated; catch-all because a source id carries slashes (`mission:earth/cambria`). **Shipped 2026-08-25.** Relics are excluded deliberately — a relic is an item too, and `/item/<relic>` already shows its contents at every refinement level, so a second page would split one object across two URLs that each know half of it. Tables here are uncapped: on `/item` the source list is context, here it IS the page. |
 | `/source/[kind]` | Index of one kind, grouped by planet where the kind has one. Exists for reachability, not decoration — see hazard 15. |
-| `/browse` | The filterable table. Virtualized, dense, sortable, URL-driven. Carries the **Farmable now** filter, which cuts paths that run through a vaulted relic — 455 of 582 prime parts are reachable only that way, so it is a different question from "where is it from". |
+| `/browse` | The filterable table. Virtualized, dense, sortable, URL-driven. **2026-08-28:** six filter params collapsed into one query string (§ 11); the chips now write query terms rather than holding state of their own, so a chip and the same text typed by hand produce the identical URL. `-is:vaulted` is the old **Farmable now** filter — 455 of 582 prime parts are reachable only through a vaulted relic, so it is a different question from "where is it from". When a query matches items but no rows, the empty state lists the items: `is:prime cat:warframe` has 50 answers and zero drop rows. |
 | `/relics` | **Shipped 2026-08-26.** 771 relics, tier and vault filtering, and the refinement ladder stated once. Distinct from `/browse?category=Relic`, where a row is one EDGE and a relic appears once per place it drops; here a row is one RELIC and the question is what is inside it. Search matches CONTENTS, because you look for the part, not the relic. |
 | `/collection` | What you own and which sets it completes, closest to finished first. Prerendered like everything else; only the owned ids come from IndexedDB, inside a client island. Carries the export/import backup story. |
 | `/rivens` | Disposition and weekly trade price per riven FAMILY (see § 9.2), sortable and filterable. Prerendered shell, client table, 132 KB chunk. Weapons link to their item page only where the drop data knows one — 243 of 687; the rest are bought, never dropped. |
-| `/farm` | **The plan.** What to run next, ranked. Intersects the explicit farm list (see hazard 37) with the drop chains and the live fissure list, then groups by the ACTION that advances the most parts — one Neo fissure run counts toward every part behind a Neo relic. Chains come from the same `buildBestChain` the item pages use, so the plan can never contradict the page it links to. `noindex`: it is whatever the viewer has ticked. |
-| `/world` | **The one live surface.** Open fissures by relic tier, invasions, sortie, archon hunt and Baro, fetched from a mirror of DE's own `worldState` (§ 2.1) into a client island under a prerendered shell. Open-world cycles sit above all of it and are *computed*, not fetched — see hazards 38 and 39 — so they survive the feed being down. This is also where the Factions tile ended up. |
+| `/farm` | **The plan.** What to run next, ranked. Intersects the explicit farm list (see hazard 38) with the drop chains and the live fissure list, then groups by the ACTION that advances the most parts — one Neo fissure run counts toward every part behind a Neo relic. Chains come from the same `buildBestChain` the item pages use, so the plan can never contradict the page it links to. `noindex`: it is whatever the viewer has ticked. |
+| `/world` | **The one live surface.** Open fissures by relic tier, invasions, sortie, archon hunt and Baro, fetched from a mirror of DE's own `worldState` (§ 2.1) into a client island under a prerendered shell. Open-world cycles sit above all of it and are *computed*, not fetched — see hazards 39 and 40 — so they survive the feed being down. This is also where the Factions tile ended up. |
 | `/about` | Data sources, update cadence, attribution, methodology — including honest notes on where the numbers are estimates. |
 
 `generateStaticParams` over every item and source produces roughly 6,500 static pages. That is well
@@ -974,7 +974,18 @@ Write these into code comments as you hit them.
     What the wiki genuinely does not provide is *state* — fissures, invasions, Baro's actual
     manifest — which still comes from the mirror.
 
-37. **Intent cannot be inferred from inventory.** /farm originally derived "what you are
+37. **A shared component contaminates any rollup through it.** To make `is:prime cat:warframe`
+    work, a set has to inherit its components' sources — a set has no edges of its own. Done
+    naively, Ash Prime inherits Orokin Cell's 121 edges and reports itself as dropping from
+    missions, bounties, transients and enemies, so `from:enemy` matches every prime Warframe
+    in the game. The rule: roll up only through components **exclusive to the set**, meaning
+    `buildsInto` names at most one thing. Measured — Ash Prime resolves to `relic` alone, all
+    50 prime Warframes resolve, 311 of 313 sets resolve, and the 34 excluded components are
+    every one of them a generic resource. This is the same shape as hazards 17 and 38, which is
+    why it is a rule and not a third special case: a component shared by many parents carries
+    no information about any one of them.
+
+38. **Intent cannot be inferred from inventory.** /farm originally derived "what you are
     working on" from owned parts: any set in which you held at least one component. That reads
     as reasonable and collapses on the first shared component — Orokin Cell belongs to 177
     sets, so owning one put 177 sets on the plan, each "finished" by the same cell. The fix is
@@ -982,7 +993,7 @@ Write these into code comments as you hit them.
     the user states the second rather than the tool guessing it. Both are exported, because a
     backup that restored the collection and dropped the plan would lose half the user's work.
 
-38. **A deterministic cycle needs no feed, and a long baseline is what makes it checkable.**
+39. **A deterministic cycle needs no feed, and a long baseline is what makes it checkable.**
     Cetus day/night, Vallis warm/cold, Cambion Fass/Vome and Duviri's spiral are fixed
     rotations of fixed-length phases, so one known instant locates them forever with no
     network call at all — arithmetic on the reader's own clock. The constants are the Warframe
@@ -994,14 +1005,14 @@ Write these into code comments as you hit them.
     rather than a neat 150 minutes: rounded, it would drift ~45 minutes over that span. A unit
     test pins the comparison so nobody "tidies" the constant away.
 
-39. **An epoch that is one phase out is worse than no epoch.** The same wiki template lists a
+40. **An epoch that is one phase out is worse than no epoch.** The same wiki template lists a
     Zariman epoch. It is wrong — on 2026-08-27 it computed Corpus while DE published Grineer,
     inverted, with the period itself correct. The wiki's own gadget does not trust it either
     and fetches the live faction. So the Zariman is the one cycle here that is fetched rather
     than computed, and it simply disappears when the feed does, while the other four keep
     running. Confidently wrong is the failure mode to design against; absent is fine.
 
-40. **`Time` is the one field DE publishes in seconds.** Every other timestamp in `worldState`
+41. **`Time` is the one field DE publishes in seconds.** Every other timestamp in `worldState`
     is milliseconds inside a `{ $date: { $numberLong } }` wrapper. Reading `Time` the same way
     dates the payload to 1970, which makes a perfectly healthy feed look 56 years stale and
     trips the staleness guard on every load. Caught by a unit test asserting a healthy feed is
@@ -1009,7 +1020,81 @@ Write these into code comments as you hit them.
 
 ---
 
-## 11. Phases
+## 11. The query language
+
+One grammar, shared by the ⌘K palette and `/browse`, replacing the six filter parameters
+`/browse` used to carry. Shipped 2026-08-28.
+
+### 11.1 It is defined over items, not edges
+
+The obvious design — evaluate over the 28,020-row edge table, the grain `/browse` already
+uses — was prototyped first and measured against real data:
+
+    is:prime cat:warframe    rows=0   items=0
+    cat:melee from:bounty    rows=0   items=0
+
+All 50 prime Warframes have **zero drop edges of their own**. An assembled set is not dropped,
+its parts are. 1,046 of 4,875 items have no edge at all, and the number decomposes exactly:
+737 vaulted relics plus 309 assembled sets. So the grain is a correctness constraint, not a
+preference — a language evaluated only over edges cannot answer the question the feature
+exists to answer.
+
+The language is therefore defined over **items**, and edge facts are reached by an existential
+lift: `from:relic` on an item means "has at least one relic path". Both grains share one
+evaluator, so the same term cannot mean different things on different surfaces.
+
+| Grain | Surface | A result is |
+|---|---|---|
+| Item | palette; the empty-state fallback on `/browse` | one item |
+| Path | `/browse` rows | one item-from-one-source path |
+
+One consequence is accepted deliberately: at item grain `from:relic chance:>10` is "has a
+relic path AND has a >10% path", not "has a >10% relic path". A conjunction of two existentials
+is not one existential over a conjunction. The tight reading needs a scoping syntax nobody
+types; `/browse` gives the exact answer at path grain.
+
+### 11.2 Two indexes, loaded in two stages
+
+The palette boots on the 1.1 MB item chunk alone, which answers every intrinsic key — `cat:`,
+`mr:`, `is:prime`, `has:market`. A query that asks about paths (`from:`, `planet:`, `tier:`,
+`rotation:`, `chance:`, `source:`, and `is:vaulted` for anything but a relic) needs the 3.9 MB
+edge chunk, which is fetched the first time one is typed and not before. `queryNeedsPaths` is
+what makes that decision; without it the palette would either load 5 MB to power a search box
+or silently return nothing for half the language.
+
+`tier:` is the exception that avoids a third chunk: the relic tier is the first word of the
+relic source's name on 771 of 771 relic sources, measured, and validated against `RelicTier`
+rather than trusted. Loading the 294 KB relic chunk to look up one word would have cost more
+than the key is worth.
+
+### 11.3 What it does not do
+
+No `OR` and no parentheses. Every real query written while designing this was a conjunction,
+and `OR` doubles the parser and the error surface to serve queries a second bare word already
+approximates.
+
+No `faction:`, `tileset:`, `level:` or `is:steelpath`. All four are declared in `types.ts`
+and all four are populated on **0 of 2,417 sources**. Faction can be partly recovered by joining
+missions to `nodes.json`, but that join reaches 234 of 435 mission sources — 20% of all edges.
+A key that silently misses four-fifths of the graph is worse than a missing key, because a
+reader takes an empty result for an answer. It ships when the pipeline populates the field.
+
+No `provenance:`: all 28,020 edges are `official`, so the key would have exactly one value.
+
+### 11.4 The URL
+
+The whole filter state is one `q=` param holding the literal text the user typed. Old
+six-param links are translated once on mount and replaced — a pure function, tested by
+comparing result sets rather than strings, and deliberately not a permanent compatibility
+layer, because two live ways to express one filter is how the URL stops being the source of
+truth.
+
+This closes § 13's open question about saved presets with a no: once the URL holds the query
+text, the bookmark **is** the preset.
+
+---
+
+## 12. Phases
 
 Each phase ends deployable. Don't start the next until the current one ships.
 
@@ -1030,17 +1115,19 @@ Each phase ends deployable. Don't start the next until the current one ships.
 | 9.5 | **World state** — live fissures, invasions, factions, Baro | Shipped 2026-08-26. Absorbed the Factions and Vendors tiles, both of which were blocked on data that turned out to be live rather than static. |
 | 10 | Polish — wiki supplement join, perf pass, a11y audit (`/about` shipped 2026-08-26) | Lighthouse ≥ 95 across the board |
 | 11 | **`/farm` — the plan: collection × chains × live fissures, grouped by action** | Shipped 2026-08-27. Verified end to end over CDP: parts ticked through the real UI, then the plan read back with open fissures attached. |
+| 12 | **Query language** — one grammar for the palette and `/browse`, 13 keys, one URL param | Shipped 2026-08-28. `is:prime cat:warframe` returns 50, which the edge-grain design it replaced returned 0 of. |
 
 Phase 5 is the one that matters. Everything before it is table stakes that other sites already
 have; everything after it is refinement. If the schedule slips, protect phase 5.
 
 ---
 
-## 12. Open questions
+## 13. Open questions
 
 - Console platforms: PC-only for now. Drop tables are shared, but riven trade data and market
   listings are not. Revisit only if there's demand.
 - Localization: the pipeline can read localized `PublicExport` indices. Structure item names so
   a locale layer is addable later, but don't build it now.
-- Should `/browse` support saved filter presets? Presets are just URLs — bookmarking may be
-  sufficient, and a preset UI may be solving a problem the URL already solved.
+- ~~Should `/browse` support saved filter presets?~~ **Answered 2026-08-28 by the query
+  language (§ 11.4).** The URL carries the literal query text, so a bookmark is the preset. No
+  preset UI.
