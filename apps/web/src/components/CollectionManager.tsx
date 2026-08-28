@@ -4,7 +4,8 @@ import { useRef, useState } from 'react'
 import Link from 'next/link'
 
 import { Panel, PanelHeader } from '@/components/Primitives'
-import { clearAll, mergeIn, normalizeImport, replaceAll, toExport } from '@/lib/client/collection'
+import { clearAll, importedSettings, mergeIn, normalizeImport, replaceAll, toExport } from '@/lib/client/collection'
+import { useSettings } from '@/lib/client/use-settings'
 import { useCollection } from '@/lib/client/use-collection'
 import { byClosest, progressOf } from '@/lib/collection'
 
@@ -29,6 +30,7 @@ type Notice = { tone: 'ok' | 'bad'; text: string } | undefined
 
 export function CollectionManager({ sets, names }: { sets: SetSummary[]; names: Record<string, string> }) {
   const { owned, tracked, ready, toggle, toggleTracked } = useCollection()
+  const { settings, set } = useSettings()
   const [notice, setNotice] = useState<Notice>(undefined)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -44,9 +46,14 @@ export function CollectionManager({ sets, names }: { sets: SetSummary[]; names: 
     set.vaultedComponents.filter((id) => !owned.has(id)).length
 
   function download(): void {
-    // Both lists. The farm list is as much the user's work as the inventory, and a backup
-    // that silently dropped it would restore a collection with no plan attached to it.
-    const file = toExport({ owned: [...owned], tracked: [...tracked] }, new Date().toISOString())
+    // Both lists and the settings. The farm list is as much the user's work as the inventory,
+    // and the preferences are as much theirs as either; a backup that silently dropped any of
+    // them would restore part of what they set up and call it done.
+    const file = toExport(
+      { owned: [...owned], tracked: [...tracked] },
+      new Date().toISOString(),
+      settings,
+    )
     const blob = new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
@@ -58,16 +65,21 @@ export function CollectionManager({ sets, names }: { sets: SetSummary[]; names: 
 
   async function importFile(file: File, mode: 'replace' | 'merge'): Promise<void> {
     try {
-      const data = normalizeImport(JSON.parse(await file.text()))
+      const parsed: unknown = JSON.parse(await file.text())
+      const data = normalizeImport(parsed)
+      const imported = importedSettings(parsed)
       if (data.owned.length === 0 && data.tracked.length === 0) {
         setNotice({ tone: 'bad', text: 'That file has no items in it. Nothing was changed.' })
         return
       }
       if (mode === 'replace') await replaceAll(data)
       else await mergeIn(data)
+      // Only on replace. Merging is for folding one device's collection into another, and
+      // silently overwriting the theme you are looking at is not part of that bargain.
+      if (imported !== undefined && mode === 'replace') set(imported)
       setNotice({
         tone: 'ok',
-        text: `${mode === 'replace' ? 'Replaced with' : 'Merged in'} ${data.owned.length.toLocaleString()} owned and ${data.tracked.length.toLocaleString()} tracked.`,
+        text: `${mode === 'replace' ? 'Replaced with' : 'Merged in'} ${data.owned.length.toLocaleString()} owned and ${data.tracked.length.toLocaleString()} tracked${imported !== undefined && mode === 'replace' ? ', and your settings' : ''}.`,
       })
     } catch {
       // States what happened and what to do, and does not apologise (CLAUDE.md § Copy).

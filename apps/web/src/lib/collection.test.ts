@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import { byClosest, progressOf, type RecipeComponent } from './collection'
-import { normalizeIds, normalizeImport, toExport } from './client/collection'
+import { DEFAULT_SETTINGS } from '@provenance/core'
+
+import { importedSettings, normalizeIds, normalizeImport, toExport } from './client/collection'
 
 const BRATON: RecipeComponent[] = [
   { itemId: 'braton-prime-barrel', count: 1 },
@@ -95,6 +97,38 @@ describe('export and import', () => {
 
   it('accepts a bare array, so a hand-edited file still imports', () => {
     expect(normalizeIds(['a', 'b'])).toEqual(['a', 'b'])
+  })
+
+  describe('settings in the backup', () => {
+    const settings = { ...DEFAULT_SETTINGS, theme: 'grineer' as const, masteryRank: 14 }
+
+    it('carries settings out and back', () => {
+      const file = toExport({ owned: ['a'], tracked: [] }, '2026-08-28T00:00:00.000Z', settings)
+      expect(file.version).toBe(3)
+      expect(importedSettings(file)).toEqual(settings)
+    })
+
+    it('survives the JSON round trip a real file makes', () => {
+      const file = toExport({ owned: ['a'], tracked: [] }, '2026-08-28T00:00:00.000Z', settings)
+      expect(importedSettings(JSON.parse(JSON.stringify(file)))).toEqual(settings)
+    })
+
+    it('returns undefined for a version 2 file, which is NOT the same as defaults', () => {
+      // A file that predates settings says nothing about preferences, and importing it must
+      // leave the viewer's current theme alone rather than silently resetting it.
+      const v2 = { format: 'provenance-collection', version: 2, owned: ['a'], tracked: [] }
+      expect(importedSettings(v2)).toBeUndefined()
+    })
+
+    it('repairs a settings block that is partly nonsense', () => {
+      const file = { owned: ['a'], settings: { theme: 'chartreuse', density: 'compact' } }
+      expect(importedSettings(file)?.density).toBe('compact')
+      expect(importedSettings(file)?.theme).toBe(DEFAULT_SETTINGS.theme)
+    })
+
+    it('ignores a settings field that is not an object', () => {
+      expect(importedSettings({ owned: [], settings: 'compact' })).toBeUndefined()
+    })
   })
 
   // An import that rejects a file the user cannot repair has destroyed their only backup.

@@ -5,8 +5,9 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 import { SearchTrigger } from '@/components/CommandPalette'
-import { isActive, navGroups, type NavItem } from '@/config/nav'
+import { isActive, visibleGroups, type NavItem } from '@/config/nav'
 import { site } from '@/config/site'
+import { useAppliedSettings } from '@/lib/client/use-settings'
 
 /**
  * The app shell: a persistent sidebar on desktop, a top bar and drawer on small screens.
@@ -20,6 +21,10 @@ import { site } from '@/config/site'
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
+  const { dropsOnly } = useAppliedSettings()
+  // Prerendered with the full list, so a viewer with the preference off — nearly everyone —
+  // sees no change at all, and the one with it on loses a row once IndexedDB answers.
+  const groups = visibleGroups(dropsOnly)
 
   // Route changes close the drawer. Without this, tapping a link on mobile navigates
   // underneath a drawer that stays open over the page you asked for.
@@ -74,7 +79,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </div>
 
         <div className="mt-0 lg:mt-8">
-          {navGroups.map((group) => (
+          {groups.map((group) => (
             <div key={group.title} className="mb-6 last:mb-0">
               <p className="label mb-2">{group.title}</p>
               <ul>

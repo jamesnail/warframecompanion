@@ -61,7 +61,33 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${archivo.variable} ${interTight.variable} ${plexMono.variable}`}>
+    <html
+      lang="en"
+      className={`${archivo.variable} ${interTight.variable} ${plexMono.variable}`}
+      // Rendered into the static HTML so the default theme is correct with JavaScript off,
+      // and so the script below has something to overwrite rather than something to create.
+      data-theme="orokin"
+      data-density="comfortable"
+      data-motion="system"
+    >
+      <head>
+        {/*
+          Theme, density and motion have to be on <html> before the first paint, and
+          IndexedDB — where the settings actually live — cannot be read synchronously. This
+          reads the localStorage mirror instead (see lib/client/settings.ts) and applies it
+          inline, ahead of any stylesheet. Without it every navigation paints the default
+          theme for a frame and then corrects itself.
+
+          Deliberately tiny and deliberately silent: it runs on every page load, it must not
+          throw when site data is blocked, and a failure means the default theme rather than
+          a broken page.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var s=JSON.parse(localStorage.getItem('provenance:settings')||'{}'),d=document.documentElement;if(s.theme)d.dataset.theme=s.theme;if(s.density)d.dataset.density=s.density;d.dataset.motion=s.motion==='reduced'||matchMedia('(prefers-reduced-motion: reduce)').matches?'reduced':'system'}catch(e){}`,
+          }}
+        />
+      </head>
       <body className="min-h-dvh flex flex-col">
         {/* CLAUDE.md constraint 5: the URL is the source of truth for every filter. nuqs
             needs its adapter above anything that reads or writes a search param. */}

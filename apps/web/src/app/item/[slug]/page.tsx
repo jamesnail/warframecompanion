@@ -24,6 +24,7 @@ import {
 } from '@/components/Primitives'
 import { OwnedToggle, RecipeTable, TrackToggle } from '@/components/RecipeTable'
 import { RivenPanel } from '@/components/RivenPanel'
+import { MasteryBadge, NewPlayerNote, TradeOnly } from '@/components/ViewerModes'
 import { getDataset } from '@/lib/data'
 import { kindLabel } from '@/lib/effort'
 import { buildBestChain } from '@/lib/chain-build'
@@ -256,7 +257,10 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
              something — ticking a resource you have 40,000 of is not a fact worth storing;
              on a part that completes a set it is the whole point. The farm list takes either
              a whole set or a single part, so it is offered on both. */
-          partOf.length > 0 || recipe.length > 0 || item.marketSlug !== undefined ? (
+          partOf.length > 0 ||
+          recipe.length > 0 ||
+          item.marketSlug !== undefined ||
+          item.masteryReq !== undefined ? (
             <>
               {partOf.length > 0 && <OwnedToggle itemId={item.id} itemName={item.name} />}
               {(partOf.length > 0 || recipe.length > 0) && (
@@ -268,17 +272,20 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
                   less than the page showing every open order. The slug is resolved at build
                   time against their own catalogue, so this link is never a guess. */}
               {item.marketSlug !== undefined && (
-                <a
-                  href={`https://warframe.market/items/${item.marketSlug}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={CONTROL}
-                >
-                  Trade on warframe.market
-                  <span aria-hidden="true">↗</span>
-                  <span className="sr-only"> (opens in a new tab)</span>
-                </a>
+                <TradeOnly>
+                  <a
+                    href={`https://warframe.market/items/${item.marketSlug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={CONTROL}
+                  >
+                    Trade on warframe.market
+                    <span aria-hidden="true">↗</span>
+                    <span className="sr-only"> (opens in a new tab)</span>
+                  </a>
+                </TradeOnly>
               )}
+              <MasteryBadge masteryReq={item.masteryReq} />
             </>
           ) : undefined
         }
@@ -345,6 +352,14 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
             </>
           )}
         </p>
+        <NewPlayerNote>
+          A relic is a container you pick up from missions and open at a Void Fissure, which is
+          a mission type that appears on the star chart and rotates every few hours. Opening one
+          gives you one of its six rewards. <strong className="text-text">Refining</strong> a
+          relic with Void Traces makes the rare rewards likelier — Radiant is the top rung.{' '}
+          <strong className="text-text">Vaulted</strong> means the relic itself no longer drops,
+          so the only ways to get it are trading or waiting for Digital Extremes to unvault it.
+        </NewPlayerNote>
         </>
       ) : vendorOfferings.length > 0 ? (
         // A guaranteed purchase is a source; it just isn't a farm.

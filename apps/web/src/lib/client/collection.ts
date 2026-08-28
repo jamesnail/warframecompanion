@@ -16,6 +16,8 @@
  * once and they must never disagree about whether a part is ticked.
  */
 
+import { DEFAULT_SETTINGS, normalizeSettings, type Settings } from '@provenance/core'
+
 import { COLLECTION, getDb, safely } from './db'
 
 const OWNED_KEY = 'owned'
@@ -137,25 +139,55 @@ export interface CollectionData {
   tracked: string[]
 }
 
-/** The export envelope. Versioned from the start: this file is the user's only backup, and
- *  a format change later must be able to tell what it is reading. */
+/**
+ * The export envelope. Versioned from the start: this file is the user's only backup, and a
+ * format change later must be able to tell what it is reading.
+ *
+ * Version 3 added `settings`. Settings ride in the same file rather than a second one because
+ * they are the same kind of thing — work the user did that exists in one browser — and a
+ * backup that restored the collection but not the theme, the mastery rank and the modes would
+ * be restoring half of what they set up.
+ */
 export interface CollectionExport extends CollectionData {
   format: 'provenance-collection'
-  /** 1 had no `tracked`. Files at version 1 still import; they simply track nothing. */
-  version: 2
+  /**
+   * 1 had no `tracked`, 2 had no `settings`. Both still import: an older file simply tracks
+   * nothing and leaves the current preferences alone.
+   */
+  version: 3
   exportedAt: string
+  settings: Settings
 }
 
-export function toExport(data: CollectionData, now: string): CollectionExport {
+export function toExport(
+  data: CollectionData,
+  now: string,
+  settings: Settings = DEFAULT_SETTINGS,
+): CollectionExport {
   const sorted = (ids: readonly string[]): string[] =>
     [...ids].sort((a, b) => a.localeCompare(b))
   return {
     format: 'provenance-collection',
-    version: 2,
+    version: 3,
     exportedAt: now,
     owned: sorted(data.owned),
     tracked: sorted(data.tracked),
+    settings,
   }
+}
+
+/**
+ * Settings out of an imported file, or undefined when the file predates them.
+ *
+ * Undefined and "defaults" are deliberately different: a version 2 file says nothing about
+ * preferences, and importing one must LEAVE the viewer's current theme alone rather than
+ * silently resetting it to Orokin.
+ */
+export function importedSettings(input: unknown): Settings | undefined {
+  if (typeof input !== 'object' || input === null || !('settings' in input)) return undefined
+  const raw = input.settings
+  if (typeof raw !== 'object' || raw === null) return undefined
+  return normalizeSettings(raw)
 }
 
 /**

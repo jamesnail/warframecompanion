@@ -20,10 +20,17 @@ import {
 import { hasLegacyParams, readLegacyParams, toQueryText } from '@/lib/legacy-params'
 import { buildQueryItems, indexById } from '@/lib/query-index'
 import { hasTerm, toggleTerm } from '@/lib/query-text'
+import { useAppliedSettings } from '@/lib/client/use-settings'
 
-/** Fixed, because the virtualizer measures in rows and a variable height would make the
- *  scrollbar lie about how much is below. Also clears the 44px touch-target floor. */
-const ROW_HEIGHT = 52
+/**
+ * Row heights, one per density.
+ *
+ * Fixed per density rather than measured, because the virtualizer works in pixels and a row
+ * whose height it cannot predict makes the scrollbar lie about how much is below. Comfortable
+ * clears the 44px touch-target floor; compact is for a mouse on a large screen, which is the
+ * only place the extra rows per screen are worth the tighter target.
+ */
+const ROW_HEIGHT = { comfortable: 52, compact: 40 } as const
 
 const SORT_COLUMNS = ['item', 'source', 'category', 'chance'] as const
 const SORT_DIRECTIONS = ['asc', 'desc'] as const
@@ -155,13 +162,22 @@ export function BrowseTable() {
     void setFilters({ q: next === '' ? null : next })
   }
 
+  const { density } = useAppliedSettings()
+  const rowHeight = ROW_HEIGHT[density]
+
   const scrollRef = useRef<HTMLDivElement>(null)
   const virtualizer = useVirtualizer({
     count: visible.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => ROW_HEIGHT,
+    estimateSize: () => rowHeight,
     overscan: 12,
   })
+
+  // The virtualizer caches measurements, so changing density without this leaves every row
+  // positioned for the old height and the list overlaps itself.
+  useEffect(() => {
+    virtualizer.measure()
+  }, [rowHeight, virtualizer])
 
   // A new filter must return you to the top. Keeping the offset leaves you staring at row
   // 4,000 of a 12-row result, which reads as an empty table.
@@ -271,7 +287,7 @@ export function BrowseTable() {
                   <div
                     key={virtual.key}
                     className="absolute inset-x-0 top-0 grid grid-cols-[minmax(0,2fr)_minmax(0,2fr)_5rem] items-center gap-3 border-b border-hairline/50 px-3 text-sm sm:px-5 transition-colors hover:bg-void-800"
-                    style={{ height: `${String(ROW_HEIGHT)}px`, transform: `translateY(${String(virtual.start)}px)` }}
+                    style={{ height: `${String(rowHeight)}px`, transform: `translateY(${String(virtual.start)}px)` }}
                   >
                     <div className="min-w-0">
                       <Link

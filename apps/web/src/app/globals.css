@@ -71,6 +71,106 @@
 }
 
 /**
+ * THEMES
+ *
+ * A theme is alternate VALUES for the tokens above, never new token names. Nothing outside
+ * this file knows a theme exists: `bg-void-800` resolves through the same custom property in
+ * all four, so no component changes and no class is theme-aware.
+ *
+ * Two things deliberately do not vary.
+ *
+ * The RARITY RAMP's HUES are data encoding, not decoration, and no theme touches them. What a
+ * theme may do is move all four together: the high-contrast block lifts lightness and chroma
+ * by the same amount across the whole ramp, which is why it still reads as one measurement
+ * scale. Re-hueing one rarity to suit a palette would be restyling a measurement, and is the
+ * thing this rule forbids.
+ *
+ * The TWO GOLD WEIGHTS keep their contract under their new hues: `gold` is the accent and may
+ * carry text, `gold-dim` is ornament and may not. The names stay literal to the default theme
+ * rather than being renamed to `accent`; a rename would touch every component to buy nothing,
+ * and this comment is cheaper.
+ *
+ * Every foreground below was measured against every surface it is allowed to sit on — see
+ * the contrast note on each block. `data-theme` is set before first paint by the inline
+ * script in layout.tsx, from the localStorage mirror of the settings store.
+ *
+ * The palette blocks are attribute selectors rather than `:root[…]` on purpose: that lets a
+ * nested element carry `data-theme` and paint itself in that theme, which is how the swatches
+ * on /settings preview each option. They cannot drift from the real thing, because they ARE
+ * the real thing. Rules that act on the page as a whole stay rooted, further down.
+ */
+
+/* ---- Corpus: cold blue plating, cyan accent. Tightest text pairing 5.51:1. ----------- */
+[data-theme='corpus'] {
+  --color-void-950: oklch(0.09 0.014 250);
+  --color-void-900: oklch(0.135 0.017 248);
+  --color-void-800: oklch(0.18 0.02 246);
+  --color-void-700: oklch(0.235 0.024 244);
+  --color-void-600: oklch(0.3 0.028 242);
+
+  --color-hairline: oklch(0.36 0.034 240);
+  --color-hairline-strong: oklch(0.52 0.055 235);
+
+  --color-text: oklch(0.95 0.012 240);
+  --color-text-dim: oklch(0.78 0.022 235);
+  --color-text-faint: oklch(0.72 0.028 230);
+
+  --color-gold: oklch(0.85 0.13 205);
+  --color-gold-dim: oklch(0.63 0.085 210);
+}
+
+/* ---- Grineer: iron and rust. Tightest text pairing 5.60:1. -------------------------- */
+[data-theme='grineer'] {
+  --color-void-950: oklch(0.085 0.008 45);
+  --color-void-900: oklch(0.13 0.011 42);
+  --color-void-800: oklch(0.175 0.014 40);
+  --color-void-700: oklch(0.23 0.018 38);
+  --color-void-600: oklch(0.295 0.022 36);
+
+  --color-hairline: oklch(0.36 0.03 40);
+  --color-hairline-strong: oklch(0.52 0.05 42);
+
+  --color-text: oklch(0.95 0.012 60);
+  --color-text-dim: oklch(0.78 0.02 55);
+  --color-text-faint: oklch(0.72 0.026 50);
+
+  --color-gold: oklch(0.8 0.15 58);
+  --color-gold-dim: oklch(0.6 0.09 52);
+}
+
+/**
+ * High contrast: neutral greys, brighter everything, no texture.
+ *
+ * The one theme that changes more than colour — the lattice goes to zero and vaulted rows
+ * stop being dimmed, because both of those trade legibility for atmosphere and this theme
+ * exists for people who cannot afford that trade. `gold-dim` is still ornament, but it is
+ * lifted far enough that a viewer who ignores the rule is not punished for it: it measures
+ * 7.02:1 at worst here against 3.74:1 in the default theme. Tightest text pairing 9.22:1.
+ */
+[data-theme='contrast'] {
+  --color-void-950: oklch(0.02 0 0);
+  --color-void-900: oklch(0.06 0 0);
+  --color-void-800: oklch(0.13 0 0);
+  --color-void-700: oklch(0.2 0 0);
+  --color-void-600: oklch(0.27 0 0);
+
+  --color-hairline: oklch(0.58 0 0);
+  --color-hairline-strong: oklch(0.78 0 0);
+
+  --color-text: oklch(1 0 0);
+  --color-text-dim: oklch(0.91 0 0);
+  --color-text-faint: oklch(0.84 0 0);
+
+  --color-gold: oklch(0.9 0.16 95);
+  --color-gold-dim: oklch(0.76 0.1 92);
+
+  --color-r-common: oklch(0.82 0.11 250);
+  --color-r-uncommon: oklch(0.82 0.11 150);
+  --color-r-rare: oklch(0.82 0.12 320);
+  --color-r-legendary: oklch(0.82 0.11 20);
+}
+
+/**
  * The Orokin cut: one asymmetric chamfer on the top-left and bottom-right. Applied via
  * clip-path, never border-radius, so it stays consistent everywhere.
  *
@@ -425,4 +525,74 @@ button,
   .rule-gold::after {
     display: none;
   }
+}
+
+/**
+ * The same, asked for here rather than by the operating system.
+ *
+ * Duplicated rather than shared because CSS has no way to union a media query with an
+ * attribute selector — a rule cannot apply "when the OS asks OR when this attribute is set".
+ * The pre-paint script resolves `motion: system` against `prefers-reduced-motion` and writes
+ * `reduced` when it matches, so this block covers both the explicit choice and the resolved
+ * one; the media query above still covers a viewer with JavaScript off.
+ *
+ * There is no `data-motion` value that turns motion ON against the OS preference. A viewer
+ * who has asked their system for less movement does not get overruled by a site setting.
+ */
+:root[data-motion='reduced'] *,
+:root[data-motion='reduced'] *::before,
+:root[data-motion='reduced'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+:root[data-motion='reduced'] .hover-lift:hover {
+  transform: none;
+}
+
+:root[data-motion='reduced'] .animate-rise,
+:root[data-motion='reduced'] .panel {
+  animation: none !important;
+}
+
+:root[data-motion='reduced'] .rule-gold::before,
+:root[data-motion='reduced'] .rule-gold::after {
+  display: none;
+}
+
+/**
+ * DENSITY
+ *
+ * Compact takes rows down, and nothing else. It does not shrink type — a reference tool that
+ * answers the question in a smaller font has not become denser, it has become harder to read.
+ * What it changes is the vertical padding on tabular rows and the virtualized row height on
+ * /browse, which is the only place the difference is worth having.
+ *
+ * `--row-height` is read by the virtualizer in JS, because it measures in pixels and a row
+ * whose height it cannot predict makes the scrollbar lie about how much is below.
+ */
+:root {
+  --row-height: 52px;
+}
+
+:root[data-density='compact'] {
+  --row-height: 40px;
+}
+
+:root[data-density='compact'] :is(td, th) {
+  padding-top: 0.3rem;
+  padding-bottom: 0.3rem;
+}
+
+/* High contrast trades atmosphere for legibility, so it gives up the two effects that cost
+   legibility to buy it: the lattice behind the numbers, and the dimming of vaulted rows. */
+:root[data-theme='contrast'] body::before {
+  display: none;
+}
+
+:root[data-theme='contrast'] .vaulted {
+  filter: none;
+  opacity: 1;
 }

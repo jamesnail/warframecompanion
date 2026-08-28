@@ -93,6 +93,15 @@ pnpm data:diff          # show what a fresh pipeline run would change
 
 pnpm only. If you see `npm install` or a `package-lock.json` anywhere, that is a bug.
 
+**Settings (2026-08-28).** Viewer preferences live in IndexedDB beside the collection and
+export with it. A localStorage MIRROR exists for one reason — the pre-paint script in
+`layout.tsx` must set theme, density and motion before first paint and IDB cannot be read
+synchronously. IDB is the record; the mirror is rewritten from it on hydrate. Themes are
+alternate VALUES for the existing tokens under `[data-theme]`, never new token names: adding
+one is a block in `globals.css` plus an entry in `THEMES`, and its contrast must be measured
+against every surface before it ships. **No preference may change a row count** — filter state
+is the URL's job (constraint 5), so preferences hide chrome and mark things, never filter.
+
 **Query language (2026-08-28).** The palette and `/browse` share one grammar, defined in
 `packages/core/src/query/`. It is defined over ITEMS with an existential lift to paths, because
 all 50 prime Warframes have zero drop edges of their own and an edge-grain language returns
@@ -189,6 +198,10 @@ Full system in DESIGN.md. The rules Claude Code must not violate:
 - Panel chamfers use the shared `clip-path` utility, not `border-radius`. Panels also carry gold
   corner braces on the two corners the chamfer does not cut, drawn as background layers on the
   `panel` utility. Chamfer and brace together are the Orokin geometry; do not invent a third.
+- **Four themes, one token set.** A theme redefines the values of the tokens in `globals.css`
+  under `[data-theme='…']`; it never introduces a token name. Components stay theme-unaware.
+  The rarity ramp's hues do not vary by theme — they encode a measurement — though a theme may
+  move all four together, as high contrast does.
 - **Gold has two weights and they are not interchangeable.** `gold` is the accent — spend it once
   per view, on the thing the reader searched for. `gold-dim` is ornament: frames, rules, corner
   marks, the panel-header diamond. `gold-dim` does not clear 4.5:1 on any surface and must never

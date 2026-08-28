@@ -47,9 +47,27 @@ export const navGroups: NavGroup[] = [
       // to do about it, and the second is the reason to keep the first up to date.
       { name: 'Farm now', href: '/farm' },
       { name: 'Collection', href: '/collection' },
+      { name: 'Settings', href: '/settings' },
     ],
   },
 ]
+
+/**
+ * Routes hidden by the "drops only" preference.
+ *
+ * Rivens are a trading surface — dispositions and weekly prices, for deciding what to buy. A
+ * viewer who has said they only care about drops should not have it in their sidebar. This is
+ * chrome, not filtering: no row anywhere disappears, and the route still resolves if they have
+ * the link.
+ */
+const TRADE_ROUTES = new Set(['/rivens'])
+
+export function visibleGroups(dropsOnly: boolean): NavGroup[] {
+  if (!dropsOnly) return navGroups
+  return navGroups
+    .map((group) => ({ ...group, items: group.items.filter((item) => !TRADE_ROUTES.has(item.href)) }))
+    .filter((group) => group.items.length > 0)
+}
 
 /** True when `href` is the route being viewed, or an ancestor of it. */
 export function isActive(pathname: string, item: NavItem): boolean {

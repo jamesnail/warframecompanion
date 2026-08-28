@@ -379,6 +379,7 @@ Never store a filter in React state alone. If it changes what's displayed, it be
 | `/browse` | The filterable table. Virtualized, dense, sortable, URL-driven. **2026-08-28:** six filter params collapsed into one query string (§ 11); the chips now write query terms rather than holding state of their own, so a chip and the same text typed by hand produce the identical URL. `-is:vaulted` is the old **Farmable now** filter — 455 of 582 prime parts are reachable only through a vaulted relic, so it is a different question from "where is it from". When a query matches items but no rows, the empty state lists the items: `is:prime cat:warframe` has 50 answers and zero drop rows. |
 | `/relics` | **Shipped 2026-08-26.** 771 relics, tier and vault filtering, and the refinement ladder stated once. Distinct from `/browse?category=Relic`, where a row is one EDGE and a relic appears once per place it drops; here a row is one RELIC and the question is what is inside it. Search matches CONTENTS, because you look for the part, not the relic. |
 | `/collection` | What you own and which sets it completes, closest to finished first. Prerendered like everything else; only the owned ids come from IndexedDB, inside a client island. Carries the export/import backup story. |
+| `/settings` | **Shipped 2026-08-28.** Every preference on one page rather than in a popover — enough controls that a menu would scroll, and a page is a URL you can send ("turn on high contrast" is a link). Prerendered; only the values come from IndexedDB. `noindex`, like `/collection`. |
 | `/rivens` | Disposition and weekly trade price per riven FAMILY (see § 9.2), sortable and filterable. Prerendered shell, client table, 132 KB chunk. Weapons link to their item page only where the drop data knows one — 243 of 687; the rest are bought, never dropped. |
 | `/farm` | **The plan.** What to run next, ranked. Intersects the explicit farm list (see hazard 38) with the drop chains and the live fissure list, then groups by the ACTION that advances the most parts — one Neo fissure run counts toward every part behind a Neo relic. Chains come from the same `buildBestChain` the item pages use, so the plan can never contradict the page it links to. `noindex`: it is whatever the viewer has ticked. |
 | `/world` | **The one live surface.** Open fissures by relic tier, invasions, sortie, archon hunt and Baro, fetched from a mirror of DE's own `worldState` (§ 2.1) into a client island under a prerendered shell. Open-world cycles sit above all of it and are *computed*, not fetched — see hazards 39 and 40 — so they survive the feed being down. This is also where the Factions tile ended up. |
@@ -1089,12 +1090,70 @@ comparing result sets rather than strings, and deliberately not a permanent comp
 layer, because two live ways to express one filter is how the URL stops being the source of
 truth.
 
-This closes § 13's open question about saved presets with a no: once the URL holds the query
+This closes § 14's open question about saved presets with a no: once the URL holds the query
 text, the bookmark **is** the preset.
 
 ---
 
-## 12. Phases
+## 12. Settings
+
+Viewer preferences: theme, density, motion, and three switches for what the tool shows.
+Shipped 2026-08-28.
+
+### 12.1 IndexedDB is the record; localStorage is a mirror
+
+Constraint 1 names settings as user data, so they live in IndexedDB beside the collection and
+ride in the same export file. But theme, density and motion have to be on `<html>` **before
+the first paint**, and IndexedDB cannot be read synchronously — a pre-paint script that reads
+it is not a thing that can exist. So a copy is kept in localStorage, read by a small inline
+script in `layout.tsx`, ahead of any stylesheet.
+
+The mirror is never authoritative. On hydrate IDB wins and the mirror is rewritten from it. If
+localStorage is blocked, everything still works and the first paint is simply the default.
+Verified: set Grineer + Compact, reload, and the attributes are already correct at 150 ms;
+delete the mirror, reload, and IDB restores it.
+
+### 12.2 A theme is values, never names
+
+Each theme redefines the same semantic tokens. Nothing outside `globals.css` knows a theme
+exists — `bg-void-800` resolves through one custom property in all four, so no component is
+theme-aware and no class changed.
+
+Two rules hold across all four. The rarity ramp's HUES never move, because rarity colour
+encodes a measurement; high contrast lifts lightness and chroma uniformly across all four
+rarities, which preserves the scale rather than restyling it. And the two gold weights keep
+their contract under their new hues: `gold` may carry text, `gold-dim` may not.
+
+Contrast was measured for every foreground against every surface it can sit on, not assumed:
+
+| Theme | Tightest text pairing | `gold-dim` (ornament, must not carry text) |
+|---|---|---|
+| Orokin | 5.11:1 | 3.74:1 |
+| Corpus | 5.51:1 | 4.01:1 |
+| Grineer | 5.60:1 | 3.44:1 |
+| High contrast | 9.22:1 | 7.02:1 |
+
+The palette blocks are attribute selectors rather than `:root[…]` so a nested element can
+carry `data-theme` and paint itself in that theme. That is how the swatches on `/settings`
+preview each option: they cannot drift from the real thing because they ARE the real thing.
+
+### 12.3 A preference is not a filter
+
+None of these change a row count. Filter state lives in the URL and only in the URL
+(constraint 5), so a preference that quietly narrowed a table would be a filter nobody could
+see, share or clear.
+
+That is why **drops only** hides chrome — the Rivens nav row, the market link — rather than
+excluding untradable rows, and why **mastery rank** marks items above the viewer's rank
+instead of hiding them: the parts are farmable at any rank, only equipping the finished thing
+is gated, so hiding the page would answer a question nobody asked.
+
+There is no setting that forces motion ON against `prefers-reduced-motion`. A viewer who has
+told their operating system they want less movement does not get overruled by a site control.
+
+---
+
+## 13. Phases
 
 Each phase ends deployable. Don't start the next until the current one ships.
 
@@ -1116,13 +1175,14 @@ Each phase ends deployable. Don't start the next until the current one ships.
 | 10 | Polish — wiki supplement join, perf pass, a11y audit (`/about` shipped 2026-08-26) | Lighthouse ≥ 95 across the board |
 | 11 | **`/farm` — the plan: collection × chains × live fissures, grouped by action** | Shipped 2026-08-27. Verified end to end over CDP: parts ticked through the real UI, then the plan read back with open fissures attached. |
 | 12 | **Query language** — one grammar for the palette and `/browse`, 13 keys, one URL param | Shipped 2026-08-28. `is:prime cat:warframe` returns 50, which the edge-grain design it replaced returned 0 of. |
+| 13 | **Settings** — four themes, density, motion, drops-only, mastery rank, new player mode | Shipped 2026-08-28. Contrast measured for all four themes; no preference changes a row count. |
 
 Phase 5 is the one that matters. Everything before it is table stakes that other sites already
 have; everything after it is refinement. If the schedule slips, protect phase 5.
 
 ---
 
-## 13. Open questions
+## 14. Open questions
 
 - Console platforms: PC-only for now. Drop tables are shared, but riven trade data and market
   listings are not. Revisit only if there's demand.
