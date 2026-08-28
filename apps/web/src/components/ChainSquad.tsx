@@ -3,7 +3,7 @@
 import { parseAsInteger, useQueryState } from 'nuqs'
 
 import { formatRuns } from '@/components/DropChainTrace'
-import { chainRuns, type DropChain } from '@provenance/core'
+import { attemptLabel, chainNoun, chainRuns, type DropChain } from '@provenance/core'
 
 /**
  * The squad control, and the cost figure it changes.
@@ -29,7 +29,7 @@ export function ChainSquad({ chain }: { chain: DropChain }) {
   return (
     <div className="mt-4 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-t border-hairline pt-4">
       <div>
-        <div className="label">Expected runs</div>
+        <div className="label">{attemptLabel('Expected', chainNoun(chain))}</div>
         <div className="data-num mt-1 text-lg text-gold">{formatRuns(runs)}</div>
         {players > 1 && Number.isFinite(solo) && (
           // The gap is the entire reason the control exists (DESIGN.md § 5.2): a rare at

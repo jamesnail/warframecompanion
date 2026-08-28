@@ -1,6 +1,7 @@
 export * from './types'
 export * from './probability'
 export * from './stages'
+export * from './attempts'
 export * from './cycles'
 export * from './chain'
 export * from './query'

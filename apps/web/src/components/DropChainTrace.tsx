@@ -3,7 +3,14 @@ import Link from 'next/link'
 
 import { ChainSquad } from '@/components/ChainSquad'
 import { Panel, PanelHeader } from '@/components/Primitives'
-import { chainRuns, type DropChain } from '@provenance/core'
+import {
+  attemptLabel,
+  attemptNoun,
+  chainNoun,
+  chainRuns,
+  type AttemptNoun,
+  type DropChain,
+} from '@provenance/core'
 
 /**
  * The drop chain trace: item ← relic ← the mission you actually queue, with the odds
@@ -30,6 +37,11 @@ export function DropChainTrace({ chain }: { chain: DropChain }) {
   if (source === undefined) return null
 
   const solo = chainRuns(chain, 1)
+  // The first hop is its own act — you kill the enemy that drops the relic — even where the
+  // total below is counted in runs because the chain ends at a fissure.
+  const hop = attemptNoun(source.kind)
+  // The total, though, is counted in whatever act the chain ENDS on — see chainNoun.
+  const total = chainNoun(chain)
 
   return (
     <Panel className="mt-6">
@@ -47,12 +59,12 @@ export function DropChainTrace({ chain }: { chain: DropChain }) {
           />
 
           <Hop
-            kicker="Run"
+            kicker={hop.imperative}
             title={source.name}
             href={source.href}
             detail={source.kind}
             figure={`${(source.chance * 100).toFixed(2)}%`}
-            figureNote="per run"
+            figureNote={`per ${hop.one}`}
           />
 
           {relic !== undefined && (
@@ -71,7 +83,7 @@ export function DropChainTrace({ chain }: { chain: DropChain }) {
 
         {/* The fallback is the solo answer, which is the correct answer for most readers and
             is never wrong — only less specific than what hydration replaces it with. */}
-        <Suspense fallback={<SoloCost solo={solo} />}>
+        <Suspense fallback={<SoloCost solo={solo} noun={total} />}>
           <ChainSquad chain={chain} />
         </Suspense>
       </div>
@@ -79,10 +91,10 @@ export function DropChainTrace({ chain }: { chain: DropChain }) {
   )
 }
 
-export function SoloCost({ solo }: { solo: number }) {
+export function SoloCost({ solo, noun }: { solo: number; noun: AttemptNoun }) {
   return (
     <div className="mt-4 border-t border-hairline pt-4">
-      <div className="label">Expected runs</div>
+      <div className="label">{attemptLabel('Expected', noun)}</div>
       <div className="data-num mt-1 text-lg text-gold">{formatRuns(solo)}</div>
     </div>
   )

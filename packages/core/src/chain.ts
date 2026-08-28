@@ -1,3 +1,4 @@
+import { attemptNoun, type AttemptNoun } from './attempts'
 import type { Refinement, RelicRarity } from './types'
 import { perRunChance, runsForRelicPath } from './probability'
 import type { DropEdge } from './types'
@@ -48,6 +49,18 @@ export interface DropChain {
   source: ChainSource | undefined
   /** Expected mission runs for one copy, solo. Infinity where no route exists. */
   runs: number
+}
+
+/**
+ * What one attempt at a chain is called.
+ *
+ * A direct chain takes its source's noun — kill an enemy, run a mission. A relic chain does
+ * NOT, even when an enemy drops the relic: `chainRuns` there is a composite of farming the
+ * relic and then cracking it at a fissure, and the fissure is a mission you queue. Calling
+ * that total "kills" would name half of it. "Runs" names the act the number ends on.
+ */
+export function chainNoun(chain: DropChain): AttemptNoun {
+  return chain.relic === undefined ? attemptNoun(chain.source?.kind) : attemptNoun('mission')
 }
 
 /**

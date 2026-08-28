@@ -103,6 +103,14 @@ pnpm data:diff          # show what a fresh pipeline run would change
 
 pnpm only. If you see `npm install` or a `package-lock.json` anywhere, that is a bug.
 
+**Runs and kills (2026-08-28).** Effort figures name the act they counted: a mission, bounty
+or fissure is counted in **runs**, an enemy in **kills**. `attemptNoun()` in
+`packages/core/src/attempts.ts` is the only place that decides — never hardcode either word
+in a component. Only `enemy` is a kill. A table spanning both takes `attemptColumn`, which
+names both rather than picking one. A relic chain stays in runs (`chainNoun`), because its
+figure already includes the fissure run. This REVERSED an earlier deliberate rule; see
+DESIGN.md § 5.1 for why, and do not revert it.
+
 **Market prices (2026-08-28).** Swept at build time from warframe.market's `/top` endpoint,
 never at runtime. Two rules, both load-bearing. **Never switch to the full order book** — it is
 510 KB per item against 2.8 KB, which is 1.6 GB per daily run from a volunteer-run service, and

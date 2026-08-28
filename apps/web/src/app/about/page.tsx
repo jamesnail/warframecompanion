@@ -193,6 +193,13 @@ export default async function AboutPage() {
           four. The 95% figure on item pages is the honest one to plan around.
         </p>
         <p>
+          <strong className="text-text">Runs and kills are counted separately.</strong> A
+          mission, a bounty or a fissure is counted in runs; an enemy is counted in kills,
+          because one run of a mission can produce dozens of the enemy that drops the thing.
+          Where an item drops both ways, the table names both and each row&rsquo;s own line
+          says which it is.
+        </p>
+        <p>
           <strong className="text-text">Refinement odds are computed, not read.</strong>{' '}
           Upstream publishes only the Intact table; Exceptional, Flawless and Radiant are
           derived from the fixed rarity ladder the game uses.

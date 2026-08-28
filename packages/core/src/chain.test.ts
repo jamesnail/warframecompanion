@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   bestChain,
   bestEdge,
+  chainNoun,
   chainRuns,
   chainStatus,
   compareChains,
@@ -196,5 +197,27 @@ describe('bestChain vaulting', () => {
       { relic: relic({ id: 'vaulted', vaulted: true, chance: 0.25 }), source: source(0.4) },
     ])
     expect(best.relic?.id).toBe('vaulted')
+  })
+})
+
+describe('chainNoun', () => {
+  it('a direct enemy drop is counted in kills', () => {
+    const c = chain({ relic: undefined, source: source(0.05, { kind: 'enemy' }) })
+    expect(chainNoun(c).many).toBe('kills')
+  })
+
+  it('a direct mission drop is counted in runs', () => {
+    expect(chainNoun(chain({ relic: undefined })).many).toBe('runs')
+  })
+
+  it('a relic route is counted in runs even when an enemy drops the relic', () => {
+    // chainRuns there is farm-the-relic AND crack-it-at-a-fissure. The fissure is a mission
+    // you queue, so "kills" would name only half the total.
+    const c = chain({ source: source(0.05, { kind: 'enemy' }) })
+    expect(chainNoun(c).many).toBe('runs')
+  })
+
+  it('a chain with no source at all falls back to runs rather than throwing', () => {
+    expect(chainNoun(chain({ relic: undefined, source: undefined })).many).toBe('runs')
   })
 })

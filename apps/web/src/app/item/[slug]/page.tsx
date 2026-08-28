@@ -4,6 +4,10 @@ import type { Metadata } from 'next'
 
 import {
   REFINEMENT_ORDER,
+  attemptColumn,
+  attemptLabel,
+  attemptNoun,
+  attemptPlural,
   bestRefinementFor,
   chancesByRefinement,
   expectedRuns,
@@ -165,6 +169,15 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
           .sort((a, b) => b.best.chance - a.best.chance || a.name.localeCompare(b.name))
 
   const bestDirect = directEdges[0]
+  const bestNoun = attemptNoun(bestDirect?.source?.kind)
+  // One item can drop from enemies AND missions — 492 of them do — so the effort column
+  // names both where its rows disagree rather than lying on half of them.
+  const directColumn = attemptColumn(
+    directEdges
+      .slice(0, SOURCE_LIMIT)
+      .map(({ source }) => source?.kind)
+      .filter((kind) => kind !== undefined),
+  )
 
   /**
    * The recipe, if this is an assembled item.
@@ -300,20 +313,23 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
         </p>
       ) : bestDirect !== undefined ? (
         <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {/* Always "runs", never "kills". An enemy drop is still collected by running the
-              mission the enemy spawns in — nobody queues "one Corrupted Heavy Gunner" — so
-              the run is the unit every source has in common, and switching nouns per source
-              kind made the same statistic incomparable between two pages. */}
+          {/* These three all describe ONE source — the best one — so they take that
+              source's noun. An enemy is killed, a mission is run: "expected runs: 51" for a
+              mod off an eximus unit reads as fifty-one missions when it means fifty-one
+              bodies. The table below mixes kinds and handles that separately. */}
           <SummaryCard
-            label="Best chance / run"
+            label={`Best chance / ${bestNoun.one}`}
             value={`${(bestDirect.p * 100).toFixed(2)}%`}
             tone="accent"
           />
-          <SummaryCard label="Expected runs" value={expectedRuns(bestDirect.p).toFixed(0)} />
+          <SummaryCard
+            label={attemptLabel('Expected', bestNoun)}
+            value={expectedRuns(bestDirect.p).toFixed(0)}
+          />
           <SummaryCard
             label="95% confident"
             value={String(runsForConfidence(bestDirect.p))}
-            detail="runs"
+            detail={attemptPlural(runsForConfidence(bestDirect.p), bestNoun)}
           />
         </div>
       ) : relicPaths.length > 0 ? (
@@ -432,7 +448,7 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
                         Chance
                       </th>
                       <th scope="col" className="label px-3 py-2 sm:px-5 text-right font-normal">
-                        Runs
+                        {directColumn}
                       </th>
                     </tr>
                   </thead>

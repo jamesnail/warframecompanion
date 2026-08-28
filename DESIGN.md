@@ -231,6 +231,33 @@ Report expected runs as `1 / P`, and "nearly guaranteed" as the runs `n` where
 `1 - (1 - P)^n ≥ 0.95`. Both numbers, always — players intuit the second better than the first,
 and the gap between them is the actual lesson about RNG.
 
+**The unit has a name, and it is not always "run".** The math above counts repetitions of one
+act. For a mission, a bounty or a fissure that act is a run; for an enemy it is a kill, and
+labelling it a run is wrong in a way players notice — one Survival run produces dozens of the
+eximus unit that drops the mod, so "expected runs: 51" reads as fifty-one missions when it
+means fifty-one bodies. `attemptNoun()` in `packages/core/src/attempts.ts` is the single place
+that decides; only `enemy` is a kill, because `cache` and `transient` are both reached by
+queueing the mission.
+
+> **Amended 2026-08-28.** This previously ruled the opposite way — always "runs", never
+> "kills", on the argument that the run is the unit every source has in common and switching
+> nouns makes the same statistic incomparable between two pages. Overruled by the owner. The
+> comparability argument was real but bought at the price of being wrong on 935 items, and
+> the pages that quote a figure now also name what they counted, so nothing is silently
+> compared.
+
+Two grains follow from that. A figure describing ONE source takes that source's noun. A
+table whose rows span several — 492 items mix enemy drops with mission or bounty drops — has
+no single noun, so its effort column names both (`attemptColumn`) and each row's own detail
+line, which already reads "Enemy" or names a mission type, is the discriminator. Inventing a
+neutral third noun ("attempts", "tries") was rejected: it appears nowhere in the game's
+vocabulary, and CLAUDE.md's copy rule forbids friendlier synonyms for game terms.
+
+A relic chain is the one composite. `chainRuns` there sums farming the relic with cracking it
+at a fissure, so `chainNoun` reports runs even when an enemy drops the relic — the fissure is
+a mission you queue, and "kills" would name only half the total. The trace's first hop still
+says "Kill", because that hop really is one.
+
 ### 5.2 Relic-gated items (the hard case)
 
 For a prime part, the path is: run a mission that drops relic `R`, then open `R` at some refinement

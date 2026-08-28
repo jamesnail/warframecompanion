@@ -10,7 +10,7 @@ import { useCollection } from '@/lib/client/use-collection'
 import { buildNeeds, groupByAction, trackedTargets, type FarmAction, type Need, type TrackedSet } from '@/lib/farm'
 import { sourceHref } from '@/lib/source-route'
 import { openFissures, timeUntil, type Fissure, type NodeIndex } from '@/lib/world'
-import type { DropChain } from '@provenance/core'
+import { attemptPlural, chainNoun, type DropChain } from '@provenance/core'
 
 /**
  * What to farm right now.
@@ -182,6 +182,9 @@ function ActionCard({
   pending: boolean
 }) {
   const parts = `${String(action.needs.length)} part${action.needs.length === 1 ? '' : 's'}`
+  // action.runs is the cheapest need in the group, so the noun is that need's — a group can
+  // mix an enemy drop with a fissure route and only one of them is the figure being quoted.
+  const cheapest = action.needs.reduce((best, need) => (need.runs < best.runs ? need : best))
 
   return (
     <Panel className="mt-6">
@@ -190,7 +193,7 @@ function ActionCard({
         aside={
           action.kind === 'blocked'
             ? parts
-            : `${parts} · ${Math.ceil(action.runs).toLocaleString()} runs for the cheapest`
+            : `${parts} · ${Math.ceil(action.runs).toLocaleString()} ${attemptPlural(Math.ceil(action.runs), chainNoun(cheapest.chain))} for the cheapest`
         }
       />
 
@@ -254,7 +257,9 @@ function NeedRow({ need, blocked }: { need: Need; blocked: boolean }) {
         {!blocked && (
           <span className="data-num shrink-0 text-xs text-text-dim">
             {Number.isFinite(need.runs) ? Math.ceil(need.runs).toLocaleString() : '—'}
-            <span className="ml-1.5 text-text-faint">runs</span>
+            <span className="ml-1.5 text-text-faint">
+              {attemptPlural(Math.ceil(need.runs), chainNoun(chain))}
+            </span>
           </span>
         )}
       </div>

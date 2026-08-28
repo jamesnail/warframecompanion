@@ -2,8 +2,8 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 
-import { expectedRuns, perRunChance, stageLabel } from '@provenance/core'
-import type { Source } from '@provenance/core'
+import { attemptNoun, expectedRuns, perRunChance, stageLabel } from '@provenance/core'
+import type { AttemptNoun, Source } from '@provenance/core'
 
 import { PAGE, PageHeader, Panel, PanelHeader, Stat } from '@/components/Primitives'
 import { getDataset } from '@/lib/data'
@@ -105,6 +105,7 @@ export default async function SourcePage({
    */
   const guaranteed = edges.length > 0 && edges.every((edge) => edge.chance === 1)
 
+  const noun = attemptNoun(source.kind)
   const distinct = new Set(edges.map((edge) => edge.itemId)).size
   const best = edges.reduce((top, edge) => Math.max(top, perRunChance(edge)), 0)
 
@@ -133,7 +134,13 @@ export default async function SourcePage({
           {guaranteed ? (
             <Stat label="Chance" value="Guaranteed" />
           ) : (
-            <Stat label="Best chance / run" value={(best * 100).toFixed(2)} unit="%" accent />
+            // One source, so one noun: an enemy's table counts kills, a mission's runs.
+            <Stat
+              label={`Best chance / ${noun.one}`}
+              value={(best * 100).toFixed(2)}
+              unit="%"
+              accent
+            />
           )}
           {/* Only where the source actually splits. The noun comes from the group titles so
               a Spy mission reads "Vaults", not "Rotations". */}
@@ -148,6 +155,7 @@ export default async function SourcePage({
           key={group.key}
           group={group}
           sourceName={source.name}
+          noun={noun}
           guaranteed={guaranteed}
           single={groups.length === 1}
         />
@@ -166,11 +174,13 @@ function groupNoun(groups: DropGroup[]): string {
 function DropTable({
   group,
   sourceName,
+  noun,
   guaranteed,
   single,
 }: {
   group: DropGroup
   sourceName: string
+  noun: AttemptNoun
   guaranteed: boolean
   single: boolean
 }) {
@@ -203,7 +213,7 @@ function DropTable({
                     Chance
                   </th>
                   <th scope="col" className="label px-3 py-2 text-right font-normal sm:px-5">
-                    Runs
+                    {noun.column}
                   </th>
                 </>
               )}
