@@ -23,6 +23,15 @@ import { COLLECTION, getDb, safely } from './db'
  */
 
 const SETTINGS_KEY = 'settings'
+
+/**
+ * DO NOT RENAME, including if the product is renamed — same reason as `DB_NAME` in db.ts.
+ *
+ * It is duplicated as a string literal in the pre-paint script in `layout.tsx`, because that
+ * script runs before any module loads and cannot import this. Changing one without the other
+ * makes every reload flash the default theme, which is the exact failure the script exists to
+ * prevent. If this ever has to change, change both.
+ */
 export const MIRROR_KEY = 'provenance:settings'
 
 let current: Settings = DEFAULT_SETTINGS

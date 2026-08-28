@@ -13,6 +13,15 @@ import { openDB, type IDBPDatabase } from 'idb'
  * to be guarded by its own existence check rather than by a version comparison.
  */
 
+/**
+ * DO NOT RENAME, including if the product is renamed.
+ *
+ * This string is where every viewer's collection, farm list and settings physically live. A
+ * rebrand that changed it would not migrate anything — it would silently open a new, empty
+ * database while the real one sat untouched under the old name, and every user would find
+ * their collection gone with no error to explain it. The product name lives in `site.ts`;
+ * this is storage, and storage keys outlive names.
+ */
 const DB_NAME = 'provenance'
 const DB_VERSION = 2
 

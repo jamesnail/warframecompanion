@@ -24,6 +24,22 @@ export default async function AboutPage() {
   const { manifest, items, sources, edges, relics } = await getDataset()
 
   const sets = items.filter((item) => item.components !== undefined)
+
+  /**
+   * Warframe recipe coverage, counted rather than asserted.
+   *
+   * This page used to claim recipes "exclude most non-Prime Warframes". That was true when it
+   * was written and stopped being true when the Blueprint-suffix rule (hazard 17) took
+   * resolved sets from 206 to 309 — and because the sentence was prose rather than a count,
+   * nothing caught it. It is computed now for the same reason every other number here is.
+   */
+  const warframes = items.filter((item) => item.category === 'Warframe')
+  const nonPrimeFrames = warframes.filter((item) => !/ Prime\b/.test(item.name))
+  const nonPrimeWithRecipe = nonPrimeFrames.filter((item) => item.components !== undefined)
+  const framesWithoutRecipe = nonPrimeFrames
+    .filter((item) => item.components === undefined)
+    .map((item) => item.name)
+    .sort((a, b) => a.localeCompare(b))
   const vaulted = relics.filter((relic) => relic.vaulted).length
   const derived = edges.filter((edge) => edge.provenance === 'derived').length
   const withRotation = edges.filter((edge) => edge.rotation != null).length
@@ -192,12 +208,20 @@ export default async function AboutPage() {
 
       <Section title="What is missing">
         <p>
-          <strong className="text-text">Build recipes are incomplete by design.</strong> A set
-          is only listed when every one of its components can be traced to a source. That
-          covers {sets.length.toLocaleString()} items, including nearly every Prime, but
-          excludes most non-Prime Warframes: their main blueprint is bought or quest-locked
-          rather than dropped, so no complete farm path exists to show. Listing four pieces of
-          five would read as a complete answer and would not be one.
+          <strong className="text-text">A set is listed only when every component traces to a
+          source.</strong> That covers {sets.length.toLocaleString()} items — nearly every
+          Prime, and {nonPrimeWithRecipe.length} of the {nonPrimeFrames.length} non-Prime
+          Warframes.
+          {framesWithoutRecipe.length > 0 && (
+            <>
+              {' '}
+              The {framesWithoutRecipe.length === 1 ? 'exception is' : 'exceptions are'}{' '}
+              {formatList(framesWithoutRecipe)}, whose blueprints are not in the drop tables at
+              all.
+            </>
+          )}{' '}
+          Listing four pieces of five would read as a complete answer and would not be one, so
+          an incomplete recipe is counted and withheld rather than shown.
         </p>
         <p>
           <strong className="text-text">Sources carry no faction or level range.</strong> The
@@ -264,6 +288,12 @@ export default async function AboutPage() {
       </p>
     </div>
   )
+}
+
+/** "a, b and c" — so the sentence stays a sentence however many names the data yields. */
+function formatList(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? ''
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1] ?? ''}`
 }
 
 function Figure({ label, value }: { label: string; value: number }) {

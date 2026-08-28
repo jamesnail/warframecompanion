@@ -809,10 +809,16 @@ Write these into code comments as you hit them.
       discarded as incomplete. This one rule took fully-resolved sets from 206 to 309.
 
     A set ships only when EVERY component resolves. A page listing four of five required
-    pieces reads as a complete answer and is not one; 673 incomplete recipes are counted and
-    reported instead. Non-prime frames are the bulk of them and cannot ever resolve — their
-    own blueprint is bought or quest-locked, not dropped — so excluding them is correct
-    rather than a coverage failure to chase.
+    pieces reads as a complete answer and is not one; incomplete recipes are counted and
+    reported instead.
+
+    **Corrected 2026-08-28.** This entry used to close by saying non-Prime frames were the
+    bulk of the unresolved and could never resolve. That was true when it was written and
+    the Blueprint-suffix rule above is what stopped it being true: 27 of the 30 non-Prime
+    Warframes now resolve completely, and only Excalibur, Mag and Volt do not, because their
+    blueprints are not in the drop tables at all. The stale claim also reached `/about` and
+    sat there underselling the tool for a month, because it was prose rather than a count.
+    Anything on that page that can be counted is now counted — see § 7.
 
 18. **An id reference is an id reference, whether or not it is an edge.** `buildEnrichmentIndex`
     minted `components` ids from WFCD's recipe nesting without checking any existed, so only
