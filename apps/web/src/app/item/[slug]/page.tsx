@@ -24,6 +24,7 @@ import {
 } from '@/components/Primitives'
 import { OwnedToggle, RecipeTable, TrackToggle } from '@/components/RecipeTable'
 import { RivenPanel } from '@/components/RivenPanel'
+import { MarketPricePanel } from '@/components/MarketPricePanel'
 import { MasteryBadge, NewPlayerNote, TradeOnly } from '@/components/ViewerModes'
 import { getDataset } from '@/lib/data'
 import { kindLabel } from '@/lib/effort'
@@ -389,6 +390,10 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
       {recipe.length > 0 && <RecipeTable rows={recipe} itemName={item.name} />}
 
       {/* Weapons only, and only where this weapon actually takes a riven. */}
+      {item.marketSlug !== undefined && (
+        <MarketPricePanel itemId={item.id} marketSlug={item.marketSlug} />
+      )}
+
       {riven !== undefined && <RivenPanel family={riven} weaponId={item.id} />}
 
       {/* Direct sources and relics answer the same question two ways, so they are read

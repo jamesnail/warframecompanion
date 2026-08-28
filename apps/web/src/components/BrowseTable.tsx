@@ -8,7 +8,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { compileQuery, parseQuery, stageLabel, type QueryItem } from '@provenance/core'
 
 import { QueryInput } from '@/components/QueryInput'
-import { loadBrowseDataset } from '@/lib/client/dataset'
+import { loadBrowseDataset, loadPrices } from '@/lib/client/dataset'
 import {
   buildRows,
   facetsOf,
@@ -87,12 +87,18 @@ export function BrowseTable() {
     let cancelled = false
     async function boot(): Promise<void> {
       try {
-        const { items, sources, edges } = await loadBrowseDataset()
+        // Prices ride along: a small chunk next to a 5 MB one, and `price:` is useless
+        // without it. loadPrices never throws — an empty map means the key matches nothing,
+        // which is the honest answer when the market data did not ship.
+        const [{ items, sources, edges }, prices] = await Promise.all([
+          loadBrowseDataset(),
+          loadPrices(),
+        ])
         if (cancelled) return
         setState({
           status: 'ready',
           rows: buildRows(items, sources, edges, stageLabel),
-          itemsById: indexById(buildQueryItems(items, sources, edges)),
+          itemsById: indexById(buildQueryItems(items, sources, edges, prices)),
         })
       } catch {
         // A missing dataset must not blank the page (CLAUDE.md § Errors).

@@ -7,11 +7,12 @@
     "edges": "edges.6dd4839bb36b.json",
     "relics": "relics.6dd4839bb36b.json",
     "rivens": "rivens.6dd4839bb36b.json",
-    "nodes": "nodes.6dd4839bb36b.json"
+    "nodes": "nodes.6dd4839bb36b.json",
+    "prices": "prices.790ec5285387.json"
   },
   "upstream": {
     "warframe-drop-data": "a0ece5e9be2e2d55c75040720ef3226a",
-    "riven-trades-fetched": "2026-08-26T18:49:56.540Z"
+    "riven-trades-fetched": "2026-08-28T19:40:04.163Z"
   },
   "attributions": [
     {
@@ -43,6 +44,7 @@
     "items": 4875,
     "sources": 2417,
     "edges": 28020,
-    "rivens": 516
+    "rivens": 516,
+    "prices": 395
   }
 }

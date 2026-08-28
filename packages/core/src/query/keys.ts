@@ -154,6 +154,13 @@ export const KEYS: readonly KeyDef[] = [
     path: (path, value) => matchChance(path.chance, value),
   },
   {
+    key: 'price',
+    hint: 'Cheapest live asking price, in platinum',
+    valueKind: 'number',
+    item: (item, value) => matchNumber(item.price, value),
+    path: (path, value) => matchNumber(path.price, value),
+  },
+  {
     key: 'source',
     hint: 'Text in the source name',
     valueKind: 'text',
@@ -189,8 +196,12 @@ export const KEYS: readonly KeyDef[] = [
  * (DESIGN.md § 6). These keys are the ones that cannot be answered without it, so a surface
  * holding items alone can tell when it needs to go and fetch more rather than silently
  * matching nothing — which would be a filter that lies.
+ *
+ * `price:` is here for the same reason rather than the same cause: prices are their own small
+ * chunk, not part of the edge list, but a surface that has not loaded them is equally unable
+ * to answer and must go and get them.
  */
-const PATH_KEYS = new Set(['from', 'planet', 'tier', 'rotation', 'chance', 'source'])
+const PATH_KEYS = new Set(['from', 'planet', 'tier', 'rotation', 'chance', 'source', 'price'])
 
 export function termNeedsPaths(key: string, value: TermValue): boolean {
   if (PATH_KEYS.has(key)) return true

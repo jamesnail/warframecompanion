@@ -30,6 +30,7 @@ function item(overrides: Partial<QueryItem> = {}): QueryItem {
     rotations: new Set<string>(),
     sourceText: 'axi a1 relic',
     bestChance: 0.11,
+    price: undefined,
     ...overrides,
   }
 }
@@ -50,6 +51,7 @@ function path(overrides: Partial<QueryPath> = {}): QueryPath {
     tier: 'lith',
     rotation: undefined,
     chance: 0.11,
+    price: undefined,
     ...overrides,
   }
 }
@@ -161,6 +163,15 @@ describe('keys', () => {
   it('source: matches text in the source name', () => {
     expect(matchItem('source:axi', item())).toBe(true)
     expect(matchItem('source:lith', item())).toBe(false)
+  })
+
+  it('price: reads the cheapest live ask, and never matches an unpriced item', () => {
+    expect(matchItem('price:<50', item({ price: 20 }))).toBe(true)
+    expect(matchItem('price:>50', item({ price: 20 }))).toBe(false)
+    expect(matchItem('price:20', item({ price: 20 }))).toBe(true)
+    // An item nobody is selling is not free, and price:<50 returning every untraded item in
+    // the game would be wrong. Same rule as mr:.
+    expect(matchItem('price:<50', item({ price: undefined }))).toBe(false)
   })
 
   it('is: and has: are the same namespace', () => {

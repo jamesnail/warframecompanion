@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import type { QueryError, QueryItem } from '@provenance/core'
 
-import { loadBrowseDataset, loadDataset } from './dataset'
+import { loadBrowseDataset, loadDataset, loadPrices } from './dataset'
 import { createSearchIndex, type SearchHit, type SearchIndex } from '@/lib/search-index'
 import { buildItemOnlyIndex, buildQueryItems, indexById } from '@/lib/query-index'
 import { runPaletteQuery } from '@/lib/search-query'
@@ -104,8 +104,11 @@ export function useSearch() {
     upgradingRef.current = true
     setLoadingPaths(true)
     try {
-      const { items, sources, edges } = await loadBrowseDataset()
-      itemsRef.current = indexById(buildQueryItems(items, sources, edges))
+      const [{ items, sources, edges }, prices] = await Promise.all([
+        loadBrowseDataset(),
+        loadPrices(),
+      ])
+      itemsRef.current = indexById(buildQueryItems(items, sources, edges, prices))
       hasPathsRef.current = true
       apply(latestQuery.current)
     } catch {

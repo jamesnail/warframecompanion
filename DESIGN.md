@@ -1096,7 +1096,7 @@ comparing result sets rather than strings, and deliberately not a permanent comp
 layer, because two live ways to express one filter is how the URL stops being the source of
 truth.
 
-This closes § 14's open question about saved presets with a no: once the URL holds the query
+This closes § 15's open question about saved presets with a no: once the URL holds the query
 text, the bookmark **is** the preset.
 
 ---
@@ -1159,7 +1159,70 @@ told their operating system they want less movement does not get overruled by a 
 
 ---
 
-## 13. Phases
+## 13. Market prices
+
+Live trade prices from warframe.market, fetched at build time. Shipped 2026-08-28.
+
+### 13.1 The endpoint choice is a politeness decision
+
+warframe.market's full order book — `/v2/orders/item/{slug}` — is about **510 KB per item**,
+and it ignores both `?limit` and `?status`. Across the 3,185 items that carry a market slug
+that is roughly **1.6 GB per run**, every day, from a service volunteers pay for. This tool is
+a guest there and does not need the data that badly.
+
+`/v2/orders/item/{slug}/top` is **2.8 KB** and returns the five best live orders per side,
+already restricted to sellers who are online or in-game. The same sweep costs about **9 MB**.
+Measured, not assumed, before the design was fixed.
+
+What that costs is stated rather than hidden: a true count of every open offer, and a true
+mean across all of them, are not obtainable this way. Both were asked for. Neither is worth
+1.6 GB a day, and — see below — neither is the number it sounds like.
+
+### 13.2 The unfiltered average is fiction
+
+Measured against the live API while designing this:
+
+| Item | Basis | n | min | max | mean |
+|---|---|---|---|---|---|
+| Vitality | every visible sell order | 217 | 1 | **99,999** | **1,019** |
+| Vitality | online sellers only | 21 | 1 | 200 | 56 |
+| Braton Prime Set | every visible sell order | 958 | **1** | 200 | 14.4 |
+| Braton Prime Set | online sellers only | 63 | 5 | 100 | 19.6 |
+
+The full book is thick with parked listings: somebody's 99,999-platinum placeholder drags
+Vitality's mean up twenty-fold, and a stale 2019 offer prices Braton Prime's floor at 1
+platinum — a number that would send a reader to buy at a price nobody will honour. Both
+failure directions are worse than useless, because a reader acts on them.
+
+So the stored snapshot is the cheapest live ask (`sellLow`), the median of the five cheapest
+(`sellTypical`), and the best live bid (`buyHigh`) — what you would pay and what you would
+get. `sellOrders`/`buyOrders` record how many of the five-wide window were filled, so the UI
+can distinguish "five sellers agree" from "one person is asking this".
+
+### 13.3 Prices are hashed separately from drop data
+
+The market moves daily; the drop tables do not. A combined hash would rename all 5 MB of
+unchanged drop chunks every day — filenames carry the hash — forcing every returning visitor
+to re-download the lot to read a price tick, which is the exact thing content-addressing
+exists to prevent.
+
+So `manifest.hash` still means only "the drop data changed", and prices carry their own hash
+in their own filename. The client cache follows: chunks are versioned by FILENAME rather than
+by the manifest hash, and `pruneStale` takes every live filename rather than one hash — it
+would otherwise have deleted the price chunk on every load and re-fetched it forever.
+
+### 13.4 The one dataset allowed to fail
+
+Every other source fails the build loudly, because a truncated drop table ships a lie. Prices
+are different in kind: a third party's live service, a garnish rather than the product. A
+sweep where fewer than 80% of requests succeed is treated as an outage — the previous price
+chunk stays published and the run says so — because replacing it with a half-empty sweep would
+read as "nobody is selling this" across half the site. A sweep that fails entirely leaves
+prices untouched and never blocks the drop data from shipping.
+
+---
+
+## 14. Phases
 
 Each phase ends deployable. Don't start the next until the current one ships.
 
@@ -1181,6 +1244,7 @@ Each phase ends deployable. Don't start the next until the current one ships.
 | 10 | Polish — wiki supplement join, perf pass, a11y audit (`/about` shipped 2026-08-26) | Lighthouse ≥ 95 across the board |
 | 11 | **`/farm` — the plan: collection × chains × live fissures, grouped by action** | Shipped 2026-08-27. Verified end to end over CDP: parts ticked through the real UI, then the plan read back with open fissures attached. |
 | 12 | **Query language** — one grammar for the palette and `/browse`, 13 keys, one URL param | Shipped 2026-08-28. `is:prime cat:warframe` returns 50, which the edge-grain design it replaced returned 0 of. |
+| 14 | **Market prices** — live asks and bids per item, swept at build time, `price:` in the query language | Shipped 2026-08-28. `/top` not the full book: 9 MB a run instead of 1.6 GB. |
 | 13 | **Settings** — four themes, density, motion, drops-only, mastery rank, new player mode | Shipped 2026-08-28. Contrast measured for all four themes; no preference changes a row count. |
 
 Phase 5 is the one that matters. Everything before it is table stakes that other sites already
@@ -1188,7 +1252,7 @@ have; everything after it is refinement. If the schedule slips, protect phase 5.
 
 ---
 
-## 14. Open questions
+## 15. Open questions
 
 - Console platforms: PC-only for now. Drop tables are shared, but riven trade data and market
   listings are not. Revisit only if there's demand.

@@ -103,6 +103,13 @@ pnpm data:diff          # show what a fresh pipeline run would change
 
 pnpm only. If you see `npm install` or a `package-lock.json` anywhere, that is a bug.
 
+**Market prices (2026-08-28).** Swept at build time from warframe.market's `/top` endpoint,
+never at runtime. Two rules, both load-bearing. **Never switch to the full order book** — it is
+510 KB per item against 2.8 KB, which is 1.6 GB per daily run from a volunteer-run service, and
+the tool does not need it that badly. **Never average the whole book** — parked listings make
+the unfiltered mean fiction (DESIGN.md § 13.2). Prices are hashed separately from drop data and
+are the one dataset permitted to fail without failing the build.
+
 **Settings (2026-08-28).** Viewer preferences live in IndexedDB beside the collection and
 export with it. A localStorage MIRROR exists for one reason — the pre-paint script in
 `layout.tsx` must set theme, density and motion before first paint and IDB cannot be read

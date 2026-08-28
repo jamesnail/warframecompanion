@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { DropEdge, Item, Manifest, RelicDetail, RivenFamily, Source } from '@provenance/core'
+import { DropEdge, Item, Manifest, MarketPrice, RelicDetail, RivenFamily, Source } from '@provenance/core'
 
 import { pruneStale, readChunk, writeChunk } from './store'
 
@@ -52,14 +52,16 @@ async function loadChunk<T>(
   const filename = manifest.files[name]
   if (filename === undefined) throw new Error(`manifest has no ${name} chunk`)
 
-  const cached = await readChunk<T[]>(name, manifest.hash)
+  // Versioned by filename, not by manifest hash: prices carry their own hash so that a
+  // price tick does not invalidate 5 MB of unchanged drop data (see store.ts).
+  const cached = await readChunk<T[]>(name, filename)
   if (cached !== undefined) return cached
 
   const rows = await fetchParsed(`/data/${filename}`, schema)
 
   // Written after the data is in hand, so a failed fetch cannot leave a half-populated
   // cache that looks current. Pruning must never delay first paint.
-  void writeChunk(name, manifest.hash, rows).then(() => pruneStale(manifest.hash))
+  void writeChunk(name, filename, rows).then(() => pruneStale(Object.values(manifest.files)))
 
   return rows
 }
@@ -99,6 +101,25 @@ export async function loadRelicDetails(): Promise<{
   const manifest = await loadManifest()
   const relics = await loadChunk(manifest, 'relics', z.array(RelicDetail))
   return { manifest, relics }
+}
+
+/**
+ * Live trade prices — a small chunk, and the only one that is genuinely optional.
+ *
+ * Returns an empty map rather than throwing when the chunk is absent. Prices are the one
+ * dataset the pipeline is allowed to skip (the market API is a third party and its outage is
+ * not a reason to stop shipping drop data), so the client has to treat "no prices" as a
+ * normal state and hide the feature — not as an error that blanks the page.
+ */
+export async function loadPrices(): Promise<Map<string, z.infer<typeof MarketPrice>>> {
+  try {
+    const manifest = await loadManifest()
+    if (manifest.files.prices === undefined) return new Map()
+    const rows = await loadChunk(manifest, 'prices', z.array(MarketPrice))
+    return new Map(rows.map((row) => [row.itemId, row]))
+  } catch {
+    return new Map()
+  }
 }
 
 /** Items only — what the ⌘K palette needs. */

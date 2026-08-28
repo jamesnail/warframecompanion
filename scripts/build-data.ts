@@ -18,6 +18,7 @@ import {
   Manifest,
   REFINEMENT_TABLE,
   RelicDetail,
+  MarketPrice,
   RivenFamily,
   SolNode,
   Source,
@@ -36,6 +37,10 @@ import {
   RawSyndicateItem,
   RawTransient,
   aggregateEdges,
+  pricableItems,
+  sweepPrices,
+  sweptEnough,
+  SWEEP_FLOOR,
   buildItems,
   fetchJson,
   fetchText,
@@ -83,6 +88,19 @@ const SET_FLOOR = 250
 
 /** Explicit human override for the +/-15% count gates. Never set in CI. */
 const ACCEPT_DRIFT = process.argv.includes('--accept-drift')
+
+/**
+ * Skip the eighteen-minute market sweep. For local runs that care about drop data.
+ * The daily workflow never passes it.
+ */
+const SKIP_PRICES = process.argv.includes('--skip-prices')
+
+/** Sweep only the first N items. Local smoke-testing; CI sweeps everything. */
+const PRICE_LIMIT = (() => {
+  const flag = process.argv.find((arg) => arg.startsWith('--price-limit='))
+  const value = flag === undefined ? NaN : Number(flag.slice('--price-limit='.length))
+  return Number.isInteger(value) && value > 0 ? value : undefined
+})()
 
 const REPO = 'https://raw.githubusercontent.com/WFCD/warframe-drop-data/master/data'
 const ITEMS_REPO = 'https://raw.githubusercontent.com/WFCD/warframe-items/master/data/json'
@@ -566,6 +584,46 @@ async function main(): Promise<void> {
       `${String(edges.length)} edges, ${String(relics.length)} relics`,
   )
 
+  /**
+   * Live trade prices.
+   *
+   * Runs after items are final, because it needs the market slugs resolved above. This is the
+   * one dataset allowed to fail without failing the build: warframe.market is a third party,
+   * a garnish rather than the product, and an outage there is not a reason to stop shipping
+   * drop tables. A sweep that does not clear the floor leaves the published prices alone.
+   */
+  let prices: MarketPrice[] | undefined
+  if (SKIP_PRICES) {
+    console.log('  prices  skipped (--skip-prices)')
+  } else {
+    const pricable = pricableItems(items).length
+    const planned = PRICE_LIMIT ?? pricable
+    console.log(
+      `  prices  sweeping ${String(planned)} of ${String(pricable)} priceable items at 3/s ` +
+        `(~${String(Math.ceil(planned / 3 / 60))} min)`,
+    )
+    const sweep = await sweepPrices(items, {
+      ...(PRICE_LIMIT === undefined ? {} : { limit: PRICE_LIMIT }),
+      onProgress: (done, total, failures) => {
+        console.log(`          ${String(done)}/${String(total)} (${String(failures)} failed)`)
+      },
+    })
+    if (sweptEnough(sweep)) {
+      prices = sweep.prices
+      console.log(
+        `  prices  ${String(sweep.prices.length)} priced, ${String(sweep.failed)} failed ` +
+          `of ${String(sweep.attempted)}`,
+      )
+    } else {
+      // Loud, and not fatal. Keeping yesterday's prices is honest; replacing them with a
+      // half-empty sweep would read as "nobody is selling this" across half the site.
+      console.warn(
+        `  prices  SWEEP REJECTED — ${String(sweep.failed)} of ${String(sweep.attempted)} failed, ` +
+          `below the ${String(Math.round(SWEEP_FLOOR * 100))}% floor. Keeping the published prices.`,
+      )
+    }
+  }
+
   // ---- sanity gates -----------------------------------------------------------
   // These run BEFORE anything is written. A failure must leave the committed dataset
   // untouched rather than half-replaced.
@@ -674,6 +732,7 @@ async function main(): Promise<void> {
     ['relics', RelicDetail, relics],
     ['rivens', RivenFamily, rivens],
     ['nodes', SolNode, nodes],
+    ...(prices === undefined ? [] : ([['prices', MarketPrice, prices]] as [string, z.ZodType, unknown[]][])),
   ]
   for (const [name, schema, rows] of shapes) {
     const result = z.array(schema).safeParse(rows)
@@ -691,16 +750,40 @@ async function main(): Promise<void> {
   console.log('  gates   all passed')
 
   // ---- emit -------------------------------------------------------------------
+  /**
+   * Prices are hashed SEPARATELY from the drop data, and deliberately.
+   *
+   * The market moves every day, so a combined hash would change every day — and because a
+   * chunk's filename carries the hash, every one of the 5 MB of unchanged drop chunks would
+   * be rewritten under a new immutable URL daily, forcing every returning visitor to
+   * re-download all of it to read a price tick. Two hashes keep `manifest.hash` meaning what
+   * it has always meant: the drop data changed.
+   */
   const chunks: Record<string, unknown> = { items, sources, edges, relics, rivens, nodes }
   const payload = JSON.stringify(chunks)
   const hash = createHash('sha256').update(payload).digest('hex').slice(0, 12)
 
-  if (previous?.hash === hash) {
+  const priceHash =
+    prices === undefined
+      ? undefined
+      : createHash('sha256').update(JSON.stringify(prices)).digest('hex').slice(0, 12)
+  const priceFile = priceHash === undefined ? undefined : `prices.${priceHash}.json`
+  // Carried forward when this run did not produce a usable sweep, so a market outage does not
+  // delete every price on the site.
+  const keptPriceFile = previous?.files.prices
+  const nextPriceFile = priceFile ?? keptPriceFile
+
+  const dropUnchanged = previous?.hash === hash
+  const pricesUnchanged = nextPriceFile === keptPriceFile
+  if (dropUnchanged && pricesUnchanged) {
     console.log(`  no change (hash ${hash}). Nothing to write.`)
     return
   }
 
   console.log(`  hash    ${previous?.hash ?? '(none)'} -> ${hash}`)
+  if (priceFile !== undefined) {
+    console.log(`  prices  ${keptPriceFile ?? '(none)'} -> ${priceFile}`)
+  }
 
   if (DIFF_ONLY) {
     console.log('  dry run - stopping before write')
@@ -714,6 +797,15 @@ async function main(): Promise<void> {
     const filename = `${name}.${hash}.json`
     await writeFile(join(OUT_DIR, filename), JSON.stringify(data), 'utf8')
     files[name] = filename
+  }
+
+  if (prices !== undefined && priceFile !== undefined) {
+    await writeFile(join(OUT_DIR, priceFile), JSON.stringify(prices), 'utf8')
+    files.prices = priceFile
+  } else if (keptPriceFile !== undefined) {
+    // Left on disk from the previous build; naming it again keeps it live and keeps the
+    // pruner below from deleting it.
+    files.prices = keptPriceFile
   }
 
   const manifest: Manifest = {
@@ -734,13 +826,17 @@ async function main(): Promise<void> {
       sources: sources.length,
       edges: edges.length,
       rivens: rivens.length,
+      ...(prices === undefined ? {} : { prices: prices.length }),
     },
   }
   await writeFile(join(OUT_DIR, 'manifest.json'), JSON.stringify(manifest, null, 2), 'utf8')
 
   // Old hashed chunks would otherwise accumulate in the repo forever.
+  // Keyed on every filename the manifest names, not on the drop hash alone: prices carry
+  // their own hash, and matching on `hash` would have deleted the price chunk every run.
+  const live = new Set(Object.values(files))
   const stale = (await readdir(OUT_DIR)).filter(
-    (file) => file.endsWith('.json') && file !== 'manifest.json' && !file.includes(hash),
+    (file) => file.endsWith('.json') && file !== 'manifest.json' && !live.has(file),
   )
   for (const file of stale) await unlink(join(OUT_DIR, file))
   if (stale.length > 0) console.log(`  pruned  ${String(stale.length)} stale chunk(s)`)

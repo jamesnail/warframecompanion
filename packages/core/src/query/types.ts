@@ -94,6 +94,15 @@ export interface QueryItem {
   sourceText: string
   /** Best single-path chance, 0..1. `chance:>10` at item grain asks about the best path. */
   bestChance: number
+  /**
+   * Cheapest live asking price in platinum, or undefined when the item is not traded, has no
+   * live seller, or the price chunk was not loaded on this surface.
+   *
+   * Undefined never matches `price:`, for the same reason `mr:` behaves that way: an item
+   * nobody is selling is not "free", and `price:<10` returning every untraded item in the
+   * game would be wrong.
+   */
+  price: number | undefined
 }
 
 /**
@@ -117,4 +126,5 @@ export interface QueryPath {
   tier: string | undefined
   rotation: string | undefined
   chance: number
+  price: number | undefined
 }

@@ -1,4 +1,11 @@
-import { RelicTier, type DropEdge, type Item, type QueryItem, type Source } from '@provenance/core'
+import {
+  RelicTier,
+  type DropEdge,
+  type Item,
+  type MarketPrice,
+  type QueryItem,
+  type Source,
+} from '@provenance/core'
 
 import { relicItemIdFor } from './source-route'
 
@@ -65,7 +72,14 @@ export function tierFromSourceName(name: string): string | undefined {
   return first !== undefined && TIERS.has(first) ? first : undefined
 }
 
-export function buildQueryItems(items: Item[], sources: Source[], edges: DropEdge[]): QueryItem[] {
+export type PriceIndex = ReadonlyMap<string, MarketPrice>
+
+export function buildQueryItems(
+  items: Item[],
+  sources: Source[],
+  edges: DropEdge[],
+  prices: PriceIndex = new Map(),
+): QueryItem[] {
   const itemsById = new Map(items.map((item) => [item.id, item]))
   const sourcesById = new Map(sources.map((source) => [source.id, source]))
 
@@ -136,6 +150,10 @@ export function buildQueryItems(items: Item[], sources: Source[], edges: DropEdg
       rotations,
       sourceText: sourceNames.join(' ').toLowerCase(),
       bestChance,
+      // The cheapest live ask: what you would pay. Absent when the chunk was not loaded on
+      // this surface, which `queryNeedsPaths` is what prevents from being mistaken for
+      // "nobody is selling this".
+      price: prices.get(item.id)?.sellLow,
     }
   })
 }
@@ -148,7 +166,7 @@ export function buildQueryItems(items: Item[], sources: Source[], edges: DropEdg
  * item chunk answers them with no further network at all. The path sets are empty rather than
  * wrong, and `queryNeedsPaths` is what stops a path query being asked of this index.
  */
-export function buildItemOnlyIndex(items: Item[]): QueryItem[] {
+export function buildItemOnlyIndex(items: Item[], prices: PriceIndex = new Map()): QueryItem[] {
   const empty: ReadonlySet<string> = new Set()
   return items.map((item) => ({
     id: item.id,
@@ -167,6 +185,7 @@ export function buildItemOnlyIndex(items: Item[]): QueryItem[] {
     rotations: empty,
     sourceText: '',
     bestChance: 0,
+    price: prices.get(item.id)?.sellLow,
   }))
 }
 

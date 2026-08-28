@@ -93,6 +93,7 @@ export default async function AboutPage() {
             ['mr:', 'Mastery rank — mr:<8, mr:>=14'],
             ['chance:', 'Drop chance as a percentage — chance:>5'],
             ['source:', 'Text in the source name — source:"plains of eidolon"'],
+            ['price:', 'Cheapest live ask in platinum — price:<50'],
             ['is:', 'is:prime, is:vaulted, is:set, is:tradable'],
             ['has:', 'has:market — sold on warframe.market'],
           ].map(([key, hint]) => (
@@ -141,11 +142,13 @@ export default async function AboutPage() {
           ids to the places players recognise.
         </p>
         <p>
-          <strong className="text-text">Trade prices are a link, not a number.</strong> Items
-          that warframe.market sells link straight to their page, resolved at build time
-          against their own catalogue so the link always lands. Quoting a price here would
-          mean a live proxy and a figure minutes out of date; their page shows every open
-          order, on both sides, right now.
+          <strong className="text-text">Trade prices are the best live orders, not an
+          average.</strong> Each priced item shows the cheapest thing anyone was asking and the
+          most anyone was offering at the last build, counting only sellers who were online.
+          Averaging the whole order book would be worse than useless: it is full of parked
+          listings, and one Vitality offer at 99,999 platinum drags that item&rsquo;s mean from
+          about 50 to over a thousand. Numbers move between builds, so the link to every open
+          order on warframe.market is always there beside them.
         </p>
         <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1">
           {manifest.attributions.map((attribution) => (

@@ -47,7 +47,7 @@ afterEach(() => {
 })
 
 describe('loadDataset', () => {
-  it('fetches the chunk on a cache miss and stores it under the manifest hash', async () => {
+  it('fetches the chunk on a cache miss and stores it under its FILENAME', async () => {
     readChunk.mockResolvedValue(undefined)
     const fetchMock = mockFetch({
       '/data/manifest.json': MANIFEST,
@@ -60,7 +60,9 @@ describe('loadDataset', () => {
     expect(result.items).toHaveLength(2)
     expect(result.manifest.hash).toBe('abc123')
     expect(fetchMock).toHaveBeenCalledWith('/data/items.abc123.json')
-    expect(writeChunk).toHaveBeenCalledWith('items', 'abc123', ITEMS)
+    // The filename, not the manifest hash: prices carry a hash of their own, so keying the
+    // cache on the manifest hash would invalidate all 5 MB of drop data on every price tick.
+    expect(writeChunk).toHaveBeenCalledWith('items', 'items.abc123.json', ITEMS)
   })
 
   it('uses the cache and does NOT refetch the chunk on a hit', async () => {
@@ -78,7 +80,7 @@ describe('loadDataset', () => {
     expect(writeChunk).not.toHaveBeenCalled()
   })
 
-  it('asks the store for the hash the live manifest reports, not a stored one', async () => {
+  it('asks the store for the version the live manifest names, not a stored one', async () => {
     readChunk.mockResolvedValue(undefined)
     vi.stubGlobal(
       'fetch',
@@ -87,7 +89,7 @@ describe('loadDataset', () => {
 
     await loadDataset()
 
-    expect(readChunk).toHaveBeenCalledWith('items', 'abc123')
+    expect(readChunk).toHaveBeenCalledWith('items', 'items.abc123.json')
   })
 
   it('throws when the manifest cannot be fetched', async () => {

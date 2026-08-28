@@ -125,6 +125,8 @@ export function buildRows(
  * gate makes impossible and which must still not throw inside a filter.
  */
 export function pathOf(row: BrowseRow, item: QueryItem | undefined): QueryPath {
+  // Price is an ITEM fact, so it comes from the index rather than the row: every path to the
+  // same item shares one market price.
   return {
     itemName: row.itemName,
     haystack: row.haystack,
@@ -140,6 +142,7 @@ export function pathOf(row: BrowseRow, item: QueryItem | undefined): QueryPath {
     tier: row.tier,
     rotation: row.rotation,
     chance: row.chance,
+    price: item?.price,
   }
 }
 

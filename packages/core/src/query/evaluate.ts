@@ -115,5 +115,6 @@ function pathAsItem(path: QueryPath): QueryItem {
     rotations: new Set(path.rotation === undefined ? [] : [path.rotation.toLowerCase()]),
     sourceText: path.haystack,
     bestChance: path.chance,
+    price: path.price,
   }
 }

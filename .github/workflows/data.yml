@@ -16,6 +16,10 @@ permissions:
 jobs:
   refresh:
     runs-on: ubuntu-latest
+    # The market sweep paces itself at 3 requests a second across ~3,185 items, so the job
+    # now runs for about twenty minutes rather than two. Bounded explicitly so a hung sweep
+    # cannot sit on a runner for GitHub's six-hour default.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
 
@@ -30,11 +34,21 @@ jobs:
 
       # The pipeline exits nonzero if any sanity gate fails, which fails the job
       # and commits nothing. A truncated dataset must never reach main.
+      #
+      # Prices are the exception and cannot fail the job: warframe.market is a third party,
+      # and its outage is not a reason to stop publishing drop tables. A sweep below the 80%
+      # floor leaves the published prices alone and says so in the log.
       - name: Build data
         run: pnpm data:build
 
-      # Output is content-addressed, so an unchanged upstream produces byte-identical
-      # files and no commit. There are no empty daily commits.
+      # Output is content-addressed, so an unchanged upstream produces byte-identical files.
+      #
+      # This USED to mean no commit on most days. Since prices shipped it does not: the market
+      # moves daily, so the price chunk changes daily and the repo takes a commit and a
+      # production redeploy with it. That is the cost of live prices and it was accepted
+      # deliberately. The drop chunks are still byte-identical when upstream has not moved —
+      # prices carry their own hash precisely so a price tick does not rewrite 5 MB of
+      # unchanged data (DESIGN.md § 13.3).
       - name: Commit if the build hash changed
         run: |
           if [[ -z "$(git status --porcelain apps/web/public/data)" ]]; then

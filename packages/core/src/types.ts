@@ -199,6 +199,9 @@ export const Manifest = z.object({
     /** Optional so a manifest written before rivens existed still parses — the drift gates
      *  read the PREVIOUS build, which may predate this field. */
     rivens: z.number().int().nonnegative().optional(),
+    /** Optional for the same reason, and additionally because a build during a market
+     *  outage legitimately produces no new prices at all. */
+    prices: z.number().int().nonnegative().optional(),
   }),
 })
 export type Manifest = z.infer<typeof Manifest>
@@ -291,6 +294,37 @@ export type RivenVariant = z.infer<typeof RivenVariant>
  * family of its own rather than another Cernos variant. Modelling one row per weapon listed
  * the same tradeable mod three times and implied prices that do not exist.
  */
+/**
+ * A live snapshot of what one item is trading for on warframe.market.
+ *
+ * NOT an average of every listing, deliberately. The full order book is dominated by stale
+ * offers from offline sellers — measured on the real API, Vitality's mean across all 217
+ * visible sell orders is 1,019 platinum with a maximum of 99,999, because someone parked a
+ * placeholder years ago. The same unfiltered read prices Braton Prime's floor at 1 platinum
+ * off a 2019 listing nobody will honour. Both numbers are worse than useless: a reader acts
+ * on them.
+ *
+ * So this is built from the FIVE best live orders on each side, from sellers who are online
+ * or in-game right now — warframe.market's own `/top` endpoint. `sellLow` is what you would
+ * pay; `buyHigh` is what you would get. Those two are facts a player can act on within the
+ * hour, which is the only kind of price worth publishing from a daily build.
+ */
+export const MarketPrice = z.object({
+  /** Our item id, not the market slug — the join is done in the pipeline. */
+  itemId: ItemId,
+  /** Cheapest live sell order in platinum: what you pay. Absent when nobody is selling. */
+  sellLow: z.number().int().nonnegative().optional(),
+  /** Median of the five cheapest live sell orders — a steadier read than the single floor. */
+  sellTypical: z.number().int().nonnegative().optional(),
+  /** Highest live buy order: what you get for selling now. Absent when nobody is buying. */
+  buyHigh: z.number().int().nonnegative().optional(),
+  /** How many of the five-per-side window were actually filled, so the UI can say when a
+   *  price rests on one listing rather than five. Never a total: see the note above. */
+  sellOrders: z.number().int().min(0).max(5),
+  buyOrders: z.number().int().min(0).max(5),
+})
+export type MarketPrice = z.infer<typeof MarketPrice>
+
 export const RivenFamily = z.object({
   /** Slug of the family name, which is the name the riven mod itself carries. */
   id: ItemId,
