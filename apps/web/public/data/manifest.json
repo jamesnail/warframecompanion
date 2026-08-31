@@ -1,18 +1,18 @@
 {
-  "hash": "6dd4839bb36b",
+  "hash": "86f4e902452c",
   "builtAt": "2026-06-25T20:55:17.196Z",
   "files": {
-    "items": "items.6dd4839bb36b.json",
-    "sources": "sources.6dd4839bb36b.json",
-    "edges": "edges.6dd4839bb36b.json",
-    "relics": "relics.6dd4839bb36b.json",
-    "rivens": "rivens.6dd4839bb36b.json",
-    "nodes": "nodes.6dd4839bb36b.json",
-    "prices": "prices.bade208bf159.json"
+    "items": "items.86f4e902452c.json",
+    "sources": "sources.86f4e902452c.json",
+    "edges": "edges.86f4e902452c.json",
+    "relics": "relics.86f4e902452c.json",
+    "rivens": "rivens.86f4e902452c.json",
+    "nodes": "nodes.86f4e902452c.json",
+    "prices": "prices.752048d136b6.json"
   },
   "upstream": {
     "warframe-drop-data": "a0ece5e9be2e2d55c75040720ef3226a",
-    "riven-trades-fetched": "2026-08-30T11:16:48.039Z"
+    "riven-trades-fetched": "2026-08-31T12:36:06.404Z"
   },
   "attributions": [
     {
@@ -45,6 +45,6 @@
     "sources": 2417,
     "edges": 28020,
     "rivens": 516,
-    "prices": 3060
+    "prices": 3126
   }
 }
