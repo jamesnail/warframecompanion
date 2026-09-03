@@ -1,34 +1,35 @@
 import type { ResourceBasis } from '@provenance/core'
 
 /**
- * Where a planet-resource claim came from.
+ * Where a resource claim came from, and how rare it is in that place.
  *
- * The planet pages are the first surface on this site that asserts something DE never
- * published, so the reader is told which rows those are rather than being left to assume
- * every number here traces back to a drop table (DESIGN.md § 16).
+ * The planet pages assert things DE never published, so the reader is told which rows those
+ * are rather than left to assume every figure traces back to a drop table (DESIGN.md § 16).
  *
- * Deliberately quiet: gold is spent once per view on the thing the reader searched for, and
- * a provenance mark is not that thing. These are hairline chips in dim text, legible when
- * looked at and invisible when scanning the resource names.
+ * Deliberately quiet. Gold is spent once per view on the thing the reader searched for, and
+ * a provenance mark is never that thing — these are hairline chips in dim text, legible when
+ * looked at and invisible when scanning down the resource names.
  */
 
 const LABEL: Record<ResourceBasis, string> = {
-  exclusive: 'Local',
-  faction: 'Faction',
+  region: 'Region',
+  gathered: 'Gathered',
   'reward-table': 'Reward table',
 }
 
 const TITLE: Record<ResourceBasis, string> = {
-  exclusive: 'Found here and nowhere else. Community knowledge — DE publishes no such list.',
-  faction:
-    'Dropped by this faction’s units wherever they are fought. The factions holding this ' +
-    'planet come from the star chart; what they drop is community knowledge.',
+  region:
+    'In this region’s drop pool: what enemies and containers here drop. A real game mechanic, ' +
+    'documented by the WARFRAME Wiki — DE publishes what an enemy drops but never where it spawns.',
+  gathered:
+    'Mined, fished or picked here. Nothing drops these, so they appear in no drop table at ' +
+    'any grain.',
   'reward-table':
-    'Listed in this planet’s own mission or bounty reward tables, with a published chance.',
+    'Listed in this place’s own mission or bounty reward tables, with a chance published by ' +
+    'Digital Extremes.',
 }
 
-export function ResourceBasisTag({ basis, faction }: { basis: ResourceBasis; faction?: string }) {
-  const label = basis === 'faction' && faction !== undefined ? faction : LABEL[basis]
+export function ResourceBasisTag({ basis }: { basis: ResourceBasis }) {
   return (
     <span
       title={TITLE[basis]}
@@ -38,21 +39,21 @@ export function ResourceBasisTag({ basis, faction }: { basis: ResourceBasis; fac
           : 'border-gold-dim/60 text-text-dim'
       }`}
     >
-      {label}
+      {LABEL[basis]}
     </span>
   )
 }
 
-/** The one-line explanation that sits under a planet's resource table. Stated once per page
- *  rather than repeated on every row. */
+/** Stated once under a planet's resource list rather than repeated on every row. */
 export function BasisLegend() {
   return (
     <p className="max-w-prose px-3 py-2.5 text-xs text-text-faint sm:px-5">
-      <strong className="text-text-dim">Local</strong> and faction rows are community
-      knowledge, not published data — DE&rsquo;s drop tables record what an enemy drops and
-      never where it spawns, so no feed can produce them.{' '}
+      <strong className="text-text-dim">Region</strong> and{' '}
+      <strong className="text-text-dim">gathered</strong> rows come from the WARFRAME Wiki, not
+      from a Digital Extremes feed: DE&rsquo;s drop tables record what an enemy drops and never
+      where it spawns, so no feed can produce them.{' '}
       <strong className="text-text-dim">Reward table</strong> rows are read straight from this
-      planet&rsquo;s own mission and bounty tables and carry a published chance.
+      place&rsquo;s own mission and bounty tables and carry a published chance.
     </p>
   )
 }

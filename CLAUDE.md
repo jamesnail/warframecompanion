@@ -108,11 +108,27 @@ three rules that hold together and are not optional. Curated content is permitte
 where no upstream feed can answer the question — the planet↔resource map exists because enemy
 records carry no planet, not because deriving it was inconvenient. Every curated id is
 **validated at build time** against the item table that build produced; one unresolved id
-fails the build. And a curated claim must be **distinguishable by the reader** from a derived
-one: `PlanetResource.basis` is data, not decoration, and the two render in separate panels.
-Curated tables live in `packages/sources/src/planets.ts` and `packages/core/src/farming.ts`
-and are meant to stay small — a growing `FARM_OVERRIDES` means the category rules are wrong.
-See DESIGN.md § 16.
+fails the build, as does a citation dated in the future. And a curated claim must be
+**distinguishable by the reader**: `PlanetResource.basis` is data, not decoration, and the
+tiers render in separate panels. Curated tables live in `packages/sources/src/planets.ts`,
+`packages/sources/src/guides.ts` and `packages/core/src/farming.ts`, and are meant to stay
+small — a growing `FARM_OVERRIDES` means the category rules are wrong. See DESIGN.md § 16.
+
+**Resources are bound to the REGION, never to the faction (2026-09-02).** `REGION_RESOURCES`
+is the wiki's documented per-region pool, with rarity stored per row because rarity belongs to
+the pair — Morphics is rare on Mercury and uncommon on Mars. A faction-derived model was tried
+and reverted the same day: it gave Earth the Infested pool off three Infested nodes, and about
+a third of its rows were wrong. **Do not reintroduce one.** Factions still render in the page
+header, describing what you shoot rather than what drops.
+
+**Community claims are dated, never quoted (2026-09-02).** Anything in `guides.ts` is
+consensus, not documentation. Write findings in your own words; never assert what the cited
+page does not say; prefer the wiki's own farming guides because they publish a last-edited
+timestamp, so staleness is checkable. `Citation.updated` is the source's own date and
+`retrieved` is when we read it — the UI says "updated" or "read" accordingly, and must never
+present the weaker claim as the stronger. Past `STALE_AFTER_DAYS` a claim renders "may be out
+of date". SEO content-farms are not citable: they contradicted each other and one placed the
+Orokin Derelict on Earth.
 
 **Farming strategy (2026-09-02).** `farmStrategy()` in `packages/core/src/farming.ts` picks
 how an item is farmed, and that decides both the ranking and the copy. Two rules. **Anything

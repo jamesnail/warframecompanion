@@ -19,6 +19,9 @@ import {
   Manifest,
   Planet,
   REFINEMENT_TABLE,
+  ResourceGuide,
+  STALE_AFTER_DAYS,
+  isStale,
   RelicDetail,
   MarketPrice,
   RivenFamily,
@@ -39,6 +42,8 @@ import {
   RawSyndicateItem,
   RawTransient,
   aggregateEdges,
+  allCitations,
+  buildGuides,
   buildPlanets,
   pricableItems,
   sweepPrices,
@@ -644,6 +649,44 @@ async function main(): Promise<void> {
         `${planetBuild.unresolved.slice(0, 8).join(', ')}. Fix packages/sources/src/planets.ts.`,
     )
   }
+  /**
+   * Community farming routes, and the checks that keep them honest.
+   *
+   * Three gates, because this is the softest data on the site and the easiest to let rot:
+   * an insight whose item no longer exists fails the build; a citation dated in the future is
+   * a typo and fails the build; and a node name that resolves to no source is reported, since
+   * a misspelling there is otherwise invisible — the name simply renders unlinked.
+   */
+  const guideBuild = buildGuides(sources, items)
+  const guides = guideBuild.guides
+  if (guideBuild.unresolved.length > 0) {
+    fail(
+      `${String(guideBuild.unresolved.length)} farming insight(s) match no item: ` +
+        `${guideBuild.unresolved.join(', ')}. Fix packages/sources/src/guides.ts.`,
+    )
+  }
+  const today = new Date().toISOString().slice(0, 10)
+  const future = allCitations().filter(
+    (citation) => (citation.updated ?? '') > today || citation.retrieved > today,
+  )
+  if (future.length > 0) {
+    fail(
+      `${String(future.length)} citation(s) are dated in the future: ` +
+        `${future.map((c) => c.title).join(', ')}. Fix packages/sources/src/guides.ts.`,
+    )
+  }
+  if (guideBuild.unlinkedNodes.length > 0) {
+    console.warn(
+      `  guides  ${String(guideBuild.unlinkedNodes.length)} named node(s) matched no source ` +
+        `and will render unlinked: ${[...new Set(guideBuild.unlinkedNodes)].join(', ')}`,
+    )
+  }
+  const staleCitations = allCitations().filter((citation) => isStale(citation, new Date()))
+  console.log(
+    `  guides  ${String(guides.length)} resources with routes, ` +
+      `${String(allCitations().length)} citations (${String(staleCitations.length)} past ${String(STALE_AFTER_DAYS)} days, flagged in the UI)`,
+  )
+
   // The other curated table. Its ids never reach a chunk — the strategy is chosen at render
   // time — so nothing else would ever notice one going stale.
   const knownIds = new Set(items.map((item) => item.id))
@@ -774,6 +817,7 @@ async function main(): Promise<void> {
     ['rivens', RivenFamily, rivens],
     ['nodes', SolNode, nodes],
     ['planets', Planet, planets],
+    ['guides', ResourceGuide, guides],
     ...(prices === undefined ? [] : ([['prices', MarketPrice, prices]] as [string, z.ZodType, unknown[]][])),
   ]
   for (const [name, schema, rows] of shapes) {
@@ -801,7 +845,7 @@ async function main(): Promise<void> {
    * re-download all of it to read a price tick. Two hashes keep `manifest.hash` meaning what
    * it has always meant: the drop data changed.
    */
-  const chunks: Record<string, unknown> = { items, sources, edges, relics, rivens, nodes, planets }
+  const chunks: Record<string, unknown> = { items, sources, edges, relics, rivens, nodes, planets, guides }
   const payload = JSON.stringify(chunks)
   const hash = createHash('sha256').update(payload).digest('hex').slice(0, 12)
 
@@ -869,6 +913,7 @@ async function main(): Promise<void> {
       edges: edges.length,
       rivens: rivens.length,
       planets: planets.length,
+      guides: guides.length,
       ...(prices === undefined ? {} : { prices: prices.length }),
     },
   }

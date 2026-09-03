@@ -7,6 +7,7 @@ import type {
   Manifest,
   Planet,
   RelicDetail,
+  ResourceGuide,
   RivenFamily,
   SolNode,
   Source,
@@ -34,6 +35,8 @@ export interface Dataset {
   nodes: SolNode[]
   /** What each place is farmed for. The one dataset carrying curated claims (DESIGN.md § 16). */
   planets: Planet[]
+  /** Community farming routes, keyed by item id. */
+  guidesByItem: Map<string, ResourceGuide>
   itemsById: Map<string, Item>
   sourcesById: Map<string, Source>
   /** The reverse index — the whole point of the tool. */
@@ -57,7 +60,7 @@ async function readChunk<T>(filename: string): Promise<T> {
 async function load(): Promise<Dataset> {
   const manifest = await readChunk<Manifest>('manifest.json')
 
-  const [items, sources, edges, relics, rivens, nodes, planets] = await Promise.all([
+  const [items, sources, edges, relics, rivens, nodes, planets, guides] = await Promise.all([
     readChunk<Item[]>(manifest.files.items ?? ''),
     readChunk<Source[]>(manifest.files.sources ?? ''),
     readChunk<DropEdge[]>(manifest.files.edges ?? ''),
@@ -65,6 +68,7 @@ async function load(): Promise<Dataset> {
     readChunk<RivenFamily[]>(manifest.files.rivens ?? ''),
     readChunk<SolNode[]>(manifest.files.nodes ?? ''),
     readChunk<Planet[]>(manifest.files.planets ?? ''),
+    readChunk<ResourceGuide[]>(manifest.files.guides ?? ''),
   ])
 
   const rivensByItem = new Map<string, RivenFamily>()
@@ -111,6 +115,7 @@ async function load(): Promise<Dataset> {
     rivens,
     nodes,
     planets,
+    guidesByItem: new Map(guides.map((guide) => [guide.itemId, guide])),
     itemsById,
     sourcesById,
     edgesByItem,

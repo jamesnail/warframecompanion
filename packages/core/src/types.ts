@@ -177,26 +177,92 @@ export type RelicDetail = z.infer<typeof RelicDetail>
 /**
  * How a planet-resource claim was reached. The reader is told which, always.
  *
- * This is the first place the tool asserts something DE never published, so the distinction
- * is part of the data rather than a UI decoration (DESIGN.md § 16).
+ * This is where the tool asserts things DE never published, so the distinction is part of the
+ * data rather than a UI decoration (DESIGN.md § 16).
  *
- *  - `faction` — DERIVED, mostly. `nodes.json` says which factions hold a planet, and a
- *    small curated table says what each faction's units drop. The join is real data; only
- *    the faction-to-resource half is asserted.
- *  - `exclusive` — CURATED. A resource that belongs to this place and nowhere else, which no
- *    join can produce: Argon Crystal in the Void, the Plains' fishing and mining resources.
- *  - `reward-table` — DERIVED, entirely. This planet's mission and bounty tables literally
- *    list it, with a chance attached. This is the only basis the pipeline could produce
- *    before curation existed, and on its own it omitted Ferrite from Earth.
+ *  - `region` — the planet's own region-resource list. Region resources are a real game
+ *    mechanic: what drops from enemies and containers is tied to the star-chart region the
+ *    mission sits in. DE does not publish the mapping; the WARFRAME Wiki documents it.
+ *  - `gathered` — mined, fished or picked in an open world. These are not dropped by anything,
+ *    so they appear in no drop table at any grain.
+ *  - `reward-table` — DERIVED, entirely. This planet's own mission and bounty tables list it,
+ *    with a published chance. The only basis the pipeline could produce before curation
+ *    existed, and on its own it omitted Ferrite from Earth.
  */
-export const ResourceBasis = z.enum(['faction', 'exclusive', 'reward-table'])
+export const ResourceBasis = z.enum(['region', 'gathered', 'reward-table'])
 export type ResourceBasis = z.infer<typeof ResourceBasis>
+
+/** Rarity within a region's own drop pool. Documented per region by the wiki, and NOT a
+ *  property of the resource: Morphics is rare on Mercury and uncommon on Mars. */
+export const ResourceRarity = z.enum(['common', 'uncommon', 'rare'])
+export type ResourceRarity = z.infer<typeof ResourceRarity>
+
+/**
+ * Where a curated claim came from, and when that page last changed.
+ *
+ * Every asserted claim carries one. The date is the upstream page's own last-edited
+ * timestamp, not when we read it — in a live-service game a two-year-old farming guide is
+ * the thing a reader most needs to know about, and it is shown rather than hidden.
+ */
+const IsoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+
+export const Citation = z.object({
+  title: z.string().min(1),
+  url: z.string().url(),
+  /**
+   * The source page's OWN last-edited date, where it publishes one.
+   *
+   * Optional because not every page does, and inventing one would defeat the purpose. Where
+   * it is absent the UI falls back to `retrieved` and says so — "read on" is a weaker claim
+   * than "updated on" and must not be dressed up as the stronger one.
+   */
+  updated: IsoDate.optional(),
+  /** When this claim was read and written down. Always known. */
+  retrieved: IsoDate,
+})
+export type Citation = z.infer<typeof Citation>
+
+/**
+ * How old a claim may be before the reader is warned.
+ *
+ * Warframe is a live service: a farming route from two updates ago can be simply wrong, and
+ * the most-linked community guides are often the stalest. Twelve months is generous — it
+ * catches the genuinely abandoned without flagging every guide that had a quiet quarter.
+ */
+export const STALE_AFTER_DAYS = 365
+
+/** True where a citation is old enough that the reader should be told. Uses `updated` when
+ *  the source publishes one, and otherwise the date we read it. */
+export function isStale(citation: Citation, now: Date): boolean {
+  const stamp = citation.updated ?? citation.retrieved
+  const age = (now.getTime() - Date.parse(`${stamp}T00:00:00Z`)) / 86_400_000
+  return age > STALE_AFTER_DAYS
+}
+
+/**
+ * A community claim: how people actually farm a thing.
+ *
+ * Deliberately separate from every measured figure on the site. This is consensus, not data —
+ * it cannot be recomputed, it goes stale, and it renders labelled and dated so the reader can
+ * weigh it themselves.
+ */
+export const Insight = z.object({
+  /** Our own words. Never a quotation from the source. */
+  text: z.string().min(1),
+  /** Nodes named by the claim, resolved to real source ids where they exist so the page can
+   *  link to a drop table the reader can check. */
+  nodes: z.array(z.object({ name: z.string(), sourceId: SourceId.optional() })).optional(),
+  citation: Citation,
+})
+export type Insight = z.infer<typeof Insight>
 
 export const PlanetResource = z.object({
   itemId: ItemId,
   basis: ResourceBasis,
-  /** Set on `faction` rows: whose units carry it. */
-  faction: Faction.optional(),
+  /** Set on `region` rows. */
+  rarity: ResourceRarity.optional(),
+  /** Set on `gathered` rows: mined, fished, and so on. */
+  method: z.string().optional(),
   /** Set on `reward-table` rows: the best chance found, and what pays it. */
   chance: z.number().min(0).max(1).optional(),
   sourceId: SourceId.optional(),
@@ -204,6 +270,13 @@ export const PlanetResource = z.object({
   quantity: z.tuple([z.number().int().min(0), z.number().int().min(0)]).optional(),
 })
 export type PlanetResource = z.infer<typeof PlanetResource>
+
+/** How a resource is farmed, as the community does it. Keyed by item id. */
+export const ResourceGuide = z.object({
+  itemId: ItemId,
+  insights: z.array(Insight),
+})
+export type ResourceGuide = z.infer<typeof ResourceGuide>
 
 /**
  * A place on the star chart, and what it is farmed for.
@@ -228,6 +301,8 @@ export const Planet = z.object({
   /** Node count, so a page can say how big a place is without shipping the nodes. */
   nodes: z.number().int().nonnegative(),
   resources: z.array(PlanetResource),
+  /** How people farm here. Community consensus, dated and labelled. */
+  insights: z.array(Insight).default([]),
 })
 export type Planet = z.infer<typeof Planet>
 
@@ -261,6 +336,7 @@ export const Manifest = z.object({
     prices: z.number().int().nonnegative().optional(),
     /** Optional for the same reason: builds before curated planets existed have none. */
     planets: z.number().int().nonnegative().optional(),
+    guides: z.number().int().nonnegative().optional(),
   }),
 })
 export type Manifest = z.infer<typeof Manifest>

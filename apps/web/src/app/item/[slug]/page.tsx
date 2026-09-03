@@ -38,6 +38,7 @@ import { kindLabel } from '@/lib/effort'
 import { buildBestChain } from '@/lib/chain-build'
 import { DropChainTrace } from '@/components/DropChainTrace'
 import { FarmingGuide } from '@/components/FarmingGuide'
+import { InsightPanel } from '@/components/InsightPanel'
 import { sourceHref } from '@/lib/source-route'
 import { socialImage } from '@/config/site'
 
@@ -113,7 +114,7 @@ interface RelicPath {
 
 export default async function ItemPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  const { itemsById, sourcesById, edgesByItem, relicsByReward, relicsById, rivensByItem } =
+  const { itemsById, sourcesById, edgesByItem, relicsByReward, relicsById, rivensByItem, guidesByItem } =
     await getDataset()
   const hasItem = (id: string): boolean => itemsById.has(id)
 
@@ -200,6 +201,10 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
    * container that always holds 80 Endo wins a chance ranking outright. A resource is ranked
    * on expected units per run instead (core's `farming.ts` decides which).
    */
+  const guide = guidesByItem.get(item.id)
+  // Dated once here rather than inside the panel, so every citation on the page is judged
+  // against the same instant and the prerendered HTML does not depend on the minute.
+  const buildTime = new Date()
   const strategy = farmStrategy(item, relicPaths.length > 0)
   const byYield = ranksByYield(strategy)
   directEdges.sort((a, b) => (byYield ? b.yield - a.yield : b.p - a.p))
@@ -457,6 +462,17 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
       <FarmingGuide
         strategy={strategy}
         noun={bestDirect === undefined ? undefined : bestNoun}
+      />
+
+      {/* Routes people actually use, where anyone has written one down. Separate panel and
+          separate label from the block above: that one is our reading of the item's type,
+          this one is somebody else's claim about the game, carrying its source and its date
+          so the reader can weigh it (DESIGN.md § 16.4). */}
+      <InsightPanel
+        title="Community routes"
+        insights={guide?.insights ?? []}
+        hasItem={hasItem}
+        now={buildTime}
       />
 
       {/* The signature element, and only where it is the right answer. A relic chain is a

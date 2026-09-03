@@ -2,8 +2,11 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 
-import { PAGE, PageHeader, Panel, PanelHeader, Stat } from '@/components/Primitives'
-import { BasisLegend, ResourceBasisTag } from '@/components/ResourceBasisTag'
+import type { PlanetResource } from '@provenance/core'
+
+import { PAGE, PageHeader, Panel, PanelHeader, RarityTag, Stat } from '@/components/Primitives'
+import { BasisLegend } from '@/components/ResourceBasisTag'
+import { InsightPanel } from '@/components/InsightPanel'
 import { getDataset } from '@/lib/data'
 import { sourceHref } from '@/lib/source-route'
 import { socialImage } from '@/config/site'
@@ -11,10 +14,13 @@ import { socialImage } from '@/config/site'
 /**
  * One place, and everything it is farmed for.
  *
- * Two kinds of row, deliberately not merged. The curated ones say what the planet is FOR —
- * Earth is where you go for Ferrite and Neurodes — and the reward-table ones say what its
- * mission and bounty tables additionally pay, with a published chance. Ranking them together
- * on chance would bury Ferrite, which has no chance at all here, under a credit cache.
+ * Three kinds of row, deliberately not merged. The REGION pool is what enemies and containers
+ * here drop — the answer to "what does Earth drop", and the thing DE's tables cannot say.
+ * GATHERED rows are mined or fished and are dropped by nothing at all. REWARD TABLE rows are
+ * read straight from this place's own missions and bounties and carry a published chance.
+ *
+ * Ranking them together on chance would bury Ferrite, which has no chance on Earth at all,
+ * under a credit cache — which is exactly what the first version of this page did.
  */
 
 async function findPlanet(params: Promise<{ slug: string }>) {
@@ -55,9 +61,23 @@ export default async function PlanetPage({ params }: { params: Promise<{ slug: s
   if (planet === undefined) notFound()
 
   const { itemsById, sourcesById } = await getDataset()
+  const hasItem = (id: string): boolean => itemsById.has(id)
+  const name = (id: string): string => itemsById.get(id)?.name ?? id
 
-  const curated = planet.resources.filter((row) => row.basis !== 'reward-table')
+  const region = planet.resources.filter((row) => row.basis === 'region')
+  const gathered = planet.resources.filter((row) => row.basis === 'gathered')
   const derived = planet.resources.filter((row) => row.basis === 'reward-table')
+
+  // Gathered rows group under the method that yields them — mining ore, fishing, and so on —
+  // because "how" is the actionable half and the list is otherwise a wall of names.
+  const byMethod = new Map<string, PlanetResource[]>()
+  for (const row of gathered) {
+    const key = row.method ?? 'Gathered'
+    byMethod.set(key, [...(byMethod.get(key) ?? []), row])
+  }
+
+  // A page dated once, at build time, so every panel agrees and the HTML is deterministic.
+  const now = new Date()
 
   return (
     <div className={PAGE}>
@@ -68,44 +88,81 @@ export default async function PlanetPage({ params }: { params: Promise<{ slug: s
           </Link>
         }
         title={planet.name}
-        {...(planet.factions.length > 0
-          ? { lede: <p>{planet.factions.join(' · ')}</p> }
-          : {})}
+        {...(planet.factions.length > 0 ? { lede: <p>{planet.factions.join(' · ')}</p> } : {})}
       />
 
       <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-3">
         <Stat label="Resources" value={planet.resources.length.toLocaleString()} />
-        <Stat label="Farmed for" value={curated.length.toLocaleString()} accent />
+        <Stat
+          label={gathered.length > 0 && region.length === 0 ? 'Gathered here' : 'In the drop pool'}
+          value={(region.length > 0 ? region.length : gathered.length).toLocaleString()}
+          accent
+        />
         {/* An open world has no star-chart nodes, and "0 missions" would read as a defect
             rather than as the true statement that Cetus is not a node. */}
         {planet.nodes > 0 && <Stat label="Missions" value={planet.nodes.toLocaleString()} />}
       </div>
 
-      {curated.length > 0 && (
+      {region.length > 0 && (
         <Panel className="mt-6">
-          <PanelHeader title="Farmed here" aside={`${String(curated.length)} resources`} />
-          <ul>
-            {curated.map((row) => (
+          <PanelHeader
+            title="Region drop pool"
+            aside={`${String(region.length)} resources`}
+          />
+          <p className="max-w-prose px-3 pt-3 text-xs text-text-faint sm:px-5">
+            What enemies and containers here drop. Every region has a small fixed pool, and a
+            thin one concentrates your rolls — which is why the pool matters more than the node.
+          </p>
+          <ul className="mt-1">
+            {region.map((row) => (
               <li
                 key={row.itemId}
-                className="hover-edge flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-hairline/50 px-3 py-3 last:border-0 transition-colors hover:bg-void-800 sm:px-5 sm:py-2.5"
+                className="hover-edge flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-hairline/50 px-3 py-3 transition-colors last:border-0 hover:bg-void-800 sm:px-5 sm:py-2.5"
               >
                 <Link
                   href={`/item/${row.itemId}`}
                   className="text-sm text-text transition-colors hover:text-gold"
                 >
-                  {itemsById.get(row.itemId)?.name ?? row.itemId}
+                  {name(row.itemId)}
                 </Link>
-                <ResourceBasisTag
-                  basis={row.basis}
-                  {...(row.faction === undefined ? {} : { faction: row.faction })}
-                />
+                {row.rarity !== undefined && <RarityTag rarity={row.rarity} />}
               </li>
             ))}
           </ul>
           <BasisLegend />
         </Panel>
       )}
+
+      {gathered.length > 0 && (
+        <Panel className="mt-6">
+          <PanelHeader title="Gathered here" aside={`${String(gathered.length)} resources`} />
+          <p className="max-w-prose px-3 pt-3 text-xs text-text-faint sm:px-5">
+            Mined, fished or picked. Nothing drops these, so they appear in no drop table at
+            any grain.
+          </p>
+          <ul className="mt-1">
+            {[...byMethod].map(([method, rows]) => (
+              <li key={method} className="border-b border-hairline/50 px-3 py-3 last:border-0 sm:px-5">
+                <div className="label">{method}</div>
+                <div className="mt-1.5 flex flex-wrap gap-x-2 gap-y-1.5">
+                  {rows.map((row) => (
+                    <Link
+                      key={row.itemId}
+                      href={`/item/${row.itemId}`}
+                      className="chamfer-sm border border-hairline px-2 py-0.5 text-xs text-text-dim transition-colors hover:border-gold-dim hover:text-gold"
+                    >
+                      {name(row.itemId)}
+                    </Link>
+                  ))}
+                </div>
+              </li>
+            ))}
+          </ul>
+          {region.length === 0 && <BasisLegend />}
+        </Panel>
+      )}
+
+      <InsightPanel title="How this is farmed" insights={planet.insights} hasItem={hasItem} now={now} />
 
       {derived.length > 0 && (
         <Panel className="mt-6">
@@ -139,17 +196,14 @@ export default async function PlanetPage({ params }: { params: Promise<{ slug: s
                   return (
                     <tr
                       key={row.itemId}
-                      className="border-b border-hairline/50 last:border-0 transition-colors hover:bg-void-800"
+                      className="border-b border-hairline/50 transition-colors last:border-0 hover:bg-void-800"
                     >
-                      <th
-                        scope="row"
-                        className="px-3 py-3 text-left font-normal sm:px-5 sm:py-2.5"
-                      >
+                      <th scope="row" className="px-3 py-3 text-left font-normal sm:px-5 sm:py-2.5">
                         <Link
                           href={`/item/${row.itemId}`}
                           className="text-text transition-colors hover:text-gold"
                         >
-                          {itemsById.get(row.itemId)?.name ?? row.itemId}
+                          {name(row.itemId)}
                         </Link>
                         {/* Units per drop decides more than the rate does on a resource
                             row — 350 at 4% beats 10 at 20%. */}
@@ -167,7 +221,7 @@ export default async function PlanetPage({ params }: { params: Promise<{ slug: s
                           '—'
                         ) : (
                           <Link
-                            href={sourceHref(row.sourceId, (id) => itemsById.has(id))}
+                            href={sourceHref(row.sourceId, hasItem)}
                             className="transition-colors hover:text-gold"
                           >
                             {source.name}

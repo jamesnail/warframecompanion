@@ -1251,9 +1251,11 @@ prices untouched and never blocks the drop data from shipping.
 
 ## 16. Curated knowledge
 
-Shipped 2026-09-02. Until this section the tool asserted nothing: every figure on every page
-traced back through the pipeline to a DE drop table, and § 2 treats that as the point. Two
-owner requests could not be answered under that rule, so the rule now has a bounded exception.
+Shipped 2026-09-02; the region model and citations landed the same day, replacing the
+faction model that shipped hours earlier. Until this section the tool asserted nothing: every
+figure traced back through the pipeline to a DE drop table, and § 2 treats that as the point.
+Two owner requests could not be answered under that rule, so the rule now has a bounded
+exception with three conditions attached.
 
 ### 16.1 What the drop tables cannot say
 
@@ -1262,48 +1264,90 @@ enemy source record carries exactly three fields — `id`, `kind`, `name` — wi
 planet and no tileset, so 1,055 of 2,417 sources cannot be placed anywhere. Only missions
 (435) and bounties (50) carry a planet at all.
 
-A planet-resource page built from that data reports mission and bounty REWARD TABLES, which
-is the end-of-mission screen. Earth came out as 14 rows, four of the top six being credit
-caches and two being Railjack "Extra" rewards, and omitted Ferrite, Rubedo, Detonite Ampule,
-Neurodes, Oxium and Circuits — every resource a player means by the question. Ferrite has 15
-edges in the whole dataset and all 15 are mission reward tables; Detonite Ampule has one.
+A planet page built from that data reports mission and bounty REWARD TABLES — the
+end-of-mission screen. Earth came out as 14 rows, four of the top six credit caches and two
+Railjack "Extra" rewards, and omitted Ferrite, Rubedo, Detonite Ampule and Neurodes: its
+entire actual pool. Ferrite has 15 edges in the whole dataset and all 15 are mission reward
+tables; Detonite Ampule has one.
 
-The answer is community knowledge. There is no feed to fetch it from.
+### 16.2 Region resources are a mechanic, not a theory
 
-### 16.2 The curated surface is kept small on purpose
+What drops from enemies and containers is tied to the star-chart REGION the mission sits in,
+and each region has a small fixed pool — four resources for most planets. The WARFRAME Wiki
+documents the mapping. `REGION_RESOURCES` in `packages/sources/src/planets.ts` is that
+mapping, with the wiki's per-region rarity attached.
 
-Most of the planet answer is still derived. `nodes.json` records which factions hold which
-planet across 353 nodes — real data — and a planet's common resources follow from its factions
-almost exactly. So only two small tables are asserted, both in `packages/sources/src/planets.ts`:
+Rarity belongs to the PAIR, not the resource. Morphics is rare on Mercury and uncommon on
+Mars; Nano Spores is common on Saturn and uncommon on Neptune. Storing it per resource would
+have lost that, so it is stored per row.
 
-| Table | Asserts | Size |
-|---|---|---|
-| `FACTION_RESOURCES` | what a faction's units drop, anywhere | 4 factions, ~20 ids |
-| `PLANET_EXCLUSIVES` | what belongs to one place only | ~20 places, ~90 ids |
+> **Amended the day it shipped.** The first version derived pools from factions — "Grineer
+> units drop Ferrite, so every Grineer planet has Ferrite" — joining a curated faction table
+> to the real per-planet faction data in `nodes.json`. It was elegant, it was small, and it
+> was wrong in principle: resources are bound to the region, not to whoever holds it. Earth
+> was handed Nano Spores, Mutagen Sample and Plastids off the back of its three Infested
+> nodes, and Earth's real pool contains none of them. Roughly a third of the rows were wrong,
+> including Circuits on Earth, Rubedo on Phobos and Control Module on Neptune. Checking the
+> curated table against the wiki is what found it. **Do not reintroduce a faction-derived
+> pool.** Factions are still shown in the page header, where they describe what you will be
+> shooting rather than what will drop.
 
-220 of the 517 emitted rows are curated; the rest are read from the drop tables. Every curated
-id is validated against the item table THAT BUILD produced, and one unresolved id fails the
-build — the tables are small enough that every entry is meant to resolve. That gate has already
-paid for itself: it caught Pathos Clamps, which are a real Duviri reward and are absent from
-the item catalogue entirely.
+A second category, `gathered`, covers what is mined, fished or picked in the open worlds.
+Nothing drops these, so they appear in no drop table at any grain and no pipeline work would
+produce them.
 
 ### 16.3 Every claim carries its basis
 
-`PlanetResource.basis` is part of the data, not a UI decoration, and the reader always sees it:
+`PlanetResource.basis` is part of the data, not a UI decoration, and the reader always sees
+which they are reading: `region` (the pool), `gathered` (mined or fished), `reward-table`
+(derived entirely, with a published chance). Curated rows sort above reward-table rows
+regardless of chance, because ranking them together buries Ferrite — which has no chance on
+Earth at all — under a credit cache. The three render in separate panels with a legend
+stating plainly that the first two come from the wiki and why no feed can produce them.
 
-- `exclusive` — curated. Found here and nowhere else.
-- `faction` — the planet-to-faction half is derived from the star chart; the
-  faction-to-resource half is asserted.
-- `reward-table` — derived entirely, with a published chance.
+### 16.4 Community insight is a third tier, and it is dated
 
-Curated rows sort above reward-table rows regardless of chance, because ranking them together
-buries Ferrite (which has no chance on Earth at all) under a credit cache. The two render in
-separate panels — "Farmed here" and "Also in the reward tables" — with a legend under the
-first stating plainly that it is community knowledge and why no feed can produce it.
+`packages/sources/src/guides.ts` carries how people actually farm things — routes, not
+mechanics. This is consensus, not documentation, and it is held to a stricter standard than
+either of the tiers above because it is the softest and the easiest to let rot:
+
+- **Nothing is quoted.** Every `text` is written from scratch to state the finding.
+- **Nothing is asserted that the cited page did not say.** Where a search result and a wiki
+  page disagreed, the wiki won. SEO content-farms were read and none are cited: they
+  contradicted each other on the best Plastids node and one placed the Orokin Derelict on
+  Earth. One claim written from memory — that Argon Crystal decays — turned out to be true
+  but was on a different page than the one being cited, so it was split out and cited
+  properly rather than left attached to a page that does not support it.
+- **Every claim carries a date.** `Citation.updated` is the source page's own last-edited
+  timestamp where it publishes one; `retrieved` is when we read it. The UI says "updated" or
+  "read" accordingly and never dresses the weaker claim up as the stronger one. This is why
+  the wiki's own farming guides are preferred over everything else: they publish a timestamp,
+  so staleness is checkable rather than guessed.
+- **Stale claims say so.** Past `STALE_AFTER_DAYS` (365) a claim renders "may be out of
+  date". One of the ten citations trips it — a user guide last edited July 2025 — and it is
+  kept deliberately, because its claim is structural (Nekros and Khora multiply drops) rather
+  than topical, where a "best node" recommendation turns over every few updates.
+
+Named nodes are resolved against the real source table at build time and render as links to
+the drop table, so a claim about a node is one the reader can go and check. All twelve
+resolved, which is itself a cross-check that the wiki's node names match DE's.
+
+### 16.5 The gates
+
+Curated ids are validated against the item table THAT BUILD produced, not a snapshot. One
+unresolved id fails the build; the tables are small enough that every entry is meant to
+resolve. A citation dated in the future fails the build. A named node that resolves to
+nothing is reported but not fatal — it still renders as plain text.
+
+Those gates have already paid for themselves twice. They caught **Pathos Clamps**, a real
+Duviri reward absent from the item catalogue, and **Fieldron Sample**, which the wiki lists in
+five region pools and which resolves in our catalogue only to `fieldron`, the crafted item.
+Both are omitted with a comment saying why, and a test asserts Fieldron Sample never returns.
 
 **The rule this establishes:** curated content is permitted where no upstream feed can answer
 the question, must be validated against real data at build time, and must be distinguishable
-from derived content by the reader. Content that fails any of the three does not ship.
+by the reader — by basis for a fact, and by a dated citation for a community claim. Content
+failing any of the three does not ship.
 
 ---
 
@@ -1395,7 +1439,7 @@ Each phase ends deployable. Don't start the next until the current one ships.
 | 12 | **Query language** — one grammar for the palette and `/browse`, 13 keys, one URL param | Shipped 2026-08-28. `is:prime cat:warframe` returns 50, which the edge-grain design it replaced returned 0 of. |
 | 14 | **Market prices** — live asks and bids per item, swept at build time, `price:` in the query language | Shipped 2026-08-28. `/top` not the full book: 9 MB a run instead of 1.6 GB. |
 | 13 | **Settings** — four themes, density, motion, drops-only, mastery rank, new player mode | Shipped 2026-08-28. Contrast measured for all four themes; no preference changes a row count. |
-| 15 | **Curated knowledge** — /planets and /planet/[slug], resources by place | Shipped 2026-09-02. 220 curated rows, every id validated at build time; each claim renders with its basis. |
+| 15 | **Curated knowledge** — /planets and /planet/[slug], wiki region pools plus dated community routes | Shipped 2026-09-02. Region model replaced a faction-derived one the same day; 118 curated rows, 10 citations, every id validated at build time. |
 | 16 | **Farming strategy per item type** — yield ranking, containers reclassified, drop chain made conditional | Shipped 2026-09-02. Endo no longer recommends smashing a storage container. |
 
 Phase 5 is the one that matters. Everything before it is table stakes that other sites already
