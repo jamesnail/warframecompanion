@@ -2,7 +2,18 @@ import { describe, expect, it } from 'vitest'
 
 import { compileQuery, parseQuery, type DropEdge, type Item, type Source } from '@provenance/core'
 
-import { buildRows, facetsOf, filterRows, sortRows, type BrowseRow } from './browse'
+import {
+  buildRows,
+  facetsOf,
+  facetsOfItems,
+  filterItems,
+  filterRows,
+  sortItemRows,
+  sortRows,
+  toItemRow,
+  type BrowseRow,
+  type ItemRow,
+} from './browse'
 import { buildQueryItems, indexById } from './query-index'
 
 const items: Item[] = [
@@ -243,5 +254,84 @@ describe('vaulted paths', () => {
     expect(run('tier:axi', relicRows, relicIndex).map((row) => row.sourceId)).toEqual([
       'relic:axi-a1',
     ])
+  })
+})
+
+/**
+ * The item grain.
+ *
+ * `braton-prime` is added here rather than to the shared fixture above so the path-grain
+ * tests keep asserting over the row count they were written for.
+ */
+describe('the item grain', () => {
+  const withSet: Item[] = [
+    ...items,
+    {
+      id: 'braton-prime',
+      name: 'Braton Prime',
+      category: 'Primary',
+      tradable: false,
+      parts: [{ itemId: 'braton-prime-barrel', count: 1 }],
+      ingredients: [{ itemId: 'orokin-cell', count: 10 }],
+    },
+    // Nothing drops it and it builds nothing: the shape of a vaulted relic, 737 of which
+    // ship in the real data.
+    { id: 'ghost', name: 'Ghost', category: 'Other', tradable: false },
+  ]
+  const index = indexById(buildQueryItems(withSet, sources, edges))
+  const rows = (query: string): ItemRow[] =>
+    sortItemRows(
+      filterItems(index.values(), compileQuery(parseQuery(query).query)).map((item) =>
+        toItemRow(item, (id) => index.has(id)),
+      ),
+      'chance',
+      'desc',
+    )
+
+  it('gives an undropped set a row of its own', () => {
+    // THE regression, at the grain the table actually renders. Braton Prime has no edge; at
+    // path grain it is invisible, and "0 rows" reads as "there is no Braton Prime".
+    const set = rows('cat:primary')
+    expect(set.map((row) => row.itemName)).toEqual(['Braton Prime'])
+  })
+
+  it('names the part its best path actually drops', () => {
+    const [set] = rows('cat:primary')
+    expect(set?.sourceName).toBe('Cambria')
+    // Without this the row claims Cambria drops the assembled weapon.
+    expect(set?.via).toBe('Braton Prime Barrel')
+    expect(set?.paths).toBe(1)
+  })
+
+  it('leaves via unset where the item is what drops', () => {
+    const [barrel] = rows('cat:component')
+    expect(barrel?.via).toBeUndefined()
+  })
+
+  it('does not inherit an ingredient path', () => {
+    // Orokin Cell drops from an enemy; Braton Prime consumes ten of them and drops from none.
+    expect(rows('cat:primary from:enemy')).toEqual([])
+  })
+
+  it('reports an item nothing drops as zero paths, not as a missing row', () => {
+    const [row] = rows('cat:other')
+    expect(row?.itemName).toBe('Ghost')
+    expect(row?.paths).toBe(0)
+    expect(row?.chance).toBe(0)
+    expect(row?.sourceName).toBeUndefined()
+  })
+
+  it('offers a category facet the edge table has none of', () => {
+    // Primary exists only on the undropped set here, which is exactly the case that made a
+    // facet read off edges under-report every prime Warframe.
+    expect(facetsOf(buildRows(withSet, sources, edges, () => undefined)).categories).not.toContain(
+      'Primary',
+    )
+    expect(facetsOfItems(index.values()).categories).toContain('Primary')
+  })
+
+  it('sorts undropped items to one end rather than through the alphabet', () => {
+    const all = rows('')
+    expect(all[all.length - 1]?.paths).toBe(0)
   })
 })

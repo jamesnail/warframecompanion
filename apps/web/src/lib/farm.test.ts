@@ -26,7 +26,7 @@ const chain = (id: string, over: Partial<DropChain> = {}): DropChain => ({
 const set = (id: string, parts: string[]): TrackedSet => ({
   id,
   name: id,
-  components: parts.map((itemId) => ({ itemId, count: 1 })),
+  parts: parts.map((itemId) => ({ itemId, count: 1 })),
 })
 
 describe('trackedTargets', () => {

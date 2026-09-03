@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import type { Metadata } from 'next'
-import type { DropChain } from '@provenance/core'
+import { isSet, type DropChain } from '@provenance/core'
 
 import { FarmPlanner } from '@/components/FarmPlanner'
 import { PAGE, PageHeader } from '@/components/Primitives'
@@ -40,21 +40,22 @@ export default async function FarmPage() {
     dataset
 
   const sets: TrackedSet[] = items
-    .filter((item) => item.components !== undefined && item.components.length > 0)
+    .filter(isSet)
     .map((item) => ({
       id: item.id,
       name: item.name,
-      components: item.components ?? [],
+      parts: item.parts ?? [],
     }))
     .sort((a, b) => a.name.localeCompare(b.name))
 
-  // One chain per distinct component. Sets share components — every Prime set wants a
-  // Blueprint, Forma turns up everywhere — so this is meaningfully smaller than the naive
-  // per-set-per-component count.
+  // One chain per distinct part. No part is currently shared between two sets — the
+  // parts/ingredients split made fan-in exactly 1, where the old whole-recipe key had Orokin
+  // Cell standing in for 177 of them — so this dedupe buys nothing today. Kept because the
+  // key is the part and correctness must not depend on that measurement holding.
   const graph = { itemsById, sourcesById, edgesByItem, relicsByReward, relicsById }
   const chains: Record<string, DropChain> = {}
   for (const set of sets) {
-    for (const component of set.components) {
+    for (const component of set.parts) {
       if (chains[component.itemId] !== undefined) continue
       chains[component.itemId] = buildBestChain(graph, component.itemId)
     }

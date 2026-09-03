@@ -115,6 +115,10 @@ function pathAsItem(path: QueryPath): QueryItem {
     rotations: new Set(path.rotation === undefined ? [] : [path.rotation.toLowerCase()]),
     sourceText: path.haystack,
     bestChance: path.chance,
+    // One path, and it is this one. `best` stays undefined: the row already names its own
+    // source, and minting a synthetic one here would be a value nothing reads.
+    paths: 1,
+    best: undefined,
     price: path.price,
   }
 }

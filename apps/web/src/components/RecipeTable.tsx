@@ -26,7 +26,22 @@ export interface RecipeRow {
   vaulted: boolean
 }
 
-export function RecipeTable({ rows, itemName }: { rows: RecipeRow[]; itemName: string }) {
+/** A resource the recipe consumes. No source line and no tick: see the note below. */
+export interface RecipeIngredient {
+  itemId: string
+  name: string
+  count: number
+}
+
+export function RecipeTable({
+  rows,
+  ingredients = [],
+  itemName,
+}: {
+  rows: RecipeRow[]
+  ingredients?: RecipeIngredient[]
+  itemName: string
+}) {
   const { owned, ready, toggle } = useCollection()
   const progress = progressOf(rows, owned)
 
@@ -43,13 +58,13 @@ export function RecipeTable({ rows, itemName }: { rows: RecipeRow[]; itemName: s
           // flashes "0 of 5" first and corrects itself, which reads as data loss.
           ready
             ? `${String(progress.owned)} of ${String(progress.total)} owned`
-            : `${String(rows.length)} ${rows.length === 1 ? 'component' : 'components'}`
+            : `${String(rows.length)} ${rows.length === 1 ? 'part' : 'parts'}`
         }
       />
 
       {ready && progress.complete ? (
         <p className="border-b border-hairline px-3 py-2.5 text-sm text-gold sm:px-5">
-          Every component owned. Ready to build.
+          Every part owned. Ready to build.
         </p>
       ) : (
         blocked.length > 0 && (
@@ -67,7 +82,7 @@ export function RecipeTable({ rows, itemName }: { rows: RecipeRow[]; itemName: s
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <caption className="sr-only">
-            Components required to build {itemName}, where each one comes from, and which you
+            Parts required to build {itemName}, where each one comes from, and which you
             have marked as owned
           </caption>
           <thead>
@@ -77,7 +92,7 @@ export function RecipeTable({ rows, itemName }: { rows: RecipeRow[]; itemName: s
                 <span aria-hidden="true">Have</span>
               </th>
               <th scope="col" className="label px-1 py-2 font-normal">
-                Component
+                Part
               </th>
               <th scope="col" className="label px-3 py-2 text-right font-normal sm:px-5">
                 Qty
@@ -161,6 +176,28 @@ export function RecipeTable({ rows, itemName }: { rows: RecipeRow[]; itemName: s
           </tbody>
         </table>
       </div>
+
+      {/* Listed so the recipe is complete, and listed apart so it does not compete with the
+          parts. A resource is farmed on its own terms — you almost certainly have the Orokin
+          Cell already, and giving it a checkbox made a set read as one Cell from done. */}
+      {ingredients.length > 0 && (
+        <p className="border-t border-hairline px-3 py-3 text-xs text-text-faint sm:px-5">
+          Also consumes{' '}
+          {ingredients.map((entry, index) => (
+            <span key={entry.itemId}>
+              {index > 0 && ', '}
+              <Link
+                href={`/item/${entry.itemId}`}
+                className="text-text-dim transition-colors hover:text-gold"
+              >
+                {entry.name}
+              </Link>
+              <span className="data-num"> ×{entry.count.toLocaleString()}</span>
+            </span>
+          ))}
+          .
+        </p>
+      )}
     </Panel>
   )
 }

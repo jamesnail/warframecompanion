@@ -1415,6 +1415,78 @@ chance demoted, because "expected runs: 1" for a container holding 80 Endo is tr
 
 ---
 
+## 20. Items, parts, and the two grains
+
+*Added 2026-09-03, from the observation that `is:prime cat:warframe` on /browse returned
+"0 OF 28,020 ROWS" while listing 24 matching prime Warframes underneath it as a footnote.*
+
+### 20.1 One field was answering two questions
+
+`Item.components` held a recipe. A recipe holds two kinds of thing and the tool needs them
+apart:
+
+- **Parts** — Braton Prime's barrel, receiver, stock and blueprint. Each one drops somewhere,
+  is exclusive to the thing it builds, and is the reason to run a mission.
+- **Ingredients** — ten Orokin Cells. Farmed on their own terms, on their own page, and
+  belonging to hundreds of recipes at once. Orokin Cell is in 177 of them.
+
+Merged, the array made the tool answer the wrong question three times. A set inherited its
+ingredients' drop paths, so Ash Prime reported itself as dropping from enemies. /collection
+asked you to tick off an Orokin Cell. /farm put a resource run on the plan for a prime frame.
+
+Each was patched where it surfaced. The patch was `isExclusiveComponent` — inherit a
+component only if `buildsInto` names at most one thing — and it was a proxy for the real
+distinction, so it was wrong at both edges:
+
+- **It leaked.** 16 resources build into exactly one set each and passed the test: Oxium,
+  Cryotic, Nullstones, Neural Sensors, Somatic Fibers and 11 more. Any set needing Oxium
+  claimed Oxium's 32 drop paths as its own.
+- **It over-stripped.** Six components are weapon blueprints that build into two things,
+  because a dual weapon takes two singles. The four Ak- prime sets lost a genuine part each.
+- **Its own comment was wrong**, asserting all 34 excluded components were generic resources.
+  Six were not, and nobody had re-measured since it was written.
+
+### 20.2 The split is upstream's, not ours
+
+WFCD already draws the line: a part's recipe is nested under its parent, marked by
+`/Recipes/` in its `uniqueName`, and an ingredient is named as its own item. The pipeline
+was already computing this — `isPartOfParent` — to decide whether to prefix a component's
+name, and then discarding it.
+
+So `Item` gained `parts` and `ingredients` and lost `components`, with the flag kept
+rather than a rule invented. A category heuristic was considered and rejected: it separates
+cleanly on today's data but would have to be maintained against upstream miscategorisation,
+and Ferrite and Neurodes are already filed as `Other`.
+
+Measured after the change: **no part is shared between two sets** — fan-in over parts is
+exactly 1 for all 927 of them — so the rollup cannot double-count, and the assertion runs over
+the whole corpus on every test run. As a side effect the four Ak- weapons stopped listing their
+single twice and now list it once at ×2.
+
+Ingredients did not disappear from the UI. They render under the recipe table, without a
+checkbox and without a source line, because a recipe that hides what it consumes is incomplete
+rather than clean.
+
+### 20.3 Two grains, both real
+
+The zero-row result was not a display bug. `/browse` rows are edges; the query language is
+defined over items (§ 11). Where an item has no edge, the two disagree, and 1,046 of 4,875
+items have no edge: 737 vaulted relics and 309 assembled sets.
+
+Making one grain stand in for the other fails in both directions:
+
+- **Items only** loses conjunction precision. The lift is existential, so `tier:axi
+  rotation:c` at item grain matches an item with one Axi path and a separate rotation-C path.
+- **Paths only** is what shipped, and it cannot list a thing that is not dropped.
+
+So both are carried, as `view=items` and `view=paths` in the URL. Items is the default on
+one argument: **it cannot be empty while items match.** An item row collapses every path to
+its best, says how many there were, and — where the path runs through a part — names the part,
+because "Ash Prime · Axi A11" without that word claims a relic drops a Warframe.
+
+The old footnote is gone. What replaced it is one line in the paths view saying how many items
+matched and offering to switch, which is the same information without pretending to be a table.
+
 ## 18. Phases
 
 Each phase ends deployable. Don't start the next until the current one ships.

@@ -63,7 +63,7 @@ const GUIDES: Record<FarmStrategy, Guide> = {
   assembled: {
     title: 'Built, not dropped',
     body:
-      'Nothing drops this whole. Farm the components below and craft it; each has its own ' +
+      'Nothing drops this whole. Farm the parts below and craft it; each has its own ' +
       'route, and the slowest one sets your timeline.',
     ranking: '',
   },

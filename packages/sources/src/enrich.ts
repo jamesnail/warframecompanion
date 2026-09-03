@@ -9,7 +9,7 @@ import { slug } from './slug'
  *
  * The drop tables give us names and probabilities and nothing else, so before this every
  * category was inferred from a regex over the name. That left 52% of the catalogue in
- * "Other", never populated `masteryReq`, `components` or `imageName` at all, and defaulted
+ * "Other", never populated `masteryReq`, `parts` or `imageName` at all, and defaulted
  * `tradable` to false for everything. A filter UI built on that would be filtering on
  * guesses.
  *
@@ -86,7 +86,7 @@ export interface Enrichment {
   imageName?: string
   tradable?: boolean
   masteryReq?: number
-  components?: { itemId: string; count: number }[]
+  parts?: { itemId: string; count: number }[]
 }
 
 /**
@@ -141,8 +141,8 @@ export function buildEnrichmentIndex(
       const clean = stripSpriteToken(row.name)
       const resolved = (row.type === undefined ? undefined : TYPE_OVERRIDES[row.type]) ?? category
 
-      const parts = (row.components ?? []).filter(isPartOfParent)
-      const components = parts.map((part) => ({
+      const recipeParts = (row.components ?? []).filter(isPartOfParent)
+      const parts = recipeParts.map((part) => ({
         itemId: slug(`${clean} ${part.name}`),
         count: part.itemCount ?? 1,
       }))
@@ -153,13 +153,13 @@ export function buildEnrichmentIndex(
         ...(row.imageName === undefined ? {} : { imageName: row.imageName }),
         ...(row.tradable === undefined ? {} : { tradable: row.tradable }),
         ...(row.masteryReq === undefined ? {} : { masteryReq: row.masteryReq }),
-        ...(components.length === 0 ? {} : { components }),
+        ...(parts.length === 0 ? {} : { parts }),
       }
 
       put(slug(row.name), self)
       put(slug(clean), self)
 
-      for (const part of parts) {
+      for (const part of recipeParts) {
         put(slug(`${clean} ${part.name}`), {
           category: partCategory(part.name),
           ...(part.uniqueName === undefined ? {} : { uniqueName: part.uniqueName }),
@@ -241,7 +241,7 @@ export function enrichItems(items: Item[], index: Map<string, Enrichment>): Enri
       ...(hit.uniqueName === undefined ? {} : { uniqueName: hit.uniqueName }),
       ...(hit.imageName === undefined ? {} : { imageName: hit.imageName }),
       ...(hit.masteryReq === undefined ? {} : { masteryReq: hit.masteryReq }),
-      ...(hit.components === undefined ? {} : { components: hit.components }),
+      ...(hit.parts === undefined ? {} : { parts: hit.parts }),
       // Only ever raised, never lowered. `tradable` defaults to false in buildItems, and a
       // missing WFCD flag is unknown rather than a denial.
       tradable: hit.tradable ?? item.tradable,

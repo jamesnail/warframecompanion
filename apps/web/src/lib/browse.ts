@@ -204,3 +204,102 @@ export function facetsOf(rows: BrowseRow[]): {
     kinds: [...kinds].sort((a, b) => a.localeCompare(b)),
   }
 }
+
+/**
+ * The ITEM-grain row.
+ *
+ * `/browse` shipped with one grain, the edge, and that grain cannot answer a question about
+ * items that are not dropped. `is:prime cat:warframe` matches 50 items and zero edges, and
+ * the table said "0 of 28,020 rows" — technically true, and read as "there are no prime
+ * Warframes". 1,046 of 4,875 items are in that position: 737 vaulted relics and 309
+ * assembled sets.
+ *
+ * So both grains are carried explicitly rather than one being made to stand in for the
+ * other. An item row collapses every path to its best one and can never be empty when items
+ * match; a path row keeps each source separate, which is the only grain where `tier:axi
+ * rotation:c` means one path that is both, rather than one Axi path and one rotation-C path.
+ */
+export interface ItemRow {
+  itemId: string
+  itemName: string
+  category: ItemCategory
+  /** How many paths reach it, its parts' included. Zero is a real answer, not a missing row. */
+  paths: number
+  /** Best single-path chance, 0 where nothing drops it. */
+  chance: number
+  /** Every path to it runs through a vaulted relic. */
+  vaulted: boolean
+  sourceName: string | undefined
+  sourceHref: string | undefined
+  /** The PART the best path actually drops, where the item itself is not dropped. */
+  via: string | undefined
+}
+
+export function toItemRow(item: QueryItem, hasItem: (id: string) => boolean): ItemRow {
+  return {
+    itemId: item.id,
+    itemName: item.name,
+    // QueryItem widens category to string so core stays free of the enum in its view model;
+    // the value is always one of ours, because it was copied off an Item.
+    category: item.category as ItemCategory,
+    paths: item.paths,
+    chance: item.bestChance,
+    vaulted: item.vaulted,
+    sourceName: item.best?.sourceName,
+    sourceHref: item.best === undefined ? undefined : sourceHref(item.best.sourceId, hasItem),
+    via: item.best?.via,
+  }
+}
+
+export function filterItems(
+  items: Iterable<QueryItem>,
+  compiled: CompiledQuery,
+): QueryItem[] {
+  const out: QueryItem[] = []
+  for (const item of items) {
+    if (compiled.size === 0 || compiled.matchItem(item)) out.push(item)
+  }
+  return out
+}
+
+/** Sorted copy, with the same total-order tiebreak the path grain uses. */
+export function sortItemRows(
+  rows: ItemRow[],
+  column: SortColumn,
+  direction: SortDirection,
+): ItemRow[] {
+  const sign = direction === 'asc' ? 1 : -1
+  const compare = (a: ItemRow, b: ItemRow): number => {
+    switch (column) {
+      case 'chance':
+        return (a.chance - b.chance) * sign
+      case 'source':
+        // Undrops sort together at one end rather than scattering through the alphabet: an
+        // item with no source has no place in a list ordered by source name.
+        return (a.sourceName ?? '').localeCompare(b.sourceName ?? '') * sign
+      case 'category':
+        return a.category.localeCompare(b.category) * sign
+      case 'item':
+        return a.itemName.localeCompare(b.itemName) * sign
+    }
+  }
+  return [...rows].sort((a, b) => compare(a, b) || a.itemName.localeCompare(b.itemName))
+}
+
+/** Facets for the item grain. Read off the items themselves, so a category that exists only
+ *  on undropped items — every prime Warframe is one — is still offered. */
+export function facetsOfItems(items: Iterable<QueryItem>): {
+  categories: ItemCategory[]
+  kinds: SourceKind[]
+} {
+  const categories = new Set<ItemCategory>()
+  const kinds = new Set<SourceKind>()
+  for (const item of items) {
+    categories.add(item.category as ItemCategory)
+    for (const kind of item.kinds) kinds.add(kind as SourceKind)
+  }
+  return {
+    categories: [...categories].sort((a, b) => a.localeCompare(b)),
+    kinds: [...kinds].sort((a, b) => a.localeCompare(b)),
+  }
+}

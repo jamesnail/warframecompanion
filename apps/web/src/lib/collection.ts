@@ -1,10 +1,10 @@
 /**
  * Set-completion math, kept pure so the numbers can be tested without a browser.
  *
- * A recipe's progress is counted in DISTINCT components, not in units. "Orokin Cell ×10"
- * is one thing to go and get; counting it as ten would make every prime weapon read as 7%
- * complete when the only real work left is one resource run, and would rank a set needing
- * 10 Cells above one needing four unfarmed prime parts.
+ * Progress is counted over a set's PARTS, and in distinct parts rather than in units. Two
+ * separate rules, both about not letting resources dominate the count: ingredients are not
+ * tracked at all — nobody ticks off an Orokin Cell — and a part needed twice is still one
+ * thing to go and get.
  */
 
 export interface RecipeComponent {
@@ -23,11 +23,11 @@ export interface SetProgress {
 }
 
 export function progressOf(
-  components: readonly RecipeComponent[],
+  parts: readonly RecipeComponent[],
   owned: ReadonlySet<string>,
 ): SetProgress {
-  const missing = components.filter((c) => !owned.has(c.itemId)).map((c) => c.itemId)
-  const total = components.length
+  const missing = parts.filter((c) => !owned.has(c.itemId)).map((c) => c.itemId)
+  const total = parts.length
   const have = total - missing.length
   return {
     owned: have,
@@ -41,7 +41,7 @@ export function progressOf(
 /**
  * Order sets by how close they are to done, nearest first.
  *
- * Ties break on fewest components remaining and then on name, so the list is a total order
+ * Ties break on fewest parts remaining and then on name, so the list is a total order
  * and does not reshuffle between renders. A set with nothing owned sorts last rather than
  * first: the point of the view is "what can I finish", not "what could I start".
  */

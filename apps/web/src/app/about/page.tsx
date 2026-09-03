@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
 
+import { isSet } from '@provenance/core'
+
 import { PAGE, PageHeader, Panel, PanelHeader } from '@/components/Primitives'
 import { site } from '@/config/site'
 import { getDataset } from '@/lib/data'
@@ -24,7 +26,7 @@ export const metadata: Metadata = {
 export default async function AboutPage() {
   const { manifest, items, sources, edges, relics } = await getDataset()
 
-  const sets = items.filter((item) => item.components !== undefined)
+  const sets = items.filter((item) => isSet(item))
 
   /**
    * Warframe recipe coverage, counted rather than asserted.
@@ -36,9 +38,9 @@ export default async function AboutPage() {
    */
   const warframes = items.filter((item) => item.category === 'Warframe')
   const nonPrimeFrames = warframes.filter((item) => !/ Prime\b/.test(item.name))
-  const nonPrimeWithRecipe = nonPrimeFrames.filter((item) => item.components !== undefined)
+  const nonPrimeWithRecipe = nonPrimeFrames.filter((item) => isSet(item))
   const framesWithoutRecipe = nonPrimeFrames
-    .filter((item) => item.components === undefined)
+    .filter((item) => !isSet(item))
     .map((item) => item.name)
     .sort((a, b) => a.localeCompare(b))
   const vaulted = relics.filter((relic) => relic.vaulted).length

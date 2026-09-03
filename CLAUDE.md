@@ -172,6 +172,34 @@ test. Do not add a key whose field is not populated — `faction:` is absent for
 reason, and the check is a measurement against `public/data`, not a look at `types.ts`.
 `/browse` carries its whole filter state in one `q=` param; do not add a second filter param.
 
+**Parts are not ingredients (2026-09-03).** `Item.components` was one array holding two
+different things and it is now two: `parts` are the pieces you FARM, `ingredients` are the
+resources the recipe consumes. Three rules. **The split comes from upstream, not from us** —
+WFCD nests a part's recipe under its parent (`/Recipes/` in `uniqueName`) and names
+ingredients as their own items, so `isPartOfParent` in `packages/sources/src/enrich.ts`
+preserves a distinction rather than inventing one. **A set's drop paths are its PARTS' paths,
+via `pathSourceIds()` in `packages/core/src/parts.ts`, which is the only place that decides**
+— rolling up an ingredient gave Ash Prime Orokin Cell's 121 edges and made `from:enemy` match
+every prime Warframe in the game. And **only an item with a part is a set**: `isSet()`, not
+`components.length > 0` re-derived per call site, and a build gate fails on a set with
+ingredients and no parts. This replaced a heuristic ("inherit unless it builds into more than
+one thing") that was wrong in both directions — it leaked 16 single-use resources, Oxium and
+Cryotic among them, and stripped genuine parts from the four Ak- weapons. Measured after: no
+part is shared between two sets, asserted over the whole corpus in
+`apps/web/src/lib/query-index.test.ts`. Do not reintroduce a single `components` field.
+Ingredients are still shown — under the recipe table, without a tick — because a recipe that
+hides what it consumes is incomplete, not clean. See DESIGN.md § 20.
+
+**/browse has two grains (2026-09-03).** `view=items` (the default) is one row per item;
+`view=paths` is the original one row per edge. Both are real and neither is a fallback. Items
+default because that view **cannot be empty while items match** — the path grain answered
+`is:prime cat:warframe` with "0 of 28,020 rows", which is true and reads as "there are no
+prime Warframes", and 1,046 of 4,875 items are in that position. Paths stay because the item
+grain cannot be precise about a conjunction: the language is lifted existentially, so at item
+grain `tier:axi rotation:c` is satisfied by one Axi path and a separate rotation-C path
+(DESIGN.md § 11). An item row that reaches its source through a part must SAY so — `via` on
+`ItemRow` — or it claims a relic drops an assembled Warframe.
+
 **Table note (2026-08-25).** `/browse` ships with TanStack **Virtual** only; TanStack Table v8
 was dropped from the plan. Virtualization is genuinely required — 28k rows — but the table
 itself is four fixed columns with one sort key and a handful of AND-ed predicates, all of which

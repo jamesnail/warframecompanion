@@ -21,7 +21,7 @@ describe('progressOf', () => {
   })
 
   // The rule the whole module exists for: ×10 Orokin Cell is ONE thing to go and get.
-  it('counts distinct components, not units', () => {
+  it('counts distinct parts, not units', () => {
     const p = progressOf(BRATON, new Set(['orokin-cell']))
     expect(p.owned).toBe(1)
     expect(p.total).toBe(5)

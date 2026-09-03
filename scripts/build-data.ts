@@ -499,10 +499,28 @@ async function main(): Promise<void> {
     return name === item.name ? item : { ...item, name }
   })
 
+  const partCount = setResult.sets.reduce((sum, set) => sum + (set.parts?.length ?? 0), 0)
   console.log(
-    `  sets    ${String(setResult.sets.length)} assembled items ` +
+    `  sets    ${String(setResult.sets.length)} assembled items, ` +
+      `${String(partCount)} parts ` +
       `(${String(setResult.partial.length)} recipes incomplete, not shipped)`,
   )
+  /**
+   * A recipe with ingredients and no parts is a crafting note, and shipping it as a set puts
+   * an item on /farm and /collection with nothing to farm or collect. sets.ts refuses to emit
+   * one; this is the assertion that the refusal held, since the whole parts/ingredients split
+   * rests on it.
+   */
+  const partless = setResult.sets.filter((set) => (set.parts?.length ?? 0) === 0)
+  if (partless.length > 0) {
+    fail(
+      `${String(partless.length)} sets have ingredients but no parts: ` +
+        partless
+          .slice(0, 5)
+          .map((set) => set.id)
+          .join(', '),
+    )
+  }
   if (setResult.sets.length < SET_FLOOR) {
     fail(
       `only ${String(setResult.sets.length)} set recipes resolved (floor ${String(SET_FLOOR)}). ` +
@@ -779,16 +797,18 @@ async function main(): Promise<void> {
 
   /**
    * The same gate, for the two reference types sets introduced. An edge is not the only way
-   * one row can point at another any more: a set's `components` and a part's `buildsInto`
-   * are both item ids, and a dangling one renders as a link to a page that does not exist.
-   * Hazard 14 is that every id must be minted the same way and the orphan gate is what
-   * proves it — that argument does not stop applying because the reference is not an edge.
+   * one row can point at another any more: a set's `parts` and `ingredients` and a part's
+   * `buildsInto` are all item ids, and a dangling one renders as a link to a page that does
+   * not exist. Hazard 14 is that every id must be minted the same way and the orphan gate is
+   * what proves it — that argument does not stop applying because the reference is not an edge.
    */
   const danglingRefs: string[] = []
   for (const item of items) {
-    for (const component of item.components ?? []) {
-      if (!itemIds.has(component.itemId)) {
-        danglingRefs.push(`${item.id}.components -> ${component.itemId}`)
+    for (const field of ['parts', 'ingredients'] as const) {
+      for (const component of item[field] ?? []) {
+        if (!itemIds.has(component.itemId)) {
+          danglingRefs.push(`${item.id}.${field} -> ${component.itemId}`)
+        }
       }
     }
     for (const target of item.buildsInto ?? []) {

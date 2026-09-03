@@ -21,9 +21,9 @@ export interface SetSummary {
   id: string
   name: string
   category: string
-  components: { itemId: string; count: number }[]
+  parts: { itemId: string; count: number }[]
   /** Component ids with no live source right now. */
-  vaultedComponents: string[]
+  vaultedParts: string[]
 }
 
 type Notice = { tone: 'ok' | 'bad'; text: string } | undefined
@@ -35,7 +35,7 @@ export function CollectionManager({ sets, names }: { sets: SetSummary[]; names: 
   const fileRef = useRef<HTMLInputElement>(null)
 
   const inProgressSets = sets
-    .map((set) => ({ ...set, progress: progressOf(set.components, owned) }))
+    .map((set) => ({ ...set, progress: progressOf(set.parts, owned) }))
     .filter((set) => set.progress.owned > 0)
     .sort(byClosest)
 
@@ -43,7 +43,7 @@ export function CollectionManager({ sets, names }: { sets: SetSummary[]; names: 
   // Blocked only counts parts you still NEED: a vaulted part already in hand is not a
   // problem, and saying otherwise would nag about something already solved.
   const blockedOf = (set: SetSummary): number =>
-    set.vaultedComponents.filter((id) => !owned.has(id)).length
+    set.vaultedParts.filter((id) => !owned.has(id)).length
 
   function download(): void {
     // Both lists and the settings. The farm list is as much the user's work as the inventory,
@@ -245,7 +245,7 @@ export function CollectionManager({ sets, names }: { sets: SetSummary[]; names: 
                     </p>
                   )}
                   <div className="mt-2 flex flex-wrap gap-1.5">
-                    {set.components.map((component) => {
+                    {set.parts.map((component) => {
                       const have = owned.has(component.itemId)
                       return (
                         <button

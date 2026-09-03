@@ -95,6 +95,21 @@ export interface QueryItem {
   /** Best single-path chance, 0..1. `chance:>10` at item grain asks about the best path. */
   bestChance: number
   /**
+   * How many paths reach this item at all, its parts' paths included. Zero for the 1,046
+   * items nothing drops — 737 vaulted relics and 309 assembled sets — which is a fact worth
+   * showing rather than a row worth hiding.
+   */
+  paths: number
+  /**
+   * The single best path, for a surface that shows one row per item rather than one per path.
+   *
+   * `via` names the PART the path actually runs through, where the item itself is not the
+   * thing that drops. Ash Prime's best path is an Axi relic that contains a systems
+   * blueprint, and a row reading "Ash Prime — Axi A11" without saying so claims the relic
+   * drops the frame.
+   */
+  best: { sourceId: string; sourceName: string; via: string | undefined } | undefined
+  /**
    * Cheapest live asking price in platinum, or undefined when the item is not traded, has no
    * live seller, or the price chunk was not loaded on this surface.
    *

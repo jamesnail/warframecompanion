@@ -59,18 +59,20 @@ describe('buildSets', () => {
     const { sets } = buildSets(files([BRATON_PRIME]), has)
     expect(sets).toHaveLength(1)
     expect(sets[0]?.id).toBe('braton-prime')
-    expect(sets[0]?.components?.map((c) => c.itemId)).toEqual([
+    // Split at the boundary WFCD itself draws: a part is nested under the parent as a
+    // recipe, an ingredient is its own item. Nothing here is inferred from names.
+    expect(sets[0]?.parts?.map((c) => c.itemId)).toEqual([
       'braton-prime-barrel',
       'braton-prime-receiver',
       'braton-prime-stock',
       'braton-prime-blueprint',
-      'orokin-cell',
     ])
+    expect(sets[0]?.ingredients).toEqual([{ itemId: 'orokin-cell', count: 1 }])
   })
 
   it('resolves frame parts through the blueprint fallback', () => {
     const { sets } = buildSets(files([ASH_PRIME], 'Warframe'), has)
-    expect(sets[0]?.components?.map((c) => c.itemId)).toEqual([
+    expect(sets[0]?.parts?.map((c) => c.itemId)).toEqual([
       'ash-prime-chassis-blueprint',
       'ash-prime-neuroptics-blueprint',
       'ash-prime-systems-blueprint',
@@ -160,11 +162,11 @@ describe('applySets referential integrity', () => {
         name: 'Advanced Nosam Cutter',
         category: 'Other',
         tradable: false,
-        components: [{ itemId: 'advanced-nosam-cutter-blueprint', count: 1 }],
+        parts: [{ itemId: 'advanced-nosam-cutter-blueprint', count: 1 }],
       },
     ]
     const out = applySets(items, { sets: [], buildsInto: new Map(), partial: [] })
-    expect(out[0]?.components).toBeUndefined()
+    expect(out[0]?.parts).toBeUndefined()
   })
 
   it('keeps the references that do resolve', () => {
@@ -175,14 +177,16 @@ describe('applySets referential integrity', () => {
         name: 'Thing',
         category: 'Other',
         tradable: false,
-        components: [
+        ingredients: [
           { itemId: 'orokin-cell', count: 2 },
           { itemId: 'ghost', count: 1 },
         ],
       },
     ]
     const out = applySets(items, { sets: [], buildsInto: new Map(), partial: [] })
-    expect(out.find((i) => i.id === 'thing')?.components).toEqual([{ itemId: 'orokin-cell', count: 2 }])
+    expect(out.find((i) => i.id === 'thing')?.ingredients).toEqual([
+      { itemId: 'orokin-cell', count: 2 },
+    ])
   })
 
   it('drops a buildsInto target that is not in the table', () => {

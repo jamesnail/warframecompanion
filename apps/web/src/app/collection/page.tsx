@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 
+import { isSet } from '@provenance/core'
+
 import { CollectionManager, type SetSummary } from '@/components/CollectionManager'
 import { getDataset } from '@/lib/data'
 import { PAGE, PageHeader } from '@/components/Primitives'
@@ -26,7 +28,7 @@ export default async function CollectionPage() {
   const { items, itemsById, edgesByItem, relicsByReward } = await getDataset()
 
   /**
-   * Which components have no live source at all. Computed here, at build time, because it
+   * Which parts have no live source at all. Computed here, at build time, because it
    * is a fact about the drop tables rather than about the viewer — the client only decides
    * whether a blocked part still matters, which depends on what they already own.
    */
@@ -38,13 +40,13 @@ export default async function CollectionPage() {
   }
 
   const sets: SetSummary[] = items
-    .filter((item) => item.components !== undefined && item.components.length > 0)
+    .filter(isSet)
     .map((item) => ({
       id: item.id,
       name: item.name,
       category: item.category,
-      components: item.components ?? [],
-      vaultedComponents: (item.components ?? [])
+      parts: item.parts ?? [],
+      vaultedParts: (item.parts ?? [])
         .map((component) => component.itemId)
         .filter(isVaulted),
     }))
@@ -54,7 +56,7 @@ export default async function CollectionPage() {
   // the whole catalogue.
   const names: Record<string, string> = {}
   for (const set of sets) {
-    for (const component of set.components) {
+    for (const component of set.parts) {
       names[component.itemId] ??= itemsById.get(component.itemId)?.name ?? component.itemId
     }
   }

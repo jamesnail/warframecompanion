@@ -86,7 +86,31 @@ export const Item = z.object({
   vaulted: z.boolean().optional(),
   masteryReq: z.number().int().min(0).max(30).optional(),
   buildsInto: z.array(ItemId).optional(),
-  components: z
+  /**
+   * The pieces of this item you FARM. Braton Prime's barrel, receiver, stock and blueprint.
+   *
+   * Split from `ingredients` because the two are different questions wearing one shape, and
+   * a single `components` array made the tool answer the wrong one. A part is exclusive to
+   * what it builds and is the reason to run a mission; an ingredient is a resource you either
+   * already have or farm on its own terms, and it belongs to hundreds of recipes at once.
+   *
+   * The split is not a heuristic. WFCD nests a part's recipe under the parent — the
+   * `/Recipes/` marker in its `uniqueName` — and names ingredients as their own items, so
+   * this is upstream's own structure preserved rather than a rule we invented. What it
+   * replaced WAS a heuristic ("inherit a component's sources only if it builds into at most
+   * one thing"), and that heuristic was wrong in both directions: it handed Oxium's 32 drop
+   * paths to the one set that needs Oxium, and it stripped genuine parts from the four
+   * Ak-weapon sets, whose singles build into two things each.
+   *
+   * Only an item with at least one part is an assembled SET. A recipe of nothing but
+   * ingredients is a crafting note.
+   */
+  parts: z
+    .array(z.object({ itemId: ItemId, count: z.number().int().positive() }))
+    .optional(),
+  /** Resources the recipe consumes. Not farmed for this item's sake, never collected
+   *  against it, and never a source of drop paths for it. See `parts`. */
+  ingredients: z
     .array(z.object({ itemId: ItemId, count: z.number().int().positive() }))
     .optional(),
   /**

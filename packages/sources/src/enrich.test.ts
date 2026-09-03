@@ -77,10 +77,10 @@ describe('buildEnrichmentIndex', () => {
     expect(index.get('braton-prime-barrel')?.tradable).toBe(true)
   })
 
-  it('keeps mastery and components on the parent', () => {
+  it('keeps mastery and parts on the parent', () => {
     const parent = index.get('braton-prime')
     expect(parent?.masteryReq).toBe(8)
-    expect(parent?.components).toEqual([
+    expect(parent?.parts).toEqual([
       { itemId: 'braton-prime-barrel', count: 1 },
       { itemId: 'braton-prime-blueprint', count: 1 },
     ])

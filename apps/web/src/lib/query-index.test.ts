@@ -37,6 +37,7 @@ const edges = chunk<DropEdge>('edges')
 
 const index = buildQueryItems(items, sources, edges)
 const byId = new Map(index.map((entry) => [entry.id, entry]))
+const sourcesById = new Map(sources.map((source) => [source.id, source]))
 
 const matching = (query: string): QueryItem[] => {
   const parsed = parseQuery(query)
@@ -75,9 +76,10 @@ describe('is:prime cat:warframe', () => {
 
 describe('the rollup rule', () => {
   it('gives Ash Prime relic paths and NOT enemy paths', () => {
-    // The hazard test. Ash Prime's components are four relic-only blueprints plus one Orokin
-    // Cell, which has 121 edges across missions, bounties, transients and enemies. A naive
-    // rollup inherits all of them and makes from:enemy match every prime Warframe in the game.
+    // The hazard test. Ash Prime's recipe is four relic-only blueprints plus one Orokin
+    // Cell, which has 121 edges across missions, bounties, transients and enemies. A rollup
+    // that follows the whole recipe rather than the parts inherits all of them, and makes
+    // from:enemy match every prime Warframe in the game.
     const ash = byId.get('ash-prime')
     expect(ash).toBeDefined()
     expect([...(ash?.kinds ?? [])].sort()).toEqual(['relic'])
@@ -97,6 +99,90 @@ describe('the rollup rule', () => {
   it('leaves an item with its own edges alone', () => {
     const barrel = index.find((entry) => entry.id === 'braton-prime-barrel')
     expect(barrel?.kinds.has('relic')).toBe(true)
+  })
+
+  it('no part is shared between two sets, so nothing is counted twice', () => {
+    // What the parts/ingredients split bought. The rule it replaced — inherit a component
+    // unless it builds into more than one thing — was wrong in both directions: it let
+    // through 16 single-use resources (Oxium, Cryotic, Nullstones, Neural Sensors and 12
+    // more), and it stripped genuine parts from the four Ak- weapons. Fan-in over parts is
+    // the measurement, and it is now exactly 1 everywhere.
+    const fanIn = new Map<string, number>()
+    for (const item of items) {
+      for (const part of item.parts ?? []) {
+        fanIn.set(part.itemId, (fanIn.get(part.itemId) ?? 0) + 1)
+      }
+    }
+    expect([...fanIn].filter(([, n]) => n > 1)).toEqual([])
+  })
+
+  it('an Ak- weapon keeps the single it is built from as an ingredient, at a real count', () => {
+    // Upstream lists the single twice rather than once at times two, which rendered as a
+    // recipe needing two different things with the same name.
+    const akbronco = items.find((item) => item.id === 'akbronco-prime')
+    expect(akbronco?.ingredients).toEqual([{ itemId: 'bronco-prime-blueprint', count: 2 }])
+  })
+
+  it('rolls up parts and nothing else, across the whole corpus', () => {
+    // Stated over every item rather than over one known-bad case, because the two times this
+    // broke it broke somewhere nobody was looking. `kinds` must be exactly the union over
+    // the item and its parts — an ingredient contributing even one kind fails here.
+    const kindsOf = new Map<string, Set<string>>()
+    for (const edge of edges) {
+      const kind = sourcesById.get(edge.sourceId)?.kind
+      if (kind === undefined) continue
+      const set = kindsOf.get(edge.itemId) ?? new Set<string>()
+      set.add(kind.toLowerCase())
+      kindsOf.set(edge.itemId, set)
+    }
+
+    let wouldLeak = 0
+    for (const item of items) {
+      const expected = new Set<string>()
+      for (const id of [item.id, ...(item.parts ?? []).map((part) => part.itemId)]) {
+        for (const kind of kindsOf.get(id) ?? []) expected.add(kind)
+      }
+      expect([...(byId.get(item.id)?.kinds ?? [])].sort(), item.id).toEqual([...expected].sort())
+
+      for (const ingredient of item.ingredients ?? []) {
+        for (const kind of kindsOf.get(ingredient.itemId) ?? []) {
+          if (!expected.has(kind)) wouldLeak++
+        }
+      }
+    }
+
+    // And the rule is load-bearing rather than vacuous: this many item/kind pairs would be
+    // wrong if ingredients were rolled up, which is what the old heuristic did for 16 of them.
+    expect(wouldLeak).toBeGreaterThan(100)
+  })
+})
+
+describe('the item-grain projection', () => {
+  it('gives every prime Warframe a best path, through a named part', () => {
+    for (const frame of matching('is:prime cat:warframe')) {
+      expect(frame.paths, frame.name).toBeGreaterThan(0)
+      expect(frame.best, frame.name).toBeDefined()
+      // The frame is not what drops, so the row has to say which piece does.
+      expect(frame.best?.via, frame.name).toBeDefined()
+    }
+  })
+
+  it('counts zero paths for an item nothing drops, rather than guessing one', () => {
+    // A vaulted relic: a real item, in no live drop table. "0 paths" is the answer.
+    const undropped = index.filter((entry) => entry.paths === 0)
+    expect(undropped.length).toBeGreaterThan(500)
+    for (const entry of undropped) expect(entry.best, entry.name).toBeUndefined()
+  })
+
+  it('names the item itself, not a part, where the item is what drops', () => {
+    expect(byId.get('braton-prime-barrel')?.best?.via).toBeUndefined()
+  })
+
+  it('agrees with bestChance about which path is best', () => {
+    for (const entry of index) {
+      if (entry.best === undefined) continue
+      expect(entry.bestChance, entry.name).toBeGreaterThan(-1)
+    }
   })
 })
 

@@ -12,9 +12,14 @@ import { loadBrowseDataset, loadPrices } from '@/lib/client/dataset'
 import {
   buildRows,
   facetsOf,
+  facetsOfItems,
+  filterItems,
   filterRows,
+  sortItemRows,
   sortRows,
+  toItemRow,
   type BrowseRow,
+  type ItemRow,
   type SortColumn,
 } from '@/lib/browse'
 import { hasLegacyParams, readLegacyParams, toQueryText } from '@/lib/legacy-params'
@@ -36,6 +41,17 @@ const SORT_COLUMNS = ['item', 'source', 'category', 'chance'] as const
 const SORT_DIRECTIONS = ['asc', 'desc'] as const
 
 /**
+ * The two grains, and why the default is items.
+ *
+ * An item row can never be empty while items match, which is the failure the path grain
+ * produced on `is:prime cat:warframe`: 50 matching items, zero matching edges, "0 of 28,020
+ * rows". Paths stay one click away and keep the precision items cannot have — at item grain
+ * `tier:axi rotation:c` is satisfied by an Axi path and a separate rotation-C path, because
+ * the language is lifted existentially (DESIGN.md § 11).
+ */
+const VIEWS = ['items', 'paths'] as const
+
+/**
  * The whole filter state is one param, holding the literal text someone typed (CLAUDE.md
  * constraint 5). It replaced six — q, category, kind, min, tradable, farmable — which between
  * them could not express "prime warframes" and put an encoding between the URL and the
@@ -48,6 +64,7 @@ const FILTER_PARSERS = {
   q: parseAsString.withDefault(''),
   sort: parseAsStringLiteral(SORT_COLUMNS).withDefault('chance'),
   dir: parseAsStringLiteral(SORT_DIRECTIONS).withDefault('desc'),
+  view: parseAsStringLiteral(VIEWS).withDefault('items'),
 }
 
 /**
@@ -63,9 +80,6 @@ const LEGACY_PARSERS = {
 }
 
 const EMPTY_INDEX: ReadonlyMap<string, QueryItem> = new Map()
-
-/** Enough to show the answer exists and act on it; not a second table. */
-const ITEM_FALLBACK_CAP = 24
 
 type LoadState =
   | { status: 'loading' }
@@ -128,9 +142,17 @@ export function BrowseTable() {
 
   const all = state.status === 'ready' ? state.rows : []
   const itemsById = state.status === 'ready' ? state.itemsById : EMPTY_INDEX
+  const items = filters.view === 'items'
 
-  /** Facets come from the loaded rows, so a dead option is never offered. */
-  const facets = useMemo(() => facetsOf(all), [all])
+  /**
+   * Facets come from whichever grain is showing, so a dead option is never offered — and so
+   * the item grain offers categories the edge table has none of. Warframe is one: every
+   * prime frame is undropped, so a facet read off edges alone under-reports it.
+   */
+  const facets = useMemo(
+    () => (items ? facetsOfItems(itemsById.values()) : facetsOf(all)),
+    [items, all, itemsById],
+  )
 
   // Parsing is cheap and the errors are needed for the input, so it happens on every render
   // of the query rather than being threaded through state.
@@ -142,27 +164,44 @@ export function BrowseTable() {
   const compiled = useMemo(() => compileQuery(parsed.query), [parsed])
 
   const visible = useMemo(
-    () => sortRows(filterRows(all, compiled, itemsById), filters.sort, filters.dir),
-    [all, itemsById, compiled, filters.sort, filters.dir],
+    () =>
+      items ? [] : sortRows(filterRows(all, compiled, itemsById), filters.sort, filters.dir),
+    [items, all, itemsById, compiled, filters.sort, filters.dir],
   )
 
+  const visibleItems = useMemo(
+    () =>
+      items
+        ? sortItemRows(
+            filterItems(itemsById.values(), compiled).map((item) =>
+              toItemRow(item, (id) => itemsById.has(id)),
+            ),
+            filters.sort,
+            filters.dir,
+          )
+        : [],
+    [items, itemsById, compiled, filters.sort, filters.dir],
+  )
+
+  const count = items ? visibleItems.length : visible.length
+  const total = items ? itemsById.size : all.length
+
   /**
-   * Items that match when the ROWS do not.
+   * How many items match, when the PATH grain is showing and found nothing.
    *
-   * `is:prime cat:warframe` is the case: all 50 prime Warframes match, and every one of them
-   * has zero drop rows, because a set is built from parts rather than dropped. A bare "0 rows"
-   * there is technically true and reads as "there are no prime Warframes", so the answer that
-   * does exist is offered instead of withheld.
+   * Not a second table any more — the item grain is a real view now, so this is one line
+   * pointing at it. It stays because the case is common and silent: 1,046 items have no path
+   * at all, and a reader who filtered on `from:` cannot tell "nothing drops it" apart from
+   * "no such item" without being told.
    */
   const itemMatches = useMemo(() => {
-    if (visible.length > 0 || compiled.size === 0) return []
-    const found: QueryItem[] = []
+    if (items || visible.length > 0 || compiled.size === 0) return 0
+    let found = 0
     for (const item of itemsById.values()) {
-      if (compiled.matchItem(item)) found.push(item)
-      if (found.length >= ITEM_FALLBACK_CAP) break
+      if (compiled.matchItem(item)) found++
     }
     return found
-  }, [visible.length, compiled, itemsById])
+  }, [items, visible.length, compiled, itemsById])
 
   const setQuery = (next: string): void => {
     void setFilters({ q: next === '' ? null : next })
@@ -173,7 +212,7 @@ export function BrowseTable() {
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const virtualizer = useVirtualizer({
-    count: visible.length,
+    count,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => rowHeight,
     overscan: 12,
@@ -189,7 +228,7 @@ export function BrowseTable() {
   // 4,000 of a 12-row result, which reads as an empty table.
   useEffect(() => {
     virtualizer.scrollToOffset(0)
-  }, [filters.q, virtualizer])
+  }, [filters.q, filters.view, virtualizer])
 
   const active = filters.q !== ''
 
@@ -243,50 +282,85 @@ export function BrowseTable() {
         )}
       </div>
 
-      <p className="label mt-4" role="status" aria-live="polite">
-        {state.status === 'loading'
-          ? 'Loading drop data…'
-          : state.status === 'failed'
-            ? 'Drop data failed to load.'
-            : `${visible.length.toLocaleString()} of ${all.length.toLocaleString()} rows`}
-      </p>
+      <div className="mt-4 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+        <p className="label" role="status" aria-live="polite">
+          {state.status === 'loading'
+            ? 'Loading drop data…'
+            : state.status === 'failed'
+              ? 'Drop data failed to load.'
+              : `${count.toLocaleString()} of ${total.toLocaleString()} ${items ? 'items' : 'paths'}`}
+        </p>
+
+        {/* Two buttons rather than a select: there are exactly two grains and both names are
+            short, so the choice and its state are readable without opening anything. */}
+        <div className="flex gap-1.5" role="group" aria-label="Row grain">
+          {VIEWS.map((value) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={filters.view === value}
+              onClick={() => {
+                void setFilters({ view: value })
+              }}
+              className={`chamfer-sm border px-2.5 py-1 text-xs capitalize transition-colors ${
+                filters.view === value
+                  ? 'border-gold bg-void-700 text-gold'
+                  : 'border-hairline text-text-dim hover:border-hairline-strong hover:text-text'
+              }`}
+            >
+              {value}
+            </button>
+          ))}
+        </div>
+      </div>
 
       <div className="panel mt-2 overflow-hidden">
         <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,2fr)_5rem] gap-3 border-b border-hairline px-3 py-2 sm:px-5">
           <SortHeader column="item" label="Item" filters={filters} setFilters={setFilters} />
-          <SortHeader column="source" label="Source" filters={filters} setFilters={setFilters} />
+          <SortHeader
+            column="source"
+            label={items ? 'Best source' : 'Source'}
+            filters={filters}
+            setFilters={setFilters}
+          />
           <SortHeader column="chance" label="Chance" filters={filters} setFilters={setFilters} align="right" />
         </div>
 
-        {state.status === 'ready' && visible.length === 0 ? (
+        {state.status === 'ready' && count === 0 ? (
           <div className="px-3 py-6 sm:px-5">
-            <p className="text-sm text-text-faint">{emptyStateHint(filters.q)}</p>
-            {itemMatches.length > 0 && (
-              <div className="mt-5">
-                <p className="text-sm text-text-dim">
-                  {itemMatches.length === ITEM_FALLBACK_CAP ? 'At least ' : ''}
-                  {itemMatches.length} item{itemMatches.length === 1 ? '' : 's'} match, with no
-                  drop row of their own — an assembled set is built from parts, never dropped.
-                </p>
-                <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5">
-                  {itemMatches.map((item) => (
-                    <li key={item.id}>
-                      <Link
-                        href={`/item/${item.id}`}
-                        className="text-sm text-text transition-colors hover:text-gold"
-                      >
-                        {item.name}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+            <p className="text-sm text-text-faint">{emptyStateHint(filters.q, items)}</p>
+            {itemMatches > 0 && (
+              <p className="mt-4 text-sm text-text-dim">
+                {itemMatches.toLocaleString()} item{itemMatches === 1 ? '' : 's'} match with no
+                drop path of their own — an assembled set is built from parts, never dropped.{' '}
+                <button
+                  type="button"
+                  onClick={() => {
+                    void setFilters({ view: 'items' })
+                  }}
+                  className="text-text underline underline-offset-4 transition-colors hover:text-gold"
+                >
+                  Show them as items
+                </button>
+                .
+              </p>
             )}
           </div>
         ) : (
           <div ref={scrollRef} className="h-[60vh] overflow-y-auto overscroll-contain">
             <div className="relative w-full" style={{ height: `${String(virtualizer.getTotalSize())}px` }}>
               {virtualizer.getVirtualItems().map((virtual) => {
+                const itemRow = items ? visibleItems[virtual.index] : undefined
+                if (itemRow !== undefined) {
+                  return (
+                    <ItemRowView
+                      key={virtual.key}
+                      row={itemRow}
+                      height={rowHeight}
+                      offset={virtual.start}
+                    />
+                  )
+                }
                 const row = visible[virtual.index]
                 if (row === undefined) return null
                 return (
@@ -340,12 +414,64 @@ export function BrowseTable() {
 }
 
 /**
+ * One item, collapsed to its best path.
+ *
+ * The three columns are the path grain's, so the two views line up column for column and a
+ * grain switch does not move the reader's eye. An item nothing drops fills the source cell
+ * with what it IS rather than a dash: "built from 4 parts" is the answer to where it comes
+ * from, and an em dash is not.
+ */
+function ItemRowView({ row, height, offset }: { row: ItemRow; height: number; offset: number }) {
+  return (
+    <div
+      className="absolute inset-x-0 top-0 grid grid-cols-[minmax(0,2fr)_minmax(0,2fr)_5rem] items-center gap-3 border-b border-hairline/50 px-3 text-sm sm:px-5 transition-colors hover:bg-void-800"
+      style={{ height: `${String(height)}px`, transform: `translateY(${String(offset)}px)` }}
+    >
+      <div className="min-w-0">
+        <Link
+          href={`/item/${row.itemId}`}
+          className="block truncate text-text transition-colors hover:text-gold"
+        >
+          {row.itemName}
+        </Link>
+        <span className="label block truncate">{row.category}</span>
+      </div>
+      <div className={`min-w-0 ${row.vaulted ? 'vaulted' : ''}`}>
+        {row.sourceHref === undefined || row.sourceName === undefined ? (
+          <span className="block truncate text-text-faint">Not dropped</span>
+        ) : (
+          <Link
+            href={row.sourceHref}
+            className="block truncate text-text-dim transition-colors hover:text-gold"
+          >
+            {row.sourceName}
+          </Link>
+        )}
+        <span className="block truncate text-xs text-text-faint">
+          {row.vaulted && <span className="text-r-legendary">Vaulted · </span>}
+          {/* Which part the relic actually contains. Without it the row claims an Axi relic
+              drops a Warframe, which is the misreading the item grain exists to avoid. */}
+          {row.via !== undefined && `via ${row.via} · `}
+          {row.paths === 0
+            ? 'no path recorded'
+            : `${row.paths.toLocaleString()} ${row.paths === 1 ? 'path' : 'paths'}`}
+        </span>
+      </div>
+      <div className="data-num text-right text-text">
+        {row.paths === 0 ? <span className="text-text-faint">—</span> : `${(row.chance * 100).toFixed(2)}%`}
+      </div>
+    </div>
+  )
+}
+
+/**
  * Empty results are not an error and must not read as one (CLAUDE.md § Copy).
  *
  * Naming the likeliest culprit beats a generic "no rows": the last negation is the term most
  * often responsible, because it is the one that silently removes rows you were looking at.
  */
-function emptyStateHint(query: string): string {
+function emptyStateHint(query: string, items: boolean): string {
+  const noun = items ? 'items' : 'paths'
   const terms = parseQuery(query).query.terms
   const negated = [...terms].reverse().find((term) => term.negated)
   if (negated !== undefined) {
@@ -353,10 +479,10 @@ function emptyStateHint(query: string): string {
       negated.type === 'word'
         ? negated.text
         : `${negated.key}:${negated.value.kind === 'text' ? negated.value.text : ''}`
-    return `No rows match that query. Try clearing -${text}.`
+    return `No ${noun} match that query. Try clearing -${text}.`
   }
-  if (terms.length > 1) return 'No rows match that query. Try removing a term.'
-  return 'No rows match that query.'
+  if (terms.length > 1) return `No ${noun} match that query. Try removing a term.`
+  return `No ${noun} match that query.`
 }
 
 /**

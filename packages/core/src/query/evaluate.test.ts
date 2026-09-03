@@ -30,6 +30,8 @@ function item(overrides: Partial<QueryItem> = {}): QueryItem {
     rotations: new Set<string>(),
     sourceText: 'axi a1 relic',
     bestChance: 0.11,
+    paths: 4,
+    best: undefined,
     price: undefined,
     ...overrides,
   }

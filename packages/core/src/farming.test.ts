@@ -6,9 +6,9 @@ import type { ItemCategory } from './types'
 const item = (
   id: string,
   category: ItemCategory,
-  components?: readonly unknown[],
-): { id: string; category: ItemCategory; components?: readonly unknown[] } =>
-  components === undefined ? { id, category } : { id, category, components }
+  parts?: readonly unknown[],
+): { id: string; category: ItemCategory; parts?: readonly unknown[] } =>
+  parts === undefined ? { id, category } : { id, category, parts }
 
 describe('farmStrategy', () => {
   it('a relic path beats the category, because a prime part is filed as a Component', () => {
@@ -33,10 +33,16 @@ describe('farmStrategy', () => {
     expect(farmStrategy(item('endo', 'Resource'), false)).toBe('currency')
   })
 
-  it('an item with a recipe is built, not farmed', () => {
+  it('an item with PARTS is built, not farmed', () => {
     expect(farmStrategy(item('braton-prime', 'Primary', [{}, {}]), false)).toBe('assembled')
     // ...unless it also drops from a relic, which is the more actionable answer.
     expect(farmStrategy(item('braton-prime', 'Primary', [{}]), true)).toBe('relic-chain')
+  })
+
+  it('a recipe of nothing but resources is crafted, not assembled', () => {
+    // Parts, not the whole recipe. Telling the reader to farm the pieces of something whose
+    // recipe is four resources names no pieces, and the resource strategy is the right copy.
+    expect(farmStrategy(item('some-alloy', 'Resource', []), false)).toBe('resource')
   })
 
   it('mods and arcanes keep the chance ranking', () => {

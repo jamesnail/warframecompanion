@@ -69,13 +69,15 @@ const BY_CATEGORY: Partial<Record<ItemCategory, FarmStrategy>> = {
  * Component by category, and its category tells you nothing useful about how to get it.
  */
 export function farmStrategy(
-  item: { id: string; category: ItemCategory; components?: readonly unknown[] | undefined },
+  item: { id: string; category: ItemCategory; parts?: readonly unknown[] | undefined },
   hasRelicPath: boolean,
 ): FarmStrategy {
   const override = FARM_OVERRIDES[item.id]
   if (override !== undefined) return override
   if (hasRelicPath) return 'relic-chain'
-  if (item.components !== undefined && item.components.length > 0) return 'assembled'
+  // Parts rather than the whole recipe: a thing whose recipe is nothing but resources is
+  // crafted, not assembled, and telling the reader to farm its pieces names no pieces.
+  if (item.parts !== undefined && item.parts.length > 0) return 'assembled'
   return BY_CATEGORY[item.category] ?? 'direct'
 }
 

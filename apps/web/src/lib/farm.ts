@@ -17,7 +17,7 @@ import { chainRuns, chainStatus, compareChains, type ChainStatus, type DropChain
 export interface TrackedSet {
   id: string
   name: string
-  components: { itemId: string; count: number }[]
+  parts: { itemId: string; count: number }[]
 }
 
 export interface Need {
@@ -48,7 +48,7 @@ export interface FarmAction {
  * Intent is stated, never inferred. An earlier version derived this from owned parts — any
  * set holding a component you owned — which collapses the moment a shared component is
  * ticked: Orokin Cell belongs to 177 sets, so owning one put 177 sets on the plan. A tracked
- * id is either a set (plan its missing components) or a single item (plan just that item).
+ * id is either a set (plan its missing parts) or a single item (plan just that item).
  */
 export function trackedTargets(
   sets: readonly TrackedSet[],
@@ -98,7 +98,7 @@ export function buildNeeds(
   }
 
   for (const set of trackedTargets(sets, tracked)) {
-    for (const component of set.components) add(component.itemId, set.name)
+    for (const component of set.parts) add(component.itemId, set.name)
   }
 
   // A tracked id that is not a set is a single part the player wants on its own. It carries

@@ -1,5 +1,7 @@
 import {
   RelicTier,
+  isSet,
+  pathSourceIds,
   type DropEdge,
   type Item,
   type MarketPrice,
@@ -30,22 +32,6 @@ export function isPrimeName(name: string): boolean {
   return PRIME.test(name)
 }
 
-/**
- * A component contributes its sources to the set it builds ONLY if it is exclusive to that
- * set — `buildsInto` naming at most one thing.
- *
- * Without this, Ash Prime inherits Orokin Cell's 121 edges and reports itself as dropping from
- * missions, bounties, transients and enemies, so `from:enemy` matches every prime Warframe in
- * the game. This is the third time this exact shape has bitten the project — hazard 17 capped
- * the "Part of" backlink for it, hazard 37 put 177 sets on the farm plan — so it is a rule
- * rather than a third special case. Measured: Ash Prime resolves to `relic` alone, all 50
- * prime Warframes resolve, 311 of 313 sets resolve, and 34 shared components are excluded,
- * every one of them a generic resource.
- */
-function isExclusiveComponent(componentId: string, itemsById: Map<string, Item>): boolean {
-  return (itemsById.get(componentId)?.buildsInto?.length ?? 0) <= 1
-}
-
 interface PathFacts {
   kind: string
   planet: string | undefined
@@ -53,6 +39,7 @@ interface PathFacts {
   rotation: string | undefined
   chance: number
   vaulted: boolean
+  sourceId: string
   sourceName: string
 }
 
@@ -96,6 +83,7 @@ export function buildQueryItems(
       rotation: edge.rotation ?? undefined,
       chance: edge.chance,
       vaulted: relicItemId !== undefined && itemsById.get(relicItemId)?.vaulted === true,
+      sourceId: source.id,
       sourceName: source.name,
     }
 
@@ -105,13 +93,14 @@ export function buildQueryItems(
   }
 
   return items.map((item) => {
-    const own = factsByItemId.get(item.id) ?? []
-    const inherited: PathFacts[] = []
-    for (const component of item.components ?? []) {
-      if (!isExclusiveComponent(component.itemId, itemsById)) continue
-      inherited.push(...(factsByItemId.get(component.itemId) ?? []))
+    // A set is never dropped, so its paths are its parts' paths. `pathSourceIds` is the one
+    // place that decides which items those are, and it excludes ingredients — inheriting
+    // Orokin Cell's 121 edges made `from:enemy` match every prime Warframe in the game.
+    const facts: { fact: PathFacts; via: string | undefined }[] = []
+    for (const sourceItemId of pathSourceIds(item)) {
+      const via = sourceItemId === item.id ? undefined : itemsById.get(sourceItemId)?.name
+      for (const fact of factsByItemId.get(sourceItemId) ?? []) facts.push({ fact, via })
     }
-    const facts = own.length > 0 || inherited.length > 0 ? [...own, ...inherited] : []
 
     const kinds = new Set<string>()
     const planets = new Set<string>()
@@ -119,15 +108,20 @@ export function buildQueryItems(
     const rotations = new Set<string>()
     const sourceNames: string[] = []
     let bestChance = 0
+    let best: QueryItem['best']
     let allVaulted = facts.length > 0
 
-    for (const fact of facts) {
+    for (const { fact, via } of facts) {
       kinds.add(fact.kind.toLowerCase())
       if (fact.planet !== undefined) planets.add(fact.planet.toLowerCase())
       if (fact.tier !== undefined) tiers.add(fact.tier.toLowerCase())
       if (fact.rotation !== undefined) rotations.add(fact.rotation.toLowerCase())
       sourceNames.push(fact.sourceName)
-      if (fact.chance > bestChance) bestChance = fact.chance
+      // Strictly greater, so the first path wins a tie and the row is stable between builds.
+      if (fact.chance > bestChance || best === undefined) {
+        bestChance = fact.chance
+        best = { sourceId: fact.sourceId, sourceName: fact.sourceName, via }
+      }
       if (!fact.vaulted) allVaulted = false
     }
 
@@ -139,7 +133,7 @@ export function buildQueryItems(
       tradable: item.tradable,
       hasMarket: item.marketSlug !== undefined,
       isPrime: isPrimeName(item.name),
-      isSet: (item.components?.length ?? 0) > 0,
+      isSet: isSet(item),
       masteryReq: item.masteryReq,
       // A relic carries the flag itself; anything else is vaulted only when EVERY path to it
       // runs through a vaulted relic. One live path is all you need.
@@ -150,6 +144,8 @@ export function buildQueryItems(
       rotations,
       sourceText: sourceNames.join(' ').toLowerCase(),
       bestChance,
+      paths: facts.length,
+      best,
       // The cheapest live ask: what you would pay. Absent when the chunk was not loaded on
       // this surface, which `queryNeedsPaths` is what prevents from being mistaken for
       // "nobody is selling this".
@@ -176,7 +172,7 @@ export function buildItemOnlyIndex(items: Item[], prices: PriceIndex = new Map()
     tradable: item.tradable,
     hasMarket: item.marketSlug !== undefined,
     isPrime: isPrimeName(item.name),
-    isSet: (item.components?.length ?? 0) > 0,
+    isSet: isSet(item),
     masteryReq: item.masteryReq,
     vaulted: item.category === 'Relic' && item.vaulted === true,
     kinds: empty,
@@ -185,6 +181,8 @@ export function buildItemOnlyIndex(items: Item[], prices: PriceIndex = new Map()
     rotations: empty,
     sourceText: '',
     bestChance: 0,
+    paths: 0,
+    best: undefined,
     price: prices.get(item.id)?.sellLow,
   }))
 }

@@ -223,11 +223,15 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
   /**
    * The recipe, if this is an assembled item.
    *
-   * Each component gets a one-line summary of how it is actually obtained, because the
-   * question "what do I need for Braton Prime" is really "and where does each piece come
-   * from" — sending the reader to five more pages to find that out would be answering half.
+   * Each part gets a one-line summary of how it is actually obtained, because the question
+   * "what do I need for Braton Prime" is really "and where does each piece come from" —
+   * sending the reader to five more pages to find that out would be answering half.
+   *
+   * Parts only. The resources a recipe also consumes are listed under the table without a
+   * source line or a tick: they are farmed on their own terms, on their own page, and giving
+   * an Orokin Cell a checkbox implied a set was one Cell away from done.
    */
-  const recipe = (item.components ?? []).map((component) => {
+  const recipe = (item.parts ?? []).map((component) => {
     const part = itemsById.get(component.itemId)
     const edges = edgesByItem.get(component.itemId) ?? []
     const direct = edges
@@ -271,6 +275,12 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
     { itemsById, sourcesById, edgesByItem, relicsByReward, relicsById },
     item.id,
   )
+
+  const ingredients = (item.ingredients ?? []).map((entry) => ({
+    itemId: entry.itemId,
+    name: itemsById.get(entry.itemId)?.name ?? entry.itemId,
+    count: entry.count,
+  }))
 
   const riven = rivensByItem.get(item.id)
 
@@ -350,7 +360,7 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
         // An assembled item is built, not farmed. Saying "no source found" would be wrong,
         // and the recipe below is the actual answer.
         <p className="mt-6 max-w-prose text-sm text-text-dim">
-          Built, not dropped. Farm the {recipe.length} components below, then craft it.
+          Built, not dropped. Farm the {recipe.length} {recipe.length === 1 ? 'part' : 'parts'} below, then craft it.
         </p>
       ) : bestDirect !== undefined && byYield ? (
         /* A stacking item is measured in units, not in odds. "Expected runs: 1" for a
@@ -480,7 +490,9 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
           container" as though that were a plan (DESIGN.md § 17). */}
       {strategy === 'relic-chain' && <DropChainTrace chain={chain} />}
 
-      {recipe.length > 0 && <RecipeTable rows={recipe} itemName={item.name} />}
+      {recipe.length > 0 && (
+        <RecipeTable rows={recipe} ingredients={ingredients} itemName={item.name} />
+      )}
 
       {/* Weapons only, and only where this weapon actually takes a riven. */}
       {item.marketSlug !== undefined && (

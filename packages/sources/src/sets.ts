@@ -113,11 +113,25 @@ export function buildSets(
 
       // Collected by narrowing rather than filtered and cast: the recipe that reaches the
       // Item must be provably complete, not asserted to be.
-      const complete: { itemId: string; count: number }[] = []
+      //
+      // Parts and ingredients are kept apart from here on, because `entry.part` is the only
+      // place the distinction is known — it comes from WFCD's own recipe nesting, and every
+      // consumer downstream would otherwise have to guess it back (see Item.parts).
+      const parts: { itemId: string; count: number }[] = []
+      const ingredients: { itemId: string; count: number }[] = []
       const missing: string[] = []
       for (const entry of resolved) {
-        if (entry.itemId === undefined) missing.push(entry.name)
-        else complete.push({ itemId: entry.itemId, count: entry.count })
+        if (entry.itemId === undefined) {
+          missing.push(entry.name)
+          continue
+        }
+        // Merged rather than repeated: the four Ak- weapons each list their single twice
+        // instead of once at ×2, and two identical rows render as a recipe needing two
+        // different things.
+        const into = entry.part ? parts : ingredients
+        const already = into.find((row) => row.itemId === entry.itemId)
+        if (already === undefined) into.push({ itemId: entry.itemId, count: entry.count })
+        else already.count += entry.count
       }
 
       if (missing.length > 0) {
@@ -134,10 +148,11 @@ export function buildSets(
         ...(row.uniqueName === undefined ? {} : { uniqueName: row.uniqueName }),
         ...(row.imageName === undefined ? {} : { imageName: row.imageName }),
         ...(row.masteryReq === undefined ? {} : { masteryReq: row.masteryReq }),
-        components: complete,
+        parts,
+        ...(ingredients.length === 0 ? {} : { ingredients }),
       })
 
-      for (const { itemId } of complete) {
+      for (const { itemId } of [...parts, ...ingredients]) {
         const list = buildsInto.get(itemId)
         if (list === undefined) buildsInto.set(itemId, [setId])
         else if (!list.includes(setId)) list.push(setId)
@@ -169,10 +184,16 @@ export function applySets(items: Item[], result: SetResult): Item[] {
   const resolved = all.map((item) => {
     const next = { ...item }
 
-    const components = (next.components ?? []).filter((component) => ids.has(component.itemId))
-    if (next.components !== undefined) {
-      if (components.length === 0) delete next.components
-      else next.components = components
+    const parts = (next.parts ?? []).filter((component) => ids.has(component.itemId))
+    if (next.parts !== undefined) {
+      if (parts.length === 0) delete next.parts
+      else next.parts = parts
+    }
+
+    const ingredients = (next.ingredients ?? []).filter((component) => ids.has(component.itemId))
+    if (next.ingredients !== undefined) {
+      if (ingredients.length === 0) delete next.ingredients
+      else next.ingredients = ingredients
     }
 
     const targets = result.buildsInto.get(item.id) ?? next.buildsInto
