@@ -209,6 +209,28 @@ export function parseSyndicates(raw: Record<string, RawSyndicateItem[]>): Parsed
 }
 
 /**
+ * QUIRK — upstream files breakable objects in the ENEMY tables.
+ *
+ * 34 of the 1,055 "enemies" are storage containers and crown caches. They are not killed,
+ * they are broken open in passing, and one of them was doing real damage: a Rare Corpus
+ * Storage Container always holds 80 Endo, so at 100% it ranked first on /item/endo and the
+ * page told the reader to farm Endo by smashing containers. Since the kill/run split it also
+ * told them to do it in "kills".
+ *
+ * `cache` is the existing kind for "a thing you open inside a mission you queued" — the same
+ * bucket Sabotage caches belong in — so these move there. That also gives them the run noun
+ * rather than the kill noun, which is correct: you queue the mission, you do not hunt the box.
+ *
+ * Matched on the name because the name is all upstream gives an enemy record — no faction,
+ * no category, no tags. Turrets and Raknoids deliberately stay enemies: they are shot.
+ */
+const BREAKABLE = /\bstorage (?:container|crate)\b|\bcache\b/i
+
+export function isBreakable(name: string): boolean {
+  return BREAKABLE.test(name)
+}
+
+/**
  * Enemy drop tables.
  *
  * These carry two probabilities that must be COMPOSED, not conflated: the chance the
@@ -228,12 +250,13 @@ export function parseEnemyTables(raw: RawEnemyTable[], kind: SourceKind = 'enemy
   for (const entry of raw) {
     const name = entry.enemyName ?? entry.source
     if (name === undefined) continue
+    const rowKind = kind === 'enemy' && isBreakable(name) ? 'cache' : kind
 
     const gateRaw =
       entry.enemyModDropChance ?? entry.ememyModDropChance ?? entry.enemyItemDropChance
     const gate = gateRaw === undefined || gateRaw === null ? 1 : normalizeReward(gateRaw).chance
 
-    const sourceId = `${kind}:${slug(name)}`
+    const sourceId = `${rowKind}:${slug(name)}`
     const rewards = [...(entry.items ?? []), ...(entry.mods ?? []), ...(entry.blueprints ?? [])]
 
     const seen = new Set<string>()
@@ -252,7 +275,7 @@ export function parseEnemyTables(raw: RawEnemyTable[], kind: SourceKind = 'enemy
     }
     if (deduped.length === 0) continue
 
-    parsed.sources.push({ id: sourceId, kind, name })
+    parsed.sources.push({ id: sourceId, kind: rowKind, name })
     for (const reward of deduped) {
       const rewardLabel = rewardName(reward)
       if (rewardLabel === undefined || reward.chance === null) continue

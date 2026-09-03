@@ -1123,7 +1123,7 @@ comparing result sets rather than strings, and deliberately not a permanent comp
 layer, because two live ways to express one filter is how the URL stops being the source of
 truth.
 
-This closes § 15's open question about saved presets with a no: once the URL holds the query
+This closes § 19's open question about saved presets with a no: once the URL holds the query
 text, the bookmark **is** the preset.
 
 ---
@@ -1249,7 +1249,129 @@ prices untouched and never blocks the drop data from shipping.
 
 ---
 
-## 14. Phases
+## 16. Curated knowledge
+
+Shipped 2026-09-02. Until this section the tool asserted nothing: every figure on every page
+traced back through the pipeline to a DE drop table, and § 2 treats that as the point. Two
+owner requests could not be answered under that rule, so the rule now has a bounded exception.
+
+### 16.1 What the drop tables cannot say
+
+DE's repository publishes what an enemy drops. It never publishes where that enemy spawns. An
+enemy source record carries exactly three fields — `id`, `kind`, `name` — with no faction, no
+planet and no tileset, so 1,055 of 2,417 sources cannot be placed anywhere. Only missions
+(435) and bounties (50) carry a planet at all.
+
+A planet-resource page built from that data reports mission and bounty REWARD TABLES, which
+is the end-of-mission screen. Earth came out as 14 rows, four of the top six being credit
+caches and two being Railjack "Extra" rewards, and omitted Ferrite, Rubedo, Detonite Ampule,
+Neurodes, Oxium and Circuits — every resource a player means by the question. Ferrite has 15
+edges in the whole dataset and all 15 are mission reward tables; Detonite Ampule has one.
+
+The answer is community knowledge. There is no feed to fetch it from.
+
+### 16.2 The curated surface is kept small on purpose
+
+Most of the planet answer is still derived. `nodes.json` records which factions hold which
+planet across 353 nodes — real data — and a planet's common resources follow from its factions
+almost exactly. So only two small tables are asserted, both in `packages/sources/src/planets.ts`:
+
+| Table | Asserts | Size |
+|---|---|---|
+| `FACTION_RESOURCES` | what a faction's units drop, anywhere | 4 factions, ~20 ids |
+| `PLANET_EXCLUSIVES` | what belongs to one place only | ~20 places, ~90 ids |
+
+220 of the 517 emitted rows are curated; the rest are read from the drop tables. Every curated
+id is validated against the item table THAT BUILD produced, and one unresolved id fails the
+build — the tables are small enough that every entry is meant to resolve. That gate has already
+paid for itself: it caught Pathos Clamps, which are a real Duviri reward and are absent from
+the item catalogue entirely.
+
+### 16.3 Every claim carries its basis
+
+`PlanetResource.basis` is part of the data, not a UI decoration, and the reader always sees it:
+
+- `exclusive` — curated. Found here and nowhere else.
+- `faction` — the planet-to-faction half is derived from the star chart; the
+  faction-to-resource half is asserted.
+- `reward-table` — derived entirely, with a published chance.
+
+Curated rows sort above reward-table rows regardless of chance, because ranking them together
+buries Ferrite (which has no chance on Earth at all) under a credit cache. The two render in
+separate panels — "Farmed here" and "Also in the reward tables" — with a legend under the
+first stating plainly that it is community knowledge and why no feed can produce it.
+
+**The rule this establishes:** curated content is permitted where no upstream feed can answer
+the question, must be validated against real data at build time, and must be distinguishable
+from derived content by the reader. Content that fails any of the three does not ship.
+
+---
+
+## 17. Farming strategy per item type
+
+The drop chain (§ 8) ranks routes by the probability of one drop. That is right for a prime
+part and wrong for anything that stacks, and two failures made it concrete.
+
+**Endo.** `/item/endo` led with "Kill Rare Corpus Storage Container — 100.00% per kill,
+expected kills: 1". A storage container always holds 80 Endo, so at 100% it wins a chance
+ranking outright. Nobody farms Endo that way. Two separate defects sat behind that one row:
+
+1. **Containers were filed as enemies.** 34 of the 1,055 "enemy" sources are storage
+   containers and crown caches. They are now `cache`, the existing kind for a thing you open
+   inside a mission you queued, which also gives them the run noun instead of the kill noun
+   (§ 5.1). Matched on name, because the name is all upstream gives an enemy record; turrets
+   and Raknoids stay enemies because they are shot.
+2. **Ranking ignored quantity.** `directEdges` sorted on `perRunChance` alone while the row
+   renderer carried a comment reading *"on a resource page this decides more than the drop
+   rate does — 350 Plastids at 4% beats 10 at 20%"*. The quantity was displayed and then not
+   used to sort.
+
+`expectedYield()` fixes the second: events × chance × mean stack. It is deliberately NOT built
+on `perRunChance`, whose complement form caps at 1 — four cache rolls at 100% for 80 Endo is
+320 Endo a run, not "1".
+
+> This is not the expected-TIME metric that was cut from this project as useless. That one
+> modelled how long a run takes and averaged a 90-second Capture against a 20-minute Survival.
+> Yield is units per attempt, published by DE, with no model of duration in it at all.
+
+### 17.1 Strategy decides the ranking and the copy
+
+`packages/core/src/farming.ts` picks one of six strategies per item, and it decides two things:
+how routes are ranked, and what the page says about them.
+
+| Strategy | Chosen when | Ranked by |
+|---|---|---|
+| `relic-chain` | the item drops from a relic | composed chance — the drop chain stays |
+| `resource` | category `Resource` | expected units per attempt |
+| `currency` | an override — Endo, Kuva, Steel Essence, Aya… | expected units per attempt |
+| `mod` | category `Mod` or `Arcane` | chance |
+| `assembled` | the item has a recipe and no relic path | not ranked; the recipe is the answer |
+| `direct` | everything else | chance |
+
+A relic path beats the category, because a prime part is filed as a `Component` and its
+category says nothing about how to get it. An explicit override beats even that.
+
+`FARM_OVERRIDES` is deliberately short and a test caps it at 15 entries: a growing list means
+the category rules are wrong, not that more overrides are needed. Two of its entries exist
+purely for an upstream quirk — **Ferrite and Neurodes are categorised `Other`, not `Resource`**,
+which would otherwise have excluded the two most-farmed resources in the game from resource
+handling everywhere. Override ids are validated against the item table at build time, because
+unlike the planet tables they never reach a chunk and nothing else would notice one going stale.
+
+### 17.2 The drop chain is now conditional
+
+It renders for `relic-chain` and nothing else. For a resource it would draw "kill one
+container" as though that were a plan. In its place every item page carries a **How this is
+farmed** panel, headed `community knowledge` — curated copy per strategy, ten blocks covering
+4,875 items. It is copy rather than data because it varies by item TYPE, not by item; shipping
+it in a chunk would be shipping a constant.
+
+Summary cards follow the strategy too: a stacking item shows "Best yield / run" in units with
+chance demoted, because "expected runs: 1" for a container holding 80 Endo is true and useless.
+
+---
+
+## 18. Phases
 
 Each phase ends deployable. Don't start the next until the current one ships.
 
@@ -1273,13 +1395,15 @@ Each phase ends deployable. Don't start the next until the current one ships.
 | 12 | **Query language** — one grammar for the palette and `/browse`, 13 keys, one URL param | Shipped 2026-08-28. `is:prime cat:warframe` returns 50, which the edge-grain design it replaced returned 0 of. |
 | 14 | **Market prices** — live asks and bids per item, swept at build time, `price:` in the query language | Shipped 2026-08-28. `/top` not the full book: 9 MB a run instead of 1.6 GB. |
 | 13 | **Settings** — four themes, density, motion, drops-only, mastery rank, new player mode | Shipped 2026-08-28. Contrast measured for all four themes; no preference changes a row count. |
+| 15 | **Curated knowledge** — /planets and /planet/[slug], resources by place | Shipped 2026-09-02. 220 curated rows, every id validated at build time; each claim renders with its basis. |
+| 16 | **Farming strategy per item type** — yield ranking, containers reclassified, drop chain made conditional | Shipped 2026-09-02. Endo no longer recommends smashing a storage container. |
 
 Phase 5 is the one that matters. Everything before it is table stakes that other sites already
 have; everything after it is refinement. If the schedule slips, protect phase 5.
 
 ---
 
-## 15. Open questions
+## 19. Open questions
 
 - Console platforms: PC-only for now. Drop tables are shared, but riven trade data and market
   listings are not. Revisit only if there's demand.

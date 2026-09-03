@@ -33,6 +33,7 @@ export const navGroups: NavGroup[] = [
   {
     title: 'Sources',
     items: [
+      { name: 'Planets', href: '/planets', match: '/planet' },
       { name: 'Missions', href: '/source/mission', match: '/source/mission' },
       { name: 'Enemies', href: '/source/enemy', match: '/source/enemy' },
       { name: 'Bounties', href: '/source/bounty', match: '/source/bounty' },

@@ -103,6 +103,27 @@ pnpm data:diff          # show what a fresh pipeline run would change
 
 pnpm only. If you see `npm install` or a `package-lock.json` anywhere, that is a bug.
 
+**Curated knowledge (2026-09-02).** The tool now asserts things DE never published, under
+three rules that hold together and are not optional. Curated content is permitted **only**
+where no upstream feed can answer the question — the planet↔resource map exists because enemy
+records carry no planet, not because deriving it was inconvenient. Every curated id is
+**validated at build time** against the item table that build produced; one unresolved id
+fails the build. And a curated claim must be **distinguishable by the reader** from a derived
+one: `PlanetResource.basis` is data, not decoration, and the two render in separate panels.
+Curated tables live in `packages/sources/src/planets.ts` and `packages/core/src/farming.ts`
+and are meant to stay small — a growing `FARM_OVERRIDES` means the category rules are wrong.
+See DESIGN.md § 16.
+
+**Farming strategy (2026-09-02).** `farmStrategy()` in `packages/core/src/farming.ts` picks
+how an item is farmed, and that decides both the ranking and the copy. Two rules. **Anything
+that stacks ranks by `expectedYield`, not by chance** — chance ranking put "Rare Corpus
+Storage Container, 100%" at the top of `/item/endo`, and yield is units per attempt with no
+model of duration, so it is not the expected-TIME metric that was cut. **The drop chain
+renders for `relic-chain` only** — elsewhere it draws "kill one container" as a plan. Storage
+containers and crown caches are `cache`, never `enemy`; upstream files them as enemies and
+`isBreakable()` in `packages/sources/src/tables.ts` is the one place that corrects it. See
+DESIGN.md § 17.
+
 **Runs and kills (2026-08-28).** Effort figures name the act they counted: a mission, bounty
 or fissure is counted in **runs**, an enemy in **kills**. `attemptNoun()` in
 `packages/core/src/attempts.ts` is the only place that decides — never hardcode either word

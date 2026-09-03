@@ -34,10 +34,13 @@ function isKind(value: string): value is SourceKind {
 }
 
 /**
- * Only kinds that actually have pages to index. Two would otherwise render nothing but an
- * empty state: `relic`, whose sources are deliberately served as items instead, and `cache`,
- * which the SourceKind enum allows but no source currently uses. A page whose entire content
- * is "nothing here" is not worth prerendering, and it is one a crawler would find.
+ * Only kinds that actually have pages to index. `relic` would otherwise render nothing but an
+ * empty state, its sources being deliberately served as items instead. A page whose entire
+ * content is "nothing here" is not worth prerendering, and it is one a crawler would find.
+ *
+ * `cache` was empty here too until 2026-09-02, when the 34 storage containers upstream files
+ * as enemies moved into it (DESIGN.md § 17). The set is computed rather than listed, so that
+ * needed no change — which is the reason it is computed.
  */
 async function indexableKinds(): Promise<Set<SourceKind>> {
   const { sources, itemsById } = await getDataset()

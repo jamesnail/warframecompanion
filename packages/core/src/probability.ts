@@ -59,6 +59,29 @@ export function perRunChance(edge: Pick<DropEdge, 'chance' | 'eventsPerRun'>): n
 }
 
 /**
+ * Expected UNITS per attempt, not the chance of seeing any.
+ *
+ * `perRunChance` answers "will I get one", which is the right question for a Warframe part
+ * and the wrong one for a resource: 350 Plastids at 4% beats 10 at 20%, and a table ranked on
+ * chance puts them the other way round. That comparison was written in a comment beside the
+ * quantity column for weeks while the sort ignored it.
+ *
+ * This is a plain expectation — events × chance × mean stack size — deliberately NOT built on
+ * `perRunChance`. The complement form there answers "at least one" and caps at 1, which is
+ * exactly what must not happen to a yield: four cache rolls at 100% for 80 Endo is 320 Endo a
+ * run, not "1".
+ *
+ * The quantity range is DE's own min/max for the stack, so its mean is the honest estimate;
+ * an edge with no quantity is one unit.
+ */
+export function expectedYield(edge: Pick<DropEdge, 'chance' | 'eventsPerRun' | 'quantity'>): number {
+  if (edge.chance <= 0) return 0
+  const events = edge.eventsPerRun ?? 1
+  const [low, high] = edge.quantity
+  return events * edge.chance * ((low + high) / 2)
+}
+
+/**
  * Expected number of runs to see the first drop — the mean of a geometric distribution.
  * Returns Infinity for p = 0 so callers must handle "unobtainable" explicitly rather than
  * silently dividing by zero.

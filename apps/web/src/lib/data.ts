@@ -1,7 +1,16 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import type { DropEdge, Item, Manifest, RelicDetail, RivenFamily, SolNode, Source } from '@provenance/core'
+import type {
+  DropEdge,
+  Item,
+  Manifest,
+  Planet,
+  RelicDetail,
+  RivenFamily,
+  SolNode,
+  Source,
+} from '@provenance/core'
 
 /**
  * Build-time data access.
@@ -23,6 +32,8 @@ export interface Dataset {
   rivens: RivenFamily[]
   /** The star chart keyed by DE's internal node id — the join key for anything live. */
   nodes: SolNode[]
+  /** What each place is farmed for. The one dataset carrying curated claims (DESIGN.md § 16). */
+  planets: Planet[]
   itemsById: Map<string, Item>
   sourcesById: Map<string, Source>
   /** The reverse index — the whole point of the tool. */
@@ -46,13 +57,14 @@ async function readChunk<T>(filename: string): Promise<T> {
 async function load(): Promise<Dataset> {
   const manifest = await readChunk<Manifest>('manifest.json')
 
-  const [items, sources, edges, relics, rivens, nodes] = await Promise.all([
+  const [items, sources, edges, relics, rivens, nodes, planets] = await Promise.all([
     readChunk<Item[]>(manifest.files.items ?? ''),
     readChunk<Source[]>(manifest.files.sources ?? ''),
     readChunk<DropEdge[]>(manifest.files.edges ?? ''),
     readChunk<RelicDetail[]>(manifest.files.relics ?? ''),
     readChunk<RivenFamily[]>(manifest.files.rivens ?? ''),
     readChunk<SolNode[]>(manifest.files.nodes ?? ''),
+    readChunk<Planet[]>(manifest.files.planets ?? ''),
   ])
 
   const rivensByItem = new Map<string, RivenFamily>()
@@ -98,6 +110,7 @@ async function load(): Promise<Dataset> {
     relics,
     rivens,
     nodes,
+    planets,
     itemsById,
     sourcesById,
     edgesByItem,

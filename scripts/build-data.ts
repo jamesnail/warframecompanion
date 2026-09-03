@@ -14,8 +14,10 @@ import { fileURLToPath } from 'node:url'
 
 import {
   DropEdge,
+  FARM_OVERRIDES,
   Item,
   Manifest,
+  Planet,
   REFINEMENT_TABLE,
   RelicDetail,
   MarketPrice,
@@ -37,6 +39,7 @@ import {
   RawSyndicateItem,
   RawTransient,
   aggregateEdges,
+  buildPlanets,
   pricableItems,
   sweepPrices,
   sweptEnough,
@@ -624,6 +627,44 @@ async function main(): Promise<void> {
     }
   }
 
+  // ---- curated planets --------------------------------------------------------
+  /**
+   * The one place the pipeline asserts something DE never published (DESIGN.md § 16).
+   *
+   * Curated ids are validated against the item table that was just built, not against a
+   * snapshot, so a slug change upstream fails THIS build rather than silently dropping a row
+   * from a page months later. There is no tolerance here: one unresolved id is a build
+   * failure, because the curated tables are small enough that every entry is meant to resolve.
+   */
+  const planetBuild = buildPlanets({ nodes, sources, edges, items })
+  const planets = planetBuild.planets
+  if (planetBuild.unresolved.length > 0) {
+    fail(
+      `${String(planetBuild.unresolved.length)} curated planet resources match no item: ` +
+        `${planetBuild.unresolved.slice(0, 8).join(', ')}. Fix packages/sources/src/planets.ts.`,
+    )
+  }
+  // The other curated table. Its ids never reach a chunk — the strategy is chosen at render
+  // time — so nothing else would ever notice one going stale.
+  const knownIds = new Set(items.map((item) => item.id))
+  const staleOverrides = Object.keys(FARM_OVERRIDES).filter((id) => !knownIds.has(id))
+  if (staleOverrides.length > 0) {
+    fail(
+      `${String(staleOverrides.length)} farming override(s) match no item: ` +
+        `${staleOverrides.join(', ')}. Fix packages/core/src/farming.ts.`,
+    )
+  }
+
+  const curatedRows = planets.reduce(
+    (total, planet) => total + planet.resources.filter((row) => row.basis !== 'reward-table').length,
+    0,
+  )
+  console.log(
+    `  planets ${String(planets.length)} places, ` +
+      `${String(planets.reduce((t, p) => t + p.resources.length, 0))} resource rows ` +
+      `(${String(curatedRows)} curated, all ids resolved)`,
+  )
+
   // ---- sanity gates -----------------------------------------------------------
   // These run BEFORE anything is written. A failure must leave the committed dataset
   // untouched rather than half-replaced.
@@ -732,6 +773,7 @@ async function main(): Promise<void> {
     ['relics', RelicDetail, relics],
     ['rivens', RivenFamily, rivens],
     ['nodes', SolNode, nodes],
+    ['planets', Planet, planets],
     ...(prices === undefined ? [] : ([['prices', MarketPrice, prices]] as [string, z.ZodType, unknown[]][])),
   ]
   for (const [name, schema, rows] of shapes) {
@@ -759,7 +801,7 @@ async function main(): Promise<void> {
    * re-download all of it to read a price tick. Two hashes keep `manifest.hash` meaning what
    * it has always meant: the drop data changed.
    */
-  const chunks: Record<string, unknown> = { items, sources, edges, relics, rivens, nodes }
+  const chunks: Record<string, unknown> = { items, sources, edges, relics, rivens, nodes, planets }
   const payload = JSON.stringify(chunks)
   const hash = createHash('sha256').update(payload).digest('hex').slice(0, 12)
 
@@ -826,6 +868,7 @@ async function main(): Promise<void> {
       sources: sources.length,
       edges: edges.length,
       rivens: rivens.length,
+      planets: planets.length,
       ...(prices === undefined ? {} : { prices: prices.length }),
     },
   }

@@ -11,6 +11,9 @@ import {
   bestRefinementFor,
   chancesByRefinement,
   expectedRuns,
+  expectedYield,
+  farmStrategy,
+  ranksByYield,
   perRunChance,
   runsForConfidence,
   stageLabel,
@@ -34,6 +37,7 @@ import { getDataset } from '@/lib/data'
 import { kindLabel } from '@/lib/effort'
 import { buildBestChain } from '@/lib/chain-build'
 import { DropChainTrace } from '@/components/DropChainTrace'
+import { FarmingGuide } from '@/components/FarmingGuide'
 import { sourceHref } from '@/lib/source-route'
 import { socialImage } from '@/config/site'
 
@@ -56,6 +60,19 @@ const REFINEMENT_ABBR: Record<Refinement, string> = {
   exceptional: 'Exc',
   flawless: 'Flw',
   radiant: 'Rad',
+}
+
+/**
+ * Expected units per attempt, at a readable precision.
+ *
+ * Two decimals below 1 because the interesting resource rows live there — 0.75 Orokin Cells a
+ * kill against 0.05 is the whole comparison, and both round to "1" and "0" otherwise. Whole
+ * numbers above, where a decimal on "1,601 Endo" is noise.
+ */
+function formatYield(units: number): string {
+  if (units >= 100) return Math.round(units).toLocaleString()
+  if (units >= 1) return units.toFixed(1)
+  return units.toFixed(2)
 }
 
 export async function generateStaticParams() {
@@ -112,18 +129,25 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
     .filter((edge) => sourcesById.get(edge.sourceId)?.kind === 'syndicate')
     .map((edge) => ({ edge, source: sourcesById.get(edge.sourceId) }))
 
-  // Ranked by drop rate, highest first, and by nothing else. Ranking by expected TIME was
-  // tried, cut from this page on owner feedback, and then dropped from the project outright
-  // as a useless metric — a number that averages a 90-second Capture against a 20-minute
-  // Survival answers a question no player actually asks. The table says where it is
-  // likeliest; that is the whole claim.
+  // Sorted below, once the item's farming strategy is known — by drop rate for a part you
+  // need one of, by expected units for anything that stacks.
+  //
+  // Ranking by expected TIME was tried, cut from this page on owner feedback, and then
+  // dropped from the project outright as a useless metric — a number that averages a
+  // 90-second Capture against a 20-minute Survival answers a question no player actually
+  // asks. Yield is not that: it is units per attempt, published by DE, with no model of how
+  // long an attempt takes.
   const directEdges = incoming
     .filter((edge) => {
       if (edge.sourceId.startsWith('relic:')) return false
       return sourcesById.get(edge.sourceId)?.kind !== 'syndicate'
     })
-    .map((edge) => ({ edge, source: sourcesById.get(edge.sourceId), p: perRunChance(edge) }))
-    .sort((a, b) => b.p - a.p)
+    .map((edge) => ({
+      edge,
+      source: sourcesById.get(edge.sourceId),
+      p: perRunChance(edge),
+      yield: expectedYield(edge),
+    }))
 
   // ---- relics that contain this item -------------------------------------------
   // Shown as the reward table itself: what each refinement level pays. Refining is a
@@ -167,6 +191,18 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
             best: bestRefinementFor(reward.rarity),
           }))
           .sort((a, b) => b.best.chance - a.best.chance || a.name.localeCompare(b.name))
+
+  /**
+   * How this TYPE of item is farmed, which decides how the table below is ranked.
+   *
+   * Chance ranking is right for a part you need one of and wrong for anything that stacks:
+   * it put "Rare Corpus Storage Container, 100%" at the top of /item/endo, because a
+   * container that always holds 80 Endo wins a chance ranking outright. A resource is ranked
+   * on expected units per run instead (core's `farming.ts` decides which).
+   */
+  const strategy = farmStrategy(item, relicPaths.length > 0)
+  const byYield = ranksByYield(strategy)
+  directEdges.sort((a, b) => (byYield ? b.yield - a.yield : b.p - a.p))
 
   const bestDirect = directEdges[0]
   const bestNoun = attemptNoun(bestDirect?.source?.kind)
@@ -311,6 +347,22 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
         <p className="mt-6 max-w-prose text-sm text-text-dim">
           Built, not dropped. Farm the {recipe.length} components below, then craft it.
         </p>
+      ) : bestDirect !== undefined && byYield ? (
+        /* A stacking item is measured in units, not in odds. "Expected runs: 1" for a
+           container holding 80 Endo is true and useless; "80 per run" is the number. */
+        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <SummaryCard
+            label={`Best yield / ${bestNoun.one}`}
+            value={formatYield(bestDirect.yield)}
+            detail="units"
+            tone="accent"
+          />
+          <SummaryCard
+            label={`Best chance / ${bestNoun.one}`}
+            value={`${(bestDirect.p * 100).toFixed(2)}%`}
+          />
+          <SummaryCard label="Sources" value={directEdges.length.toLocaleString()} />
+        </div>
       ) : bestDirect !== undefined ? (
         <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
           {/* These three all describe ONE source — the best one — so they take that
@@ -399,9 +451,18 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
         </p>
       )}
 
-      {/* The signature element leads: it answers "what do I queue" in one object, and the
-          tables below it are the detail behind that answer. */}
-      <DropChainTrace chain={chain} />
+      {/* How this TYPE is farmed, before any table. The tables answer "which row is best";
+          this answers whether rows are the right thing to be reading at all, which for a
+          resource or a currency they are not. */}
+      <FarmingGuide
+        strategy={strategy}
+        noun={bestDirect === undefined ? undefined : bestNoun}
+      />
+
+      {/* The signature element, and only where it is the right answer. A relic chain is a
+          genuine two-hop route worth drawing; for a resource it would draw "kill one
+          container" as though that were a plan (DESIGN.md § 17). */}
+      {strategy === 'relic-chain' && <DropChainTrace chain={chain} />}
 
       {recipe.length > 0 && <RecipeTable rows={recipe} itemName={item.name} />}
 
@@ -429,15 +490,20 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
               <PanelHeader
                 title="Direct sources"
                 aside={
-                  directEdges.length > SOURCE_LIMIT
-                    ? `${String(SOURCE_LIMIT)} of ${String(directEdges.length)} · by drop rate`
-                    : `${String(directEdges.length)} · by drop rate`
+                  // Names the sort it is actually using. The header said "by drop rate" on
+                  // every page for months, including the ones that are not.
+                  `${
+                    directEdges.length > SOURCE_LIMIT
+                      ? `${String(SOURCE_LIMIT)} of ${String(directEdges.length)}`
+                      : String(directEdges.length)
+                  } · by ${byYield ? 'yield' : 'drop rate'}`
                 }
               />
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <caption className="sr-only">
-                    Sources that drop {item.name} directly, highest drop rate first
+                    Sources that drop {item.name} directly,{' '}
+                    {byYield ? 'most units per attempt first' : 'highest drop rate first'}
                   </caption>
                   <thead>
                     <tr className="border-b border-hairline text-left">
@@ -447,13 +513,16 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
                       <th scope="col" className="label px-3 py-2 sm:px-5 text-right font-normal">
                         Chance
                       </th>
+                      {/* A stacking item is measured in units per attempt; a part you need
+                          one of is measured in attempts. Never both — the column is the
+                          answer to the question the strategy above already framed. */}
                       <th scope="col" className="label px-3 py-2 sm:px-5 text-right font-normal">
-                        {directColumn}
+                        {byYield ? `Units / ${bestNoun.one}` : directColumn}
                       </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {directEdges.slice(0, SOURCE_LIMIT).map(({ edge, source, p }, index) => {
+                    {directEdges.slice(0, SOURCE_LIMIT).map(({ edge, source, p, yield: units }, index) => {
                       const stage = stageLabel(source?.missionType, edge.rotation)
                       const kind = kindLabel(source)
                       // A pre-refined relic is a materially better drop — a Radiant from
@@ -501,7 +570,7 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
                             {(p * 100).toFixed(2)}%
                           </td>
                           <td className="data-num px-3 py-3 sm:px-5 sm:py-2.5 text-right text-text-faint">
-                            ~{expectedRuns(p).toFixed(0)}
+                            {byYield ? formatYield(units) : `~${expectedRuns(p).toFixed(0)}`}
                           </td>
                         </tr>
                       )

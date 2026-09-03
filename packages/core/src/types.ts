@@ -174,6 +174,63 @@ export const RelicDetail = z.object({
 })
 export type RelicDetail = z.infer<typeof RelicDetail>
 
+/**
+ * How a planet-resource claim was reached. The reader is told which, always.
+ *
+ * This is the first place the tool asserts something DE never published, so the distinction
+ * is part of the data rather than a UI decoration (DESIGN.md § 16).
+ *
+ *  - `faction` — DERIVED, mostly. `nodes.json` says which factions hold a planet, and a
+ *    small curated table says what each faction's units drop. The join is real data; only
+ *    the faction-to-resource half is asserted.
+ *  - `exclusive` — CURATED. A resource that belongs to this place and nowhere else, which no
+ *    join can produce: Argon Crystal in the Void, the Plains' fishing and mining resources.
+ *  - `reward-table` — DERIVED, entirely. This planet's mission and bounty tables literally
+ *    list it, with a chance attached. This is the only basis the pipeline could produce
+ *    before curation existed, and on its own it omitted Ferrite from Earth.
+ */
+export const ResourceBasis = z.enum(['faction', 'exclusive', 'reward-table'])
+export type ResourceBasis = z.infer<typeof ResourceBasis>
+
+export const PlanetResource = z.object({
+  itemId: ItemId,
+  basis: ResourceBasis,
+  /** Set on `faction` rows: whose units carry it. */
+  faction: Faction.optional(),
+  /** Set on `reward-table` rows: the best chance found, and what pays it. */
+  chance: z.number().min(0).max(1).optional(),
+  sourceId: SourceId.optional(),
+  /** Set on `reward-table` rows where the reward pays more than one unit. */
+  quantity: z.tuple([z.number().int().min(0), z.number().int().min(0)]).optional(),
+})
+export type PlanetResource = z.infer<typeof PlanetResource>
+
+/**
+ * A place on the star chart, and what it is farmed for.
+ *
+ * Keyed by the planet name as the SOURCE table spells it, because that is what every existing
+ * edge joins on. `nodes.json` spells a few differently ("Sanctuary Onslaught" against
+ * "Sanctuary") and Railjack regions appear there and not here; the pipeline reconciles both
+ * and fails loudly on a name it cannot place.
+ */
+export const Planet = z.object({
+  name: z.string().min(1),
+  slug: z.string().min(1),
+  /**
+   * Factions holding nodes here, most nodes first. Derived from `nodes.json`.
+   *
+   * Free text, not the `Faction` enum: upstream node records carry values the enum does not
+   * and should not admit — "Techrot", "Scaldra", "The Murmur", and the genuinely ambiguous
+   * "Grineer or Corpus" on Zariman. Narrowing here would silently drop them and make
+   * Höllvania read as factionless.
+   */
+  factions: z.array(z.string()),
+  /** Node count, so a page can say how big a place is without shipping the nodes. */
+  nodes: z.number().int().nonnegative(),
+  resources: z.array(PlanetResource),
+})
+export type Planet = z.infer<typeof Planet>
+
 export const Manifest = z.object({
   hash: z.string().min(1),
   /**
@@ -202,6 +259,8 @@ export const Manifest = z.object({
     /** Optional for the same reason, and additionally because a build during a market
      *  outage legitimately produces no new prices at all. */
     prices: z.number().int().nonnegative().optional(),
+    /** Optional for the same reason: builds before curated planets existed have none. */
+    planets: z.number().int().nonnegative().optional(),
   }),
 })
 export type Manifest = z.infer<typeof Manifest>

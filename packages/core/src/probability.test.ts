@@ -7,6 +7,7 @@ import {
   composeThroughRelic,
   relicsNeeded,
   expectedRuns,
+  expectedYield,
   perRunChance,
   refinementRowTotal,
   runsForConfidence,
@@ -240,5 +241,36 @@ describe('chancesByRefinement', () => {
       expect(top.refinement).toBe(bestRefinementFor(rarity).refinement)
       expect(top.chance).toBe(bestRefinementFor(rarity).chance)
     }
+  })
+})
+
+describe('expectedYield', () => {
+  const edge = (chance: number, quantity: [number, number], eventsPerRun?: number) =>
+    eventsPerRun === undefined ? { chance, quantity } : { chance, quantity, eventsPerRun }
+
+  it('is units, not odds — the whole point of having it', () => {
+    // 350 Plastids at 4% beats 10 at 20%, which a chance ranking gets backwards.
+    expect(expectedYield(edge(0.04, [350, 350]))).toBeCloseTo(14, 10)
+    expect(expectedYield(edge(0.2, [10, 10]))).toBeCloseTo(2, 10)
+  })
+
+  it('takes the mean of DE own min/max stack', () => {
+    expect(expectedYield(edge(0.5, [10, 30]))).toBeCloseTo(10, 10)
+  })
+
+  it('multiplies by events rather than capping at one, unlike perRunChance', () => {
+    // Four cache rolls at 100% for 80 Endo is 320 Endo a run. The complement form used by
+    // perRunChance would answer 1 here, which is right for "did I get any" and wrong for
+    // "how much".
+    expect(expectedYield(edge(1, [80, 80], 4))).toBe(320)
+    expect(perRunChance(edge(1, [80, 80], 4))).toBe(1)
+  })
+
+  it('is zero for an impossible drop rather than NaN', () => {
+    expect(expectedYield(edge(0, [100, 100]))).toBe(0)
+  })
+
+  it('treats a single-unit edge as its plain chance', () => {
+    expect(expectedYield(edge(0.25, [1, 1]))).toBeCloseTo(0.25, 10)
   })
 })
