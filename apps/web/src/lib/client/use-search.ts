@@ -14,8 +14,9 @@ export type SearchStatus = 'loading' | 'ready' | 'failed'
 /**
  * Wires the palette to the search index and the query language.
  *
- * DESIGN.md § 6 puts index building in a Comlink worker. Measured against the real
- * dataset (4834 items) that is not worth its cost:
+ * DESIGN.md § 6 puts index building in a Comlink worker. Measured against the real dataset,
+ * 4,834 items at the time, that is not worth its cost — the figures below are that one run,
+ * not a live count:
  *
  *     index build   5.94 ms   (once)
  *     search avg    0.157 ms  per query

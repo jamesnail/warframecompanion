@@ -12,7 +12,8 @@ import { Panel, PanelHeader } from '@/components/Primitives'
  * Everything here is CURATED — community consensus, not a DE publication — so it renders in
  * a panel that says so rather than sitting beside drop rates as though it were measured
  * (DESIGN.md § 16). It is copy rather than data because it varies by item TYPE, not by item:
- * ten blocks cover 4,875 items, and shipping it as a chunk would be shipping a constant.
+ * six blocks cover the whole catalogue, and shipping it as a chunk would be shipping a
+ * constant. One block per FarmStrategy, which the type makes exhaustive.
  */
 
 interface Guide {

@@ -208,6 +208,19 @@ grain `tier:axi rotation:c` is satisfied by one Axi path and a separate rotation
 (DESIGN.md § 11). An item row that reaches its source through a part must SAY so — `via` on
 `ItemRow` — or it claims a relic drops an assembled Warframe.
 
+**A measurement in a comment is a claim, and claims are tested (2026-09-04).** Comments here
+argue from counts — "0 of 2,417 sources carry a faction, so there is no `faction:` key",
+"Orokin Cell builds into 177 sets, so cap the backlink". Those justify decisions, and the data
+under them changes daily, so `apps/web/src/lib/claims.test.ts` asserts them against the shipped
+dataset. Three had drifted silently before it existed. Two rules. **Assert the CLAIM, not the
+figure** — `data.yml` commits a refresh without running anything and the push then triggers CI,
+so an exact bound would turn the build red the morning after a routine data change; use a
+bound wide enough to absorb DE adding a Warframe, and reserve exact assertions for claims that
+are structural rather than incidental. And **a failure there is not automatically a code bug**:
+it means a comment now says something untrue, so read the one the test names and decide whether
+to update it or to reconsider what it was justifying. If you add a comment that argues from a
+number, add the assertion with it.
+
 **Table note (2026-08-25).** `/browse` ships with TanStack **Virtual** only; TanStack Table v8
 was dropped from the plan. Virtualization is genuinely required — 28k rows — but the table
 itself is four fixed columns with one sort key and a handful of AND-ed predicates, all of which
