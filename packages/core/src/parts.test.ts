@@ -14,8 +14,9 @@ const ashPrime = {
 describe('isSet', () => {
   it('is about parts, not about having a recipe', () => {
     expect(isSet(ashPrime)).toBe(true)
-    // Bronco's recipe is a blueprint and four resources. It is craftable; there is nothing
-    // about it to farm that is not already its own item.
+    // A recipe of nothing but resources is a crafting note. The pipeline never emits one and
+    // a build gate fails if it does. isSet cannot be fooled by one even in principle: its
+    // parameter is Pick<Item, 'parts'>, so an ingredient list is not in scope to be counted.
     expect(isSet({ parts: [] })).toBe(false)
     expect(isSet({})).toBe(false)
   })

@@ -38,8 +38,10 @@ export function attemptNoun(kind: string | undefined): AttemptNoun {
 /**
  * The noun for a set of source kinds, or `undefined` where they disagree.
  *
- * 492 of the 3,829 items with a source mix enemy drops with mission or bounty drops, so a
- * table listing every source of one item genuinely has no single noun for its effort column.
+ * Roughly 490 of the 3,800 items with a source mix enemy drops with mission or bounty drops,
+ * so a table listing every source of one item genuinely has no single noun for its effort
+ * column. Deliberately rounded: the exact figure moves with every daily build, and a comment
+ * that drifts is worse than one that admits its own precision.
  * Callers handle that case rather than picking one and being wrong on half the rows.
  */
 export function attemptNounFor(kinds: Iterable<string>): AttemptNoun | undefined {

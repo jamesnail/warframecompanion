@@ -262,7 +262,7 @@ export function BrowseTable() {
           terms={[
             { label: 'Prime', term: 'is:prime' },
             { label: 'Tradable', term: 'is:tradable' },
-            // 455 of 582 prime parts are reachable only through a vaulted relic, so this is
+            // 455 of 588 prime parts are reachable only through a vaulted relic, so this is
             // the difference between "where is it from" and "what can I farm tonight".
             { label: 'Farmable now', term: '-is:vaulted' },
             { label: 'Over 5%', term: 'chance:>5' },
@@ -314,8 +314,30 @@ export function BrowseTable() {
         </div>
       </div>
 
-      <div className="panel mt-2 overflow-hidden">
-        <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,2fr)_5rem] gap-3 border-b border-hairline px-3 py-2 sm:px-5">
+      {/* An ARIA grid rather than a <table>.
+          Every other data surface here is a real table with real <th scope>, and this one
+          cannot be: the rows are absolutely positioned by the virtualizer, which a table's
+          own layout will not do. So it carries the semantics explicitly instead. Without
+          them the site's largest data view was an undifferentiated list of links — no
+          column names, no row position — and the aria-sort below sat on a bare <button>,
+          where it is ignored, so the one affordance that was here did not work either.
+          aria-rowcount is the whole filtered set; aria-rowindex is 1-based with the header
+          as row 1, which is how a screen reader knows row 40 of 4,875 is not row 40 of 12. */}
+      {/* The role is unconditional. Dropping it on an empty result left three columnheaders
+          with no grid to belong to, which is the same orphaning this block exists to fix —
+          and a grid holding only its header row is a perfectly ordinary empty table. */}
+      <div
+        role="grid"
+        aria-label={items ? 'Items' : 'Drop paths'}
+        aria-rowcount={count + 1}
+        aria-colcount={3}
+        className="panel mt-2 overflow-hidden"
+      >
+        <div
+          role="row"
+          aria-rowindex={1}
+          className="grid grid-cols-[minmax(0,2fr)_minmax(0,2fr)_5rem] gap-3 border-b border-hairline px-3 py-2 sm:px-5"
+        >
           <SortHeader column="item" label="Item" filters={filters} setFilters={setFilters} />
           <SortHeader
             column="source"
@@ -347,8 +369,18 @@ export function BrowseTable() {
             )}
           </div>
         ) : (
-          <div ref={scrollRef} className="h-[60vh] overflow-y-auto overscroll-contain">
-            <div className="relative w-full" style={{ height: `${String(virtualizer.getTotalSize())}px` }}>
+          <div
+            ref={scrollRef}
+            role="rowgroup"
+            className="h-[60vh] overflow-y-auto overscroll-contain"
+          >
+            {/* Presentational so the rows below are exposed as children of the rowgroup: a
+                generic element between the two breaks the grid's accessibility tree. */}
+            <div
+              role="presentation"
+              className="relative w-full"
+              style={{ height: `${String(virtualizer.getTotalSize())}px` }}
+            >
               {virtualizer.getVirtualItems().map((virtual) => {
                 const itemRow = items ? visibleItems[virtual.index] : undefined
                 if (itemRow !== undefined) {
@@ -358,6 +390,8 @@ export function BrowseTable() {
                       row={itemRow}
                       height={rowHeight}
                       offset={virtual.start}
+                      // 1-based, with the header occupying row 1.
+                      rowIndex={virtual.index + 2}
                     />
                   )
                 }
@@ -366,10 +400,12 @@ export function BrowseTable() {
                 return (
                   <div
                     key={virtual.key}
+                    role="row"
+                    aria-rowindex={virtual.index + 2}
                     className="absolute inset-x-0 top-0 grid grid-cols-[minmax(0,2fr)_minmax(0,2fr)_5rem] items-center gap-3 border-b border-hairline/50 px-3 text-sm sm:px-5 transition-colors hover:bg-void-800"
                     style={{ height: `${String(rowHeight)}px`, transform: `translateY(${String(virtual.start)}px)` }}
                   >
-                    <div className="min-w-0">
+                    <div role="gridcell" className="min-w-0">
                       <Link
                         href={`/item/${row.itemId}`}
                         className="block truncate text-text transition-colors hover:text-gold"
@@ -378,7 +414,7 @@ export function BrowseTable() {
                       </Link>
                       <span className="label block truncate">{row.category}</span>
                     </div>
-                    <div className={`min-w-0 ${row.vaulted ? 'vaulted' : ''}`}>
+                    <div role="gridcell" className={`min-w-0 ${row.vaulted ? 'vaulted' : ''}`}>
                       <Link
                         href={row.sourceHref}
                         className="block truncate text-text-dim transition-colors hover:text-gold"
@@ -391,7 +427,7 @@ export function BrowseTable() {
                         {row.detail}
                       </span>
                     </div>
-                    <div className="data-num text-right text-text">
+                    <div role="gridcell" className="data-num text-right text-text">
                       {(row.chance * 100).toFixed(2)}%
                       {row.quantity[1] > 1 && (
                         <span className="block text-xs text-text-dim">
@@ -421,13 +457,25 @@ export function BrowseTable() {
  * with what it IS rather than a dash: "built from 4 parts" is the answer to where it comes
  * from, and an em dash is not.
  */
-function ItemRowView({ row, height, offset }: { row: ItemRow; height: number; offset: number }) {
+function ItemRowView({
+  row,
+  height,
+  offset,
+  rowIndex,
+}: {
+  row: ItemRow
+  height: number
+  offset: number
+  rowIndex: number
+}) {
   return (
     <div
+      role="row"
+      aria-rowindex={rowIndex}
       className="absolute inset-x-0 top-0 grid grid-cols-[minmax(0,2fr)_minmax(0,2fr)_5rem] items-center gap-3 border-b border-hairline/50 px-3 text-sm sm:px-5 transition-colors hover:bg-void-800"
       style={{ height: `${String(height)}px`, transform: `translateY(${String(offset)}px)` }}
     >
-      <div className="min-w-0">
+      <div role="gridcell" className="min-w-0">
         <Link
           href={`/item/${row.itemId}`}
           className="block truncate text-text transition-colors hover:text-gold"
@@ -436,7 +484,7 @@ function ItemRowView({ row, height, offset }: { row: ItemRow; height: number; of
         </Link>
         <span className="label block truncate">{row.category}</span>
       </div>
-      <div className={`min-w-0 ${row.vaulted ? 'vaulted' : ''}`}>
+      <div role="gridcell" className={`min-w-0 ${row.vaulted ? 'vaulted' : ''}`}>
         {row.sourceHref === undefined || row.sourceName === undefined ? (
           <span className="block truncate text-text-faint">Not dropped</span>
         ) : (
@@ -457,7 +505,7 @@ function ItemRowView({ row, height, offset }: { row: ItemRow; height: number; of
             : `${row.paths.toLocaleString()} ${row.paths === 1 ? 'path' : 'paths'}`}
         </span>
       </div>
-      <div className="data-num text-right text-text">
+      <div role="gridcell" className="data-num text-right text-text">
         {row.paths === 0 ? <span className="text-text-faint">—</span> : `${(row.chance * 100).toFixed(2)}%`}
       </div>
     </div>
@@ -548,10 +596,16 @@ function SortHeader({
 }) {
   const on = filters.sort === column
   return (
+    // aria-sort is only honoured on a columnheader / rowheader. It sat on the button, where
+    // assistive technology ignores it — RivenTable gets this right with a real <th scope>,
+    // and this is the same intent expressed the only way a virtualized grid can.
+    <div
+      role="columnheader"
+      aria-sort={on ? (filters.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+      className={align === 'right' ? 'justify-self-end' : undefined}
+    >
     <button
       type="button"
-      // A sortable header must announce its state, not just look pressed.
-      aria-sort={on ? (filters.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
       onClick={() => {
         void setFilters(
           on ? { dir: filters.dir === 'asc' ? 'desc' : 'asc' } : { sort: column, dir: 'desc' },
@@ -566,5 +620,6 @@ function SortHeader({
         {filters.dir === 'asc' ? '▲' : '▼'}
       </span>
     </button>
+    </div>
   )
 }

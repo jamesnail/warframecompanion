@@ -44,10 +44,18 @@ wrong, stop and ask.
    "for reference only." If you find yourself writing an `lzma` import inside `apps/web`, you have
    taken a wrong turn.
 
-3. **One server-side escape hatch, and only one:** `apps/web/src/app/api/market/[...path]/route.ts`,
-   an Edge runtime pass-through to `api.warframe.market` used solely because that API may not send
-   CORS headers. It is stateless, caches aggressively, forwards no cookies, and accepts no
-   client-supplied hostnames. Do not add a second route handler without asking.
+3. **No server routes at all.** `apps/web/src/app/api/` does not exist and never has.
+
+   This constraint used to describe a market proxy at `api/market/[...path]/route.ts` as the
+   one permitted escape hatch. It was planned, then made unnecessary before it was written:
+   prices are swept at build time (see *Market prices*), so nothing needs to talk to
+   warframe.market at runtime. The file was documented for a year and never existed — corrected
+   2026-09-03. Do not "restore" it, and do not assume a proxy is available.
+
+   **The one runtime call to a host we do not serve** is `oracle.browse.wf` in
+   `apps/web/src/lib/client/world-state.ts`, which mirrors DE's own `worldState` and sends
+   `access-control-allow-origin: *`, so it needs no proxy. That is the whole list. Adding a
+   route handler, or a second external host, is an ask-first change.
 
 4. **Every page is statically prerendered.** No `dynamic = 'force-dynamic'`, no server-side data
    fetching in components, no ISR. The build emits HTML; Vercel serves it from the edge.
@@ -185,8 +193,8 @@ every prime Warframe in the game. And **only an item with a part is a set**: `is
 ingredients and no parts. This replaced a heuristic ("inherit unless it builds into more than
 one thing") that was wrong in both directions — it leaked 16 single-use resources, Oxium and
 Cryotic among them, and stripped genuine parts from the four Ak- weapons. Measured after: no
-part is shared between two sets, asserted over the whole corpus in
-`apps/web/src/lib/query-index.test.ts`. Do not reintroduce a single `components` field.
+part is shared between two sets — fan-in is exactly 1 over all 931 of them — asserted over
+the whole corpus in `apps/web/src/lib/query-index.test.ts`. Do not reintroduce a single `components` field.
 Ingredients are still shown — under the recipe table, without a tick — because a recipe that
 hides what it consumes is incomplete, not clean. See DESIGN.md § 20.
 
@@ -314,6 +322,12 @@ Full system in DESIGN.md. The rules Claude Code must not violate:
   a reader who asked for less movement did not ask for less texture.
 - Quality floor, unannounced: responsive to 360px, visible keyboard focus rings, real `<th>` scopes
   on data tables, contrast ≥ 4.5:1 for body text.
+- **A virtualized list is still a data table and must still say so.** `/browse` cannot use
+  `<table>` — the virtualizer absolutely positions its rows — so it carries `role="grid"`,
+  `aria-rowcount`/`aria-rowindex`, `role="columnheader"` and `role="gridcell"` instead. This is
+  not optional decoration: it shipped without them and was an undifferentiated list of links to a
+  screen reader, with `aria-sort` sitting on a bare `<button>` where it is silently ignored.
+  `aria-sort` goes on the columnheader, never on the control inside it.
 
 ---
 
@@ -368,4 +382,4 @@ Stop and check with the owner rather than deciding unilaterally:
 A change is complete when `pnpm typecheck`, `pnpm lint`, `pnpm test`, and `pnpm build` all pass;
 new probability logic has unit tests with hand-verified expected values; the UI works at 360px
 and with keyboard only; and no new client-side network call points at a non-same-origin host
-except the market proxy.
+except `oracle.browse.wf` (constraint 3).

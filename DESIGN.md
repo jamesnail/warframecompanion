@@ -1459,8 +1459,10 @@ cleanly on today's data but would have to be maintained against upstream miscate
 and Ferrite and Neurodes are already filed as `Other`.
 
 Measured after the change: **no part is shared between two sets** — fan-in over parts is
-exactly 1 for all 927 of them — so the rollup cannot double-count, and the assertion runs over
-the whole corpus on every test run. As a side effect the four Ak- weapons stopped listing their
+exactly 1 for all 931 of them, across 313 items — so the rollup cannot double-count, and the
+assertion runs over the whole corpus on every test run. (The pipeline reports 927, counting
+only the 309 sets it synthesises; the other four are items that also drop directly and were
+enriched in place.) As a side effect the four Ak- weapons stopped listing their
 single twice and now list it once at ×2.
 
 Ingredients did not disappear from the UI. They render under the recipe table, without a

@@ -43,8 +43,16 @@ export function OrokinText({
   const [revealed, setRevealed] = useState(text.length)
 
   useEffect(() => {
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (reduced) return
+    /**
+     * Read the RESOLVED preference, not the OS one.
+     *
+     * `data-motion` is written before first paint by the script in layout.tsx, which already
+     * folds together the viewer's own setting and `prefers-reduced-motion` — and the setting
+     * can say `reduced` while the OS says nothing at all. Asking `matchMedia` directly missed
+     * exactly that case, so a viewer who turned motion down in Settings stopped every CSS
+     * animation on the site and kept the one that loops.
+     */
+    if (document.documentElement.dataset.motion === 'reduced') return
 
     setRevealed(0)
 

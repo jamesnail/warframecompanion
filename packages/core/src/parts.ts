@@ -11,10 +11,13 @@ import type { Item } from './types'
 /**
  * True where this item is assembled from farmable pieces.
  *
- * Parts, not ingredients: 313 items carry a recipe, and the two that consist purely of
- * resources — Bronco and Gammacor, whose only non-resource line is a blueprint shared with
- * another weapon — are craftable but are not sets, because there is nothing about them to
- * farm that is not already its own item.
+ * Parts, not the whole recipe. 313 items carry one; all 313 have at least one part, because
+ * the pipeline refuses to emit a recipe that is nothing but resources — such a thing is a
+ * crafting note, not a farm, and the build fails if one reaches the output.
+ *
+ * The count of parts is deliberately not the count of things to buy: Bronco's single part is
+ * its blueprint, which is bought rather than dropped, and the 1,200 Alloy Plate beside it is
+ * an ingredient. "One part" is the honest answer there even though it reads thin.
  */
 export function isSet(item: Pick<Item, 'parts'>): boolean {
   return (item.parts?.length ?? 0) > 0
