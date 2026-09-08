@@ -1,20 +1,20 @@
 {
-  "hash": "e797d09b8afe",
+  "hash": "063586c2643f",
   "builtAt": "2026-06-25T20:55:17.196Z",
   "files": {
-    "items": "items.e797d09b8afe.json",
-    "sources": "sources.e797d09b8afe.json",
-    "edges": "edges.e797d09b8afe.json",
-    "relics": "relics.e797d09b8afe.json",
-    "rivens": "rivens.e797d09b8afe.json",
-    "nodes": "nodes.e797d09b8afe.json",
-    "planets": "planets.e797d09b8afe.json",
-    "guides": "guides.e797d09b8afe.json",
-    "prices": "prices.4930287bebbf.json"
+    "items": "items.063586c2643f.json",
+    "sources": "sources.063586c2643f.json",
+    "edges": "edges.063586c2643f.json",
+    "relics": "relics.063586c2643f.json",
+    "rivens": "rivens.063586c2643f.json",
+    "nodes": "nodes.063586c2643f.json",
+    "planets": "planets.063586c2643f.json",
+    "guides": "guides.063586c2643f.json",
+    "prices": "prices.70fe27d69dc4.json"
   },
   "upstream": {
     "warframe-drop-data": "a0ece5e9be2e2d55c75040720ef3226a",
-    "riven-trades-fetched": "2026-09-07T11:28:47.481Z"
+    "riven-trades-fetched": "2026-09-08T10:39:00.009Z"
   },
   "attributions": [
     {
@@ -49,6 +49,6 @@
     "rivens": 516,
     "planets": 24,
     "guides": 5,
-    "prices": 3000
+    "prices": 2998
   }
 }
