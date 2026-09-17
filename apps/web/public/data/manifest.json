@@ -10,11 +10,11 @@
     "nodes": "nodes.a3cb9b5925cd.json",
     "planets": "planets.a3cb9b5925cd.json",
     "guides": "guides.a3cb9b5925cd.json",
-    "prices": "prices.8689b7210d72.json"
+    "prices": "prices.df7e3ce709b1.json"
   },
   "upstream": {
     "warframe-drop-data": "a0ece5e9be2e2d55c75040720ef3226a",
-    "riven-trades-fetched": "2026-09-16T10:52:09.072Z"
+    "riven-trades-fetched": "2026-09-17T11:02:11.878Z"
   },
   "attributions": [
     {
@@ -49,6 +49,6 @@
     "rivens": 516,
     "planets": 24,
     "guides": 5,
-    "prices": 2942
+    "prices": 2958
   }
 }
